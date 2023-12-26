@@ -2,6 +2,7 @@ import json
 import urllib
 import uuid
 
+import pytest
 import requests
 
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
@@ -65,6 +66,81 @@ def delete_organization_user(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/organization/v1/users/organizations/{id}'.replace("{id}", user_id),
                            headers=headers)
+
+
+def create_patient(auth_token, name, email, template_name, organization_id):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "email-confirmation-landing-page": "https://example.com/en/landing-page",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {
+        "_name": name,
+        "_description": "Lorem Ipsum",
+        "_email": email,
+        "_phone": "+12345678901",
+        "_locale": "en-us",
+        "_gender": "FEMALE",
+        "_dateOfBirth": "2007-12-20",
+        "_address": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        "_mfa": {
+            "enabled": False,
+
+        },
+        "_additionalPhone": "+12345678901",
+        "_nationalId": "123456789",
+        "_ownerOrganization": {
+            "id": organization_id
+        },
+        "_caregiver": {
+
+        }
+    }
+    return requests.post(ENDPOINT + '/organization/v1/users/patients/templates/{templateName}'
+                         .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
+
+
+def update_patient(auth_token, patient_id, organization_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_name": {
+            "firstName": "John",
+            "lastName": "Smith"
+        },
+        "_description": change_string,
+        "_email": "john.smith@biot-med.com",
+        "_phone": "+12345678901",
+        "_locale": "en-us",
+        "_gender": "FEMALE",
+        "_dateOfBirth": "2007-12-20",
+        "_address": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        "_mfa": {
+            "enabled": False,
+
+        },
+        "_additionalPhone": "+12345678901",
+        "_nationalId": "123456789",
+        "_ownerOrganization": {
+            "id": organization_id
+        },
+      }
+    return requests.patch(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id),
+                          headers=headers, data=json.dumps(payload))
 
 
 def delete_patient(auth_token, user_id):
@@ -192,18 +268,16 @@ def get_organization(auth_token, organization_id):
 
 def get_organization_list(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {
-        "sort": [
-            {
-                "prop": "_id",
-                "eq": organization_id,
-                "order": "ASC"
-            }
-        ],
-        "limit": 10,
-        "page": 3
-    }
-    #querystring = urllib.parse.urlencode(query_params)
+    query_params = {}
+    #        {
+    #        "filter": [
+    #            {
+    #                #"_id" : { "eq": organization_id}
+    #
+    #            }
+    #        ],
+    #    }
+    #    #querystring = urllib.parse.urlencode(query_params)
     return requests.get(ENDPOINT + '/organization/v1/organizations', data=json.dumps(query_params), headers=headers)
 
 

@@ -3,10 +3,11 @@ import os
 from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
                      identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
                      delete_patient, get_device, delete_device, create_organization, delete_organization,
-                     update_organization, get_organization, get_organization_list)
+                     update_organization, get_organization, get_organization_list, create_patient, update_patient)
 
 user_name = os.getenv('USERNAME')  # Has to be set in the environment in advance
 pass_word = os.getenv('PASSWORD')
+
 admin_auth_token = login_with_with_credentials(user_name, pass_word)
 
 
@@ -37,13 +38,14 @@ def test_patient_organization_abac_rules():
     patient_id = self_signup_response_code.json()['patient']['_id']
     patient_auth_token = login_with_with_credentials(email, "Ab12z456")
 
-    # create, update and delete organization must fail
+    # create, update  and delete organization must fail
     create_organization_response = create_organization(patient_auth_token, template_id)
     assert create_organization_response.status_code == 403
     delete_organization_response = delete_organization(patient_auth_token, organization_id)
     assert delete_organization_response.status_code == 403
     update_organization_response = update_organization(patient_auth_token, organization_id, "changed test text")
     assert update_organization_response.status_code == 403
+
 
     # Get organization by list or by id -- only for own organization
     get_organization_response = get_organization(patient_auth_token, organization_id)
@@ -56,8 +58,8 @@ def test_patient_organization_abac_rules():
     get_organization_list_response = get_organization_list(patient_auth_token, organization_id)
     assert get_organization_list_response.status_code == 200
     # negative
-    get_organization_list_response = get_organization_list(patient_auth_token, "00000000-0000-0000-0000-000000000000")
-    #assert get_organization_list_response.status_code == 403
+    get_organization_list_response = get_organization_list(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    assert get_organization_list_response.status_code == 200
 
     # Teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
@@ -100,6 +102,25 @@ def test_patient_patient_abac_rules():
     # login with one of the two patients
     patient_auth_token = login_with_with_credentials(email[0], "Ab12z456")
     # Create and delete patient should fail
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16]
+    email = email + '_@biotmail.com'
+    # create patient
+    test_patient_create_response = create_patient(patient_auth_token, test_name, email, "Patient",
+                                                  "00000000-0000-0000-0000-000000000000")
+    assert test_patient_create_response.status_code == 403
+    # delete patient (use second patient created)
+    test_patient_delete_response = delete_patient(patient_auth_token, patient_id[1])
+    assert test_patient_delete_response.status_code == 403
+
+    # update patient only for self
+    update_patient_response_code = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000", "change string")
+    assert update_patient_response_code.status_code == 200
+    # should fail for other patient
+    update_patient_response_code = update_patient(patient_auth_token, patient_id[1],
+                                                  "00000000-0000-0000-0000-000000000000", "change string")
+    assert update_patient_response_code.status_code == 403
 
     # Teardown
     for n in range(2):
