@@ -1,4 +1,5 @@
 import json
+import urllib
 import uuid
 
 import requests
@@ -189,19 +190,21 @@ def get_organization(auth_token, organization_id):
                         headers=headers)
 
 
-def get_organization_list(auth_token):
+def get_organization_list(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
+    query_params = {
         "sort": [
             {
-                "prop": "_name",
+                "prop": "_id",
+                "eq": organization_id,
                 "order": "ASC"
             }
         ],
-        "limit": 10
+        "limit": 10,
+        "page": 3
     }
-    return requests.post(ENDPOINT + '/organization/v1/organizations?searchRequest=>' + json.dumps(payload),
-                         headers=headers)
+    #querystring = urllib.parse.urlencode(query_params)
+    return requests.get(ENDPOINT + '/organization/v1/organizations', data=json.dumps(query_params), headers=headers)
 
 
 def delete_organization(auth_token, organization_id):
@@ -211,10 +214,10 @@ def delete_organization(auth_token, organization_id):
                            headers=headers)
 
 
-def update_organization(auth_token, organization_id):
+def update_organization(auth_token, organization_id, change_string):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
-        "_name": "Example Inc.",
+        "_name": change_string,
         "_description": "Lorem Ipsum",
         "_headquarters": {
             "countryCode": "US",
