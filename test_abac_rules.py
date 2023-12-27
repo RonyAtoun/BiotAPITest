@@ -54,12 +54,14 @@ def test_patient_organization_abac_rules():
     # negative
     get_organization_response = get_organization(patient_auth_token, "00000000-0000-0000-0000-000000000000")
     assert get_organization_response.status_code == 403
-    # positive (own organization)
+    # positive (own organization should return one result)
     get_organization_list_response = get_organization_list(patient_auth_token, organization_id)
     assert get_organization_list_response.status_code == 200
-    # negative
+    assert get_organization_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined organizations)
     get_organization_list_response = get_organization_list(admin_auth_token, "00000000-0000-0000-0000-000000000000")
     assert get_organization_list_response.status_code == 200
+    assert get_organization_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # Teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
@@ -121,6 +123,12 @@ def test_patient_patient_abac_rules():
     update_patient_response_code = update_patient(patient_auth_token, patient_id[1],
                                                   "00000000-0000-0000-0000-000000000000", "change string")
     assert update_patient_response_code.status_code == 403
+
+    # get patient only for self
+
+    # search patient only for self
+
+    # enable/disable should fail
 
     # Teardown
     for n in range(2):
