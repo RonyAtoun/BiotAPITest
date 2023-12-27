@@ -3,7 +3,8 @@ import os
 from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
                      identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
                      delete_patient, get_device, delete_device, create_organization, delete_organization,
-                     update_organization, get_organization, get_organization_list, create_patient, update_patient)
+                     update_organization, get_organization, get_organization_list, create_patient, update_patient,
+                     get_patient, get_patient_list, change_patient_state)
 
 user_name = os.getenv('USERNAME')  # Has to be set in the environment in advance
 pass_word = os.getenv('PASSWORD')
@@ -30,12 +31,12 @@ def test_patient_organization_abac_rules():
     registration_code_id = create_registration_code_response.json()['_id']
     device_template_name = 'DeviceType1'
     device_id = f'test_{uuid.uuid4().hex}'[0:16]
-    create_device_response_code = create_device(admin_auth_token, device_template_name, device_id, registration_code_id)
-    assert create_device_response_code.status_code == 201
-    self_signup_response_code = identified_self_signup_with_registration_code(admin_auth_token, test_name, email,
-                                                                              registration_code, organization_id)
-    assert self_signup_response_code.status_code == 201
-    patient_id = self_signup_response_code.json()['patient']['_id']
+    create_device_response = create_device(admin_auth_token, device_template_name, device_id, registration_code_id)
+    assert create_device_response.status_code == 201
+    self_signup_response = identified_self_signup_with_registration_code(admin_auth_token, test_name, email,
+                                                                         registration_code, organization_id)
+    assert self_signup_response.status_code == 201
+    patient_id = self_signup_response.json()['patient']['_id']
     patient_auth_token = login_with_with_credentials(email, "Ab12z456")
 
     # create, update  and delete organization must fail
@@ -46,7 +47,6 @@ def test_patient_organization_abac_rules():
     update_organization_response = update_organization(patient_auth_token, organization_id, "changed test text")
     assert update_organization_response.status_code == 403
 
-
     # Get organization by list or by id -- only for own organization
     get_organization_response = get_organization(patient_auth_token, organization_id)
     # positive (own organization)
@@ -55,19 +55,19 @@ def test_patient_organization_abac_rules():
     get_organization_response = get_organization(patient_auth_token, "00000000-0000-0000-0000-000000000000")
     assert get_organization_response.status_code == 403
     # positive (own organization should return one result)
-    get_organization_list_response = get_organization_list(patient_auth_token, organization_id)
+    get_organization_list_response = get_organization_list(patient_auth_token)
     assert get_organization_list_response.status_code == 200
     assert get_organization_list_response.json()['metadata']['page']['totalResults'] == 1
     # negative (system admin should get all defined organizations)
-    get_organization_list_response = get_organization_list(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    get_organization_list_response = get_organization_list(admin_auth_token)
     assert get_organization_list_response.status_code == 200
     assert get_organization_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # Teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
-    delete_device_response_code = delete_device(admin_auth_token, device_id)
-    assert delete_device_response_code.status_code == 204
+    delete_device_response = delete_device(admin_auth_token, device_id)
+    assert delete_device_response.status_code == 204
     delete_registration_response = delete_registration_code(admin_auth_token, registration_code_id)
     assert delete_registration_response.status_code == 204
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
@@ -93,13 +93,14 @@ def test_patient_patient_abac_rules():
         registration_code_id.append(create_registration_code_response.json()['_id'])
         device_template_name = 'DeviceType1'
         device_id.append(f'test_{uuid.uuid4().hex}'[0:16])
-        create_device_response_code = create_device(admin_auth_token, device_template_name, device_id[n],
-                                                    registration_code_id[n])
-        assert create_device_response_code.status_code == 201
-        self_signup_response_code = identified_self_signup_with_registration_code(admin_auth_token, test_name, email[n],
-                                                    registration_code[n], "00000000-0000-0000-0000-000000000000")
-        assert self_signup_response_code.status_code == 201
-        patient_id.append(self_signup_response_code.json()['patient']['_id'])
+        create_device_response = create_device(admin_auth_token, device_template_name, device_id[n],
+                                               registration_code_id[n])
+        assert create_device_response.status_code == 201
+        self_signup_response = identified_self_signup_with_registration_code(admin_auth_token, test_name, email[n],
+                                                                             registration_code[n],
+                                                                             "00000000-0000-0000-0000-000000000000")
+        assert self_signup_response.status_code == 201
+        patient_id.append(self_signup_response.json()['patient']['_id'])
 
     # login with one of the two patients
     patient_auth_token = login_with_with_credentials(email[0], "Ab12z456")
@@ -117,24 +118,39 @@ def test_patient_patient_abac_rules():
     assert test_patient_delete_response.status_code == 403
 
     # update patient only for self
-    update_patient_response_code = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000", "change string")
-    assert update_patient_response_code.status_code == 200
+    update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
+                                             "change string")
+    assert update_patient_response.status_code == 200
     # should fail for other patient
-    update_patient_response_code = update_patient(patient_auth_token, patient_id[1],
-                                                  "00000000-0000-0000-0000-000000000000", "change string")
-    assert update_patient_response_code.status_code == 403
+    update_patient_response = update_patient(patient_auth_token, patient_id[1],
+                                             "00000000-0000-0000-0000-000000000000", "change string")
+    assert update_patient_response.status_code == 403
 
     # get patient only for self
+    get_patient_response = get_patient(patient_auth_token, patient_id[0])  # self
+    assert get_patient_response.status_code == 200
+    get_patient_response = get_patient(patient_auth_token, patient_id[1])  # other patient
+    assert get_patient_response.status_code == 403
 
     # search patient only for self
+    # Positive - for self
+    get_patient_list_response = get_patient_list(patient_auth_token)
+    assert get_patient_list_response.status_code == 200
+    assert get_patient_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined patients)
+    get_patient_list_response = get_patient_list(admin_auth_token)
+    assert get_patient_list_response.status_code == 200
+    assert get_patient_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # enable/disable should fail
+    change_patient_state_response = change_patient_state(patient_auth_token, patient_id[0], "ENABLED")
+    assert change_patient_state_response.status_code == 401
 
     # Teardown
     for n in range(2):
         delete_patient_response = delete_patient(admin_auth_token, patient_id[n])
         assert delete_patient_response.status_code == 204
-        delete_device_response_code = delete_device(admin_auth_token, device_id[n])
-        assert delete_device_response_code.status_code == 204
+        delete_device_response = delete_device(admin_auth_token, device_id[n])
+        assert delete_device_response.status_code == 204
         delete_registration_response = delete_registration_code(admin_auth_token, registration_code_id[n])
         assert delete_registration_response.status_code == 204

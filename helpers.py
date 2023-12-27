@@ -1,7 +1,5 @@
 import json
-import urllib
 import uuid
-
 import pytest
 import requests
 
@@ -109,6 +107,8 @@ def create_patient(auth_token, name, email, template_name, organization_id):
 
 
 def update_patient(auth_token, patient_id, organization_id, change_string):
+    email = f'integ_test_{uuid.uuid4().hex}'[0:32]
+    email = email + '_@biotmail.com'
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_name": {
@@ -116,7 +116,7 @@ def update_patient(auth_token, patient_id, organization_id, change_string):
             "lastName": "Smith"
         },
         "_description": change_string,
-        "_email": "john.smith@biot-med.com",
+        "_email": email,
         "_phone": "+12345678901",
         "_locale": "en-us",
         "_gender": "FEMALE",
@@ -143,16 +143,22 @@ def update_patient(auth_token, patient_id, organization_id, change_string):
                           headers=headers, data=json.dumps(payload))
 
 
-def get_patient():
-    pass
+def get_patient(auth_token, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/users/patients/{id}'.replace('{id}', patient_id),
+                        headers=headers)
 
 
-def get_patient_list():
-    pass
+def get_patient_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/organization/v1/users/patients', data=json.dumps(query_params), headers=headers)
 
 
-def enable_patient_state():
-    pass
+def change_patient_state(auth_token, patient_id, state):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.post(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id) +
+                         '/enabled-state/{state}'.replace('{state}', state))
 
 
 def delete_patient(auth_token, user_id):
@@ -278,7 +284,7 @@ def get_organization(auth_token, organization_id):
                         headers=headers)
 
 
-def get_organization_list(auth_token, organization_id):
+def get_organization_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
     #        {
