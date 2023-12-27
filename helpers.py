@@ -138,9 +138,21 @@ def update_patient(auth_token, patient_id, organization_id, change_string):
         "_ownerOrganization": {
             "id": organization_id
         },
-      }
+    }
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id),
                           headers=headers, data=json.dumps(payload))
+
+
+def get_patient():
+    pass
+
+
+def get_patient_list():
+    pass
+
+
+def enable_patient_state():
+    pass
 
 
 def delete_patient(auth_token, user_id):
