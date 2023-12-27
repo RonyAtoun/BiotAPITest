@@ -6,7 +6,7 @@ from urllib.parse import unquote, parse_qs, urlparse
 
 MAX_RETRIES = 3
 
-slack_token = "xoxb-16661763383-6390244962945-Hz1owEsHWYEFCrGh0CXevcVb"
+#slack_token = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 channel_id = "C04M7N12T7G"
 url = f"https://slack.com/api/conversations.history"
 
