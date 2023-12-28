@@ -5,7 +5,8 @@ from helpers import (login_with_with_credentials, create_registration_code, dele
                      identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
                      delete_patient, get_device, delete_device, create_organization, delete_organization,
                      update_organization, get_organization, get_organization_list, create_patient, update_patient,
-                     get_patient, get_patient_list, change_patient_state)
+                     get_patient, get_patient_list, change_patient_state, create_caregiver, update_caregiver,
+                     delete_caregiver, change_caregiver_state, get_caregiver, get_caregiver_list, resend_invitation)
 
 
 #############################################################################################
@@ -77,11 +78,12 @@ def test_patient_patient_abac_rules():
 
     # update patient only for self
     update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
-                                             "change string")
+                                             "change string", None)
     assert update_patient_response.status_code == 200
     # should fail for other patient
     update_patient_response = update_patient(patient_auth_token, patient_id[1],
-                                             "00000000-0000-0000-0000-000000000000", "change string")
+                                             "00000000-0000-0000-0000-000000000000",
+                                             "change string", None)
     assert update_patient_response.status_code == 403
 
     # get patient only for self
@@ -104,6 +106,10 @@ def test_patient_patient_abac_rules():
     change_patient_state_response = change_patient_state(patient_auth_token, patient_id[0], "ENABLED")
     assert change_patient_state_response.status_code == 401
 
+    # resend invitation fails
+    resend_invitation_response = resend_invitation(patient_auth_token, patient_id[0])
+    assert resend_invitation_response.status_code == 401  #### getting 401  ok?
+
     # Teardown
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
@@ -113,14 +119,74 @@ def test_patient_caregiver_abac_rules():
     # create two patients, registration codes and devices
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000")
     patient_id = patient_setup['patient_id']
-    email = patient_setup['email']
-    device_id = patient_setup['device_id']
-    registration_code = patient_setup['registration_code']
-    registration_code_id = patient_setup['registration_code_id']
-    patient_auth_token = patient_setup['patient_auth_token']
+    patient_auth_token = patient_setup['patient_auth_token']  # logged in with first of two emails created
+    patient_email = patient_setup['email']
+
+    # create caregiver by admin
+    tmp = f'integ_test_{uuid.uuid4().hex}'[0:16]
+    caregiver_email = tmp + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, "Clinician",
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+
+    # associate first of two patients setup with caregiver
+    update_patient_response = update_patient(admin_auth_token, patient_id[0],
+                                             "00000000-0000-0000-0000-000000000000", "change string",
+                                             caregiver_id)
+    assert update_patient_response.status_code == 200
+
+    # create caregiver by patient should fail
+    tmp = f'integ_test_{uuid.uuid4().hex}'[0:16]
+    caregiver_email = tmp + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(patient_auth_token, test_name, caregiver_email, "Clinician",
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 403
+
+    # update caregiver by patient should fail
+    update_caregiver_response = update_caregiver(patient_auth_token, caregiver_id,
+                                                 "00000000-0000-0000-0000-000000000000", "change string")
+    assert update_caregiver_response.status_code == 403
+
+    # delete caregiver by patient should fail
+    delete_caregiver_response = delete_caregiver(patient_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 403
+
+    # change caregiver state by patient should fail
+    change_caregiver_state_response = change_caregiver_state(patient_auth_token, caregiver_id, "ENABLED")
+    assert change_caregiver_state_response.status_code == 401
+
+    # get caregiver by patient only for self
+    get_caregiver_response = get_caregiver(patient_auth_token, caregiver_id)
+    assert get_caregiver_response.status_code == 200
+    # login with the second patient who is not associated with caregiver
+    patient2_auth_token = login_with_with_credentials(patient_email[1], "Ab12z456")
+    # get should now fail
+    get_caregiver_response = get_caregiver(patient2_auth_token, caregiver_id)
+    assert get_caregiver_response.status_code == 403
+
+    # search caregiver by patient only for self
+    # Positive - for self
+    get_caregiver_list_response = get_caregiver_list(patient_auth_token)
+    assert get_caregiver_list_response.status_code == 200
+    assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined patients)
+    get_caregiver_list_response = get_caregiver_list(admin_auth_token)
+    assert get_caregiver_list_response.status_code == 200
+    assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] > 1
+
+    # resend invitation fails
+    resend_invitation_response = resend_invitation(patient_auth_token, caregiver_id)
+    assert resend_invitation_response.status_code == 401   #### getting 401  ok?
 
     # Teardown
     self_signup_patient_teardown(admin_auth_token, patient_setup)
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id):
@@ -146,7 +212,7 @@ def self_signup_patient_setup(admin_auth_token, organization_id):
                                                registration_code_id[n])
         assert create_device_response.status_code == 201
         self_signup_response = identified_self_signup_with_registration_code(admin_auth_token, test_name, email[n],
-                                            registration_code[n], organization_id)
+                                                                             registration_code[n], organization_id)
         assert self_signup_response.status_code == 201
         patient_id.append(self_signup_response.json()['patient']['_id'])
 
