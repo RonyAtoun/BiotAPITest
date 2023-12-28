@@ -1,6 +1,5 @@
 import json
 import uuid
-import pytest
 import requests
 
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
