@@ -2,7 +2,7 @@ import uuid
 import os
 
 from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
-                     identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
+                     identified_self_signup_with_registration_code,
                      delete_patient, get_device, delete_device, create_organization, delete_organization,
                      update_organization, get_organization, get_organization_list, create_patient, update_patient,
                      get_patient, get_patient_list, change_patient_state, create_caregiver, update_caregiver,
@@ -66,8 +66,7 @@ def test_patient_patient_abac_rules():
     # Create and delete patient should fail
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    email = email + '_@biotmail.com'
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create patient
     test_patient_create_response = create_patient(patient_auth_token, test_name, email, "Patient",
                                                   "00000000-0000-0000-0000-000000000000")
@@ -104,7 +103,7 @@ def test_patient_patient_abac_rules():
 
     # enable/disable should fail
     change_patient_state_response = change_patient_state(patient_auth_token, patient_id[0], "ENABLED")
-    assert change_patient_state_response.status_code == 401
+    assert change_patient_state_response.status_code == 403
 
     # resend invitation fails
     resend_invitation_response = resend_invitation(patient_auth_token, patient_id[0])
@@ -123,8 +122,7 @@ def test_patient_caregiver_abac_rules():
     patient_email = patient_setup['email']
 
     # create caregiver by admin
-    tmp = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    caregiver_email = tmp + '_@biotmail.com'
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, "Clinician",
@@ -139,8 +137,7 @@ def test_patient_caregiver_abac_rules():
     assert update_patient_response.status_code == 200
 
     # create caregiver by patient should fail
-    tmp = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    caregiver_email = tmp + '_@biotmail.com'
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(patient_auth_token, test_name, caregiver_email, "Clinician",
@@ -158,7 +155,7 @@ def test_patient_caregiver_abac_rules():
 
     # change caregiver state by patient should fail
     change_caregiver_state_response = change_caregiver_state(patient_auth_token, caregiver_id, "ENABLED")
-    assert change_caregiver_state_response.status_code == 401
+    assert change_caregiver_state_response.status_code == 403
 
     # get caregiver by patient only for self
     get_caregiver_response = get_caregiver(patient_auth_token, caregiver_id)
@@ -199,8 +196,7 @@ def self_signup_patient_setup(admin_auth_token, organization_id):
     for n in range(2):
         test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                      "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-        tmp = (f'integ_test_{uuid.uuid4().hex}'[0:16])
-        email.append(tmp + '_@biotmail.com')
+        email.append(f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com')
         template_name = "RegistrationCode"
         create_registration_code_response = create_registration_code(admin_auth_token, template_name, str(uuid.uuid4()))
         assert create_registration_code_response.status_code == 201
@@ -230,9 +226,7 @@ def self_signup_patient_setup(admin_auth_token, organization_id):
 
 def self_signup_patient_teardown(admin_auth_token, patient_setup):
     patient_id = patient_setup['patient_id']
-    email = patient_setup['email']
     device_id = patient_setup['device_id']
-    registration_code = patient_setup['registration_code']
     registration_code_id = patient_setup['registration_code_id']
     # Teardown
     for n in range(2):

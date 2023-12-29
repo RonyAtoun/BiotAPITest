@@ -107,23 +107,9 @@ def create_patient(auth_token, name, email, template_name, organization_id):
 
 def update_patient(auth_token, patient_id, organization_id, change_string, caregiver_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    if caregiver_id is None:
-        payload = {
-            "_description": change_string,
-            "_ownerOrganization": {
-                "id": organization_id
-            }
-        }
-    else:
-        payload = {
-            "_description": change_string,
-            "_ownerOrganization": {
-                "id": organization_id
-            },
-            "_caregiver": {
-                "id": caregiver_id
-            }
-        }
+    payload = {"_description": change_string, "_ownerOrganization": {"id": organization_id}} \
+        if (caregiver_id is None) else {"_description": change_string, "_ownerOrganization": {"id": organization_id},
+                                        "_caregiver": {"id": caregiver_id}}
 
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id),
                           headers=headers, data=json.dumps(payload))
@@ -144,7 +130,7 @@ def get_patient_list(auth_token):
 def change_patient_state(auth_token, patient_id, state):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id) +
-                         '/enabled-state/{state}'.replace('{state}', state))
+                         '/enabled-state/{state}'.replace('{state}', state), headers=headers)
 
 
 def delete_patient(auth_token, user_id):
@@ -194,7 +180,7 @@ def delete_caregiver(auth_token, user_id):
 def change_caregiver_state(auth_token, caregiver_id, state):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/organization/v1/users/caregivers/{id}'.replace("{id}", caregiver_id) +
-                         '/enabled-state/{state}'.replace('{state}', state))
+                         '/enabled-state/{state}'.replace('{state}', state), headers=headers)
 
 
 def get_caregiver(auth_token, caregiver_id):
@@ -217,7 +203,6 @@ def reset_password(auth_token, user_id):
 def resend_invitation(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/organization/v1/{userId}'.replace('{userId}', user_id), headers=headers)
-
 
 
 def create_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
@@ -272,8 +257,7 @@ def delete_generic_entity(auth_token, entity_id):
 
 
 def create_organization(auth_token, template_id):
-    email = f'integ_test_{uuid.uuid4().hex}'[0:32]
-    email = email + '_@biotmail.com'
+    email = f'integ_test_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
     organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
     headers = {
         "accept": "application/json",
@@ -335,20 +319,11 @@ def get_organization(auth_token, organization_id):
 def get_organization_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
-    #        {
-    #        "filter": [
-    #            {
-    #                #"_id" : { "eq": organization_id}
-    #
-    #            }
-    #        ],
-    #    }
     return requests.get(ENDPOINT + '/organization/v1/organizations', data=json.dumps(query_params), headers=headers)
 
 
 def delete_organization(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-
     return requests.delete(ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
                            headers=headers)
 
