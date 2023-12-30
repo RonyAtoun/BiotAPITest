@@ -65,6 +65,36 @@ def delete_organization_user(auth_token, user_id):
                            headers=headers)
 
 
+def update_organization_user(auth_token, user_id, organization_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": change_string,
+        "_ownerOrganization": {
+            "id": organization_id
+        },
+    }
+    return requests.patch(ENDPOINT + '/organization/v1/users/organizations/{id}'.replace("{id}", user_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def get_organization_user(auth_token, user_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/users/organizations/{id}'.replace('{id}', user_id),
+                        headers=headers)
+
+
+def get_organization_user_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/organization/v1/users/organizations', data=json.dumps(query_params), headers=headers)
+
+
+def change_organization_user_state(auth_token, user_id, state):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.post(ENDPOINT + '/organization/v1/users/organizations/{id}'.replace("{id}", user_id) +
+                         '/enabled-state/{state}'.replace('{state}', state), headers=headers)
+
+
 def create_patient(auth_token, name, email, template_name, organization_id):
     headers = {
         "accept": "application/json",
@@ -202,7 +232,7 @@ def reset_password(auth_token, user_id):
 
 def resend_invitation(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.post(ENDPOINT + '/organization/v1/{userId}'.replace('{userId}', user_id), headers=headers)
+    return requests.post(ENDPOINT + '/organization/v1/invitations/{userId}'.replace('{userId}', user_id), headers=headers)
 
 
 def create_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
