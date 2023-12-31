@@ -86,7 +86,8 @@ def get_organization_user(auth_token, user_id):
 def get_organization_user_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
-    return requests.get(ENDPOINT + '/organization/v1/users/organizations', data=json.dumps(query_params), headers=headers)
+    return requests.get(ENDPOINT + '/organization/v1/users/organizations', data=json.dumps(query_params),
+                        headers=headers)
 
 
 def change_organization_user_state(auth_token, user_id, state):
@@ -232,7 +233,8 @@ def reset_password(auth_token, user_id):
 
 def resend_invitation(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.post(ENDPOINT + '/organization/v1/invitations/{userId}'.replace('{userId}', user_id), headers=headers)
+    return requests.post(ENDPOINT + '/organization/v1/invitations/{userId}'.replace('{userId}', user_id),
+                         headers=headers)
 
 
 def create_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
@@ -416,6 +418,15 @@ def create_device(auth_token, template_name, device_id, registration_code_id):
                          .replace('{templateName}', template_name), headers=headers, data=json.dumps(payload))
 
 
+def update_device(auth_token, device_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": change_string,
+    }
+    return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
+                          headers=headers, data=json.dumps(payload))
+
+
 def delete_device(auth_token, device_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id),
@@ -425,6 +436,12 @@ def delete_device(auth_token, device_id):
 def get_device(auth_token, device_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id), headers=headers)
+
+
+def get_device_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
 
 
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):

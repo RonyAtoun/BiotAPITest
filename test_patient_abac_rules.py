@@ -1,12 +1,14 @@
 import uuid
 import os
 
-from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
-                     identified_self_signup_with_registration_code, delete_patient, get_device, delete_device,
+from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code,
+                     identified_self_signup_with_registration_code, create_patient, update_patient,
+                     get_patient, get_patient_list, change_patient_state, delete_patient,
+                    create_device,get_device, delete_device, update_device, get_device_list,
                      create_organization, delete_organization, create_organization_user, delete_organization_user,
-                     update_organization_user, change_organization_user_state, get_organization_user, get_organization_user_list,
-                     update_organization, get_organization, get_organization_list, create_patient, update_patient,
-                     get_patient, get_patient_list, change_patient_state, create_caregiver, update_caregiver,
+                     update_organization_user, change_organization_user_state, get_organization_user,
+                     get_organization_user_list,
+                     update_organization, get_organization, get_organization_list,  create_caregiver, update_caregiver,
                      delete_caregiver, change_caregiver_state, get_caregiver, get_caregiver_list, resend_invitation)
 
 
@@ -90,7 +92,8 @@ def test_patient_organization_users_abac_rules():
 
     # update organization user should fail
     update_organization_user_response = update_organization_user(patient_auth_token, organization_user_id,
-                                             "00000000-0000-0000-0000-000000000000", "change string")
+                                                                 "00000000-0000-0000-0000-000000000000",
+                                                                 "change string")
     assert update_organization_user_response.status_code == 403
 
     # get organization user by patient should fail
@@ -244,6 +247,48 @@ def test_patient_caregiver_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
     assert delete_caregiver_response.status_code == 204
+
+
+def test_patient_devices_abac_rules():
+    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # create two patients, registration codes and devices
+    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    device_id = patient_setup['device_id']
+    registration_code_id = patient_setup['registration_code_id']
+    patient_auth_token = patient_setup['patient_auth_token']
+    patient_email = patient_setup['email']
+
+    # create device by patient fails
+    create_device_response = create_device(patient_auth_token, 'DeviceType1', device_id[0], registration_code_id[0])
+    assert create_device_response.status_code == 403
+
+    # update device by patient fails
+    update_device_response = update_device(patient_auth_token, device_id[0], "change_string")
+    assert update_device_response.status_code == 403
+
+    # delete device by patient fails
+    delete_device_response = delete_device(patient_auth_token, device_id[0])
+    assert delete_device_response.status_code == 403
+
+    # get device succeeds for self, fails for other (use patient[0] for self, patient[1] for other
+    get_device_response = get_device(patient_auth_token, device_id[0])
+    assert get_device_response.status_code == 200
+    patient2_auth_token = login_with_with_credentials(patient_email[1], "Ab12z456")
+    get_device_response = get_device(patient2_auth_token, device_id[0])
+    assert get_device_response.status_code == 403
+
+    # search device by patient only for self
+    # Positive - for self
+    get_device_list_response = get_device_list(patient_auth_token)
+    assert get_device_list_response.status_code == 200
+    assert get_device_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined patients)
+    get_device_list_response = get_device_list(admin_auth_token)
+    assert get_device_list_response.status_code == 200
+    assert get_device_list_response.json()['metadata']['page']['totalResults'] > 1
+
+    # Teardown
+    self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id):
