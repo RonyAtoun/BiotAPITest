@@ -306,8 +306,8 @@ def get_generic_entity(auth_token, entity_id):
 def get_generic_entity_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
-    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params), headers=headers)
-
+    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params),
+                        headers=headers)
 
 
 def create_organization(auth_token, template_id):
@@ -420,6 +420,23 @@ def delete_registration_code(auth_token, code_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", code_id),
                            headers=headers)
+
+
+def update_registration_code(auth_token, registration_code_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_code": change_string,
+    }
+    return requests.patch(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace('{id}', registration_code_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def get_registration_code():
+    pass
+
+
+def get_registration_code_list():
+    pass
 
 
 def create_device(auth_token, template_name, device_id, registration_code_id):

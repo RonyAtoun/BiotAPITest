@@ -3,17 +3,21 @@ import os
 
 import pytest
 
-from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code,
-                     identified_self_signup_with_registration_code, create_patient, update_patient,
-                     get_patient, get_patient_list, change_patient_state, delete_patient,
+from helpers import (login_with_with_credentials,
+                     create_registration_code, update_registration_code, delete_registration_code,
+                     identified_self_signup_with_registration_code,
+                     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
+                     delete_patient,
                      create_device, get_device, delete_device, update_device, get_device_list,
                      create_template, delete_template,
-                     create_organization, delete_organization, create_organization_user, delete_organization_user,
-                     update_organization_user, change_organization_user_state, get_organization_user,
-                     get_organization_user_list, create_generic_entity, delete_generic_entity, update_generic_entity,
-                     get_generic_entity, get_generic_entity_list,
-                     update_organization, get_organization, get_organization_list, create_caregiver, update_caregiver,
-                     delete_caregiver, change_caregiver_state, get_caregiver, get_caregiver_list, resend_invitation)
+                     create_organization, delete_organization,
+                     create_organization_user, delete_organization_user, update_organization_user,
+                     change_organization_user_state, get_organization_user, get_organization_user_list,
+                     create_generic_entity, delete_generic_entity, update_generic_entity, get_generic_entity,
+                     get_generic_entity_list,
+                     update_organization, get_organization, get_organization_list,
+                     create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
+                     get_caregiver_list, resend_invitation)
 
 
 #############################################################################################
@@ -373,6 +377,91 @@ def test_patient_generic_entity_abac_rules():
     # delete generic entity template
     delete_generic_entity_template_response = delete_template(admin_auth_token, template_id)
     assert delete_generic_entity_template_response.status_code == 204  ##### getting delete template not allowed
+
+
+@pytest.mark.skip
+def test_patient_registration_codes_abac_rules():
+    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    #### Setup  ####
+    # create patients, registration code and device in default organization
+    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token = patient_setup['patient_auth_token']
+    patient_email = patient_setup['email']
+    registration_code = patient_setup['registration_code']
+    registration_code_id = patient_setup['registration_code_id']
+
+    # create registration code by patient in same (default) organization should succeed
+    registration_code1 = str(uuid.uuid4())
+    create_registration_code1_response = create_registration_code(patient_auth_token, "RegistrationCode",
+                                                                  registration_code1,
+                                                                  "00000000-0000-0000-0000-000000000000")
+    assert create_registration_code1_response.status_code == 201
+    registration_code1_id = create_registration_code1_response.json()['_id']
+
+    # create registration code in different organization should fail
+    # first create new organization
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # This is the template id of the organization template in the console
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+
+    # create registration code by patient of different organization should fail
+    registration_code2 = str(uuid.uuid4())
+    create_registration_code2_response = create_registration_code(patient_auth_token, "RegistrationCode",
+                                                                  registration_code2, organization_id)
+    assert create_registration_code2_response.status_code == 403
+
+    # for update test create registration code 2 by admin in new organization
+    registration_code2 = str(uuid.uuid4())
+    create_registration_code2_response = create_registration_code(admin_auth_token, "RegistrationCode",
+                                                                  registration_code2, organization_id)
+    assert create_organization_response.status_code == 201
+    registration_code2_id = create_registration_code2_response.json()['_id']
+
+    # update registration code should succeed in same organization (code1)
+    update_registration_code_response = update_registration_code(patient_auth_token, registration_code1_id,
+                                                                 str(uuid.uuid4()))
+    assert update_registration_code_response.status_code == 200
+
+    # update registration code (code2) by patient of default organization in other organization should fail
+    update_registration_code_response = update_registration_code(patient_auth_token, registration_code2_id,
+                                                                 str(uuid.uuid4()))
+    assert update_registration_code_response.status_code == 403
+
+    # Teardown
+    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    # delete second organization
+    delete_organization_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_organization_response.status_code == 204
+    # delete both new registration coded
+    delete_registration_response = delete_registration_code(admin_auth_token, registration_code1_id)
+    assert delete_registration_response.status_code == 204
+    delete_registration_response = delete_registration_code(admin_auth_token, registration_code2_id)
+    assert delete_registration_response.status_code == 204
+
+
+def test_patient_files_abac_rules():
+    pass
+
+
+def test_patient_usage_session_abac_rules():
+    pass
+
+
+def test_patient_commands_abac_rules():
+    pass
+
+
+def test_patient_alerts_abac_rules():
+    pass
+
+
+def test_patient_measurements_abac_rules():
+    pass
+
+
+def test_patient_locales_abac_rules():
+    pass
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id):
