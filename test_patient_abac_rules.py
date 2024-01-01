@@ -1,14 +1,18 @@
 import uuid
 import os
 
+import pytest
+
 from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code,
                      identified_self_signup_with_registration_code, create_patient, update_patient,
                      get_patient, get_patient_list, change_patient_state, delete_patient,
-                    create_device,get_device, delete_device, update_device, get_device_list,
+                     create_device, get_device, delete_device, update_device, get_device_list,
+                     create_template, delete_template,
                      create_organization, delete_organization, create_organization_user, delete_organization_user,
                      update_organization_user, change_organization_user_state, get_organization_user,
-                     get_organization_user_list,
-                     update_organization, get_organization, get_organization_list,  create_caregiver, update_caregiver,
+                     get_organization_user_list, create_generic_entity, delete_generic_entity, update_generic_entity,
+                     get_generic_entity, get_generic_entity_list,
+                     update_organization, get_organization, get_organization_list, create_caregiver, update_caregiver,
                      delete_caregiver, change_caregiver_state, get_caregiver, get_caregiver_list, resend_invitation)
 
 
@@ -291,6 +295,86 @@ def test_patient_devices_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
+@pytest.mark.skip
+def test_patient_generic_entity_abac_rules():
+    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # create two patients, registration codes and devices
+    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token = patient_setup['patient_auth_token']
+    patient_email = patient_setup['email']
+    # create organization
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create generic entity template
+    generic_entity_template_id = create_template_setup(admin_auth_token)
+
+    # create generic entity by patient only for self organization
+    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
+                                                           f'generic_entity_{uuid.uuid4().hex}'[0:31],
+                                                           "00000000-0000-0000-0000-000000000000")
+    assert create_generic_entity_response.status_code == 201
+    entity_id = create_generic_entity_response.json()["_id"]
+
+    # create should fail for other organization
+    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
+                                                           f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
+    assert create_generic_entity_response.status_code == 403  ############  succeeding but it shouldn't   ###############
+
+    # update generic entity by patient only for self organization
+    # create second generic entity by admin on second organization
+    create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id,
+                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
+    assert create_generic_entity_response2.status_code == 201  ####### getting 403 already referenced uniquely
+    # probably because already created with same template on same organization due to bug in previous test case
+
+    entity2_id = create_generic_entity_response2.json()["_id"]
+
+    # positive - same organization
+    update_generic_entity_response = update_generic_entity(patient_auth_token, entity_id, "change string")
+    assert update_generic_entity_response.status_code == 200
+    # Negative - second organization
+    update_generic_entity_response = update_generic_entity(patient_auth_token, entity2_id, "change string")
+    assert update_generic_entity_response.status_code == 403  ###### getting 200   #####
+
+    # get only for same organization
+    get_generic_entity_response = get_generic_entity(patient_auth_token, entity_id)
+    assert get_generic_entity_response.status_code == 200
+    # login as second patient. Get should fail
+    patient2_auth_token = login_with_with_credentials(patient_email[1], "Ab12z456")
+    get_generic_entity_response = get_generic_entity_response(patient2_auth_token, entity_id)
+    assert get_generic_entity_response.status_code == 403
+
+    # search only for same organization
+    get_generic_entity_list_response = get_generic_entity_list(patient_auth_token)
+    assert get_generic_entity_list_response.status_code == 200
+    assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined patients)
+    get_generic_entity_list_response = get_generic_entity_list(admin_auth_token)
+    assert get_generic_entity_list_response.status_code == 200
+    assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] > 1
+
+    # delete only for same organization
+    delete_generic_entity_response = delete_generic_entity(patient_auth_token, entity_id)
+    assert delete_generic_entity_response.status_code == 204
+    # should fail for generic entity in other organization
+    delete_generic_entity_response = delete_generic_entity(patient_auth_token, entity2_id)
+    assert delete_generic_entity_response.status_code == 403  ##### getting 204
+
+    # Teardown
+    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    # delete second organization
+    delete_organization_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_organization_response.status_code == 204
+    # delete second generic entity created
+    delete_generic_entity_response = delete_generic_entity(admin_auth_token, entity2_id)
+    assert delete_generic_entity_response.status_code == 204  ##### getting entity not found
+    # delete generic entity template
+    delete_generic_entity_template_response = delete_template(admin_auth_token, template_id)
+    assert delete_generic_entity_template_response.status_code == 204  ##### getting delete template not allowed
+
+
 def self_signup_patient_setup(admin_auth_token, organization_id):
     # create two patients, registration codes and devices
     patient_id = []
@@ -341,3 +425,15 @@ def self_signup_patient_teardown(admin_auth_token, patient_setup):
         assert delete_device_response.status_code == 204
         delete_registration_response = delete_registration_code(admin_auth_token, registration_code_id[n])
         assert delete_registration_response.status_code == 204
+
+
+def create_template_setup(auth_token):
+    test_display_name = f'test_templ_{uuid.uuid4().hex}'[0:35]
+    test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
+    test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
+    test_reference_attrib_display_name = test_referenced_attrib_name
+    create_template_response = create_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                               test_reference_attrib_display_name)
+
+    assert create_template_response.status_code == 201
+    return create_template_response.json()['id']

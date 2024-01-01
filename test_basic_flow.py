@@ -57,7 +57,8 @@ def test_create_generic_entity():  # redo create_template to make this test inde
     data = create_template_response.json()
     assert data["name"] == test_name
     template_id = data["id"]
-    create_generic_entity_response = create_generic_entity(auth_token, template_id, test_name)
+    create_generic_entity_response = create_generic_entity(auth_token, template_id, test_name,
+                                                           "00000000-0000-0000-0000-000000000000")
     assert create_generic_entity_response.status_code == 201
     assert create_generic_entity_response.json()["_name"] == test_name
     entity_id = create_generic_entity_response.json()["_id"]

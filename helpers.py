@@ -272,10 +272,10 @@ def delete_template(auth_token, template_id):
                            headers=headers)
 
 
-def create_generic_entity(auth_token, template_id, test_name):
+def create_generic_entity(auth_token, template_id, test_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
-        "_ownerOrganization": {"id": "00000000-0000-0000-0000-000000000000"},
+        "_ownerOrganization": {"id": organization_id},
         "_name": test_name,
         "_templateId": template_id
     }
@@ -286,6 +286,28 @@ def delete_generic_entity(auth_token, entity_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace("{id}", entity_id),
                            headers=headers)
+
+
+def update_generic_entity(auth_token, entity_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_name": change_string,
+    }
+    return requests.patch(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def get_generic_entity(auth_token, entity_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
+                        headers=headers)
+
+
+def get_generic_entity_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params), headers=headers)
+
 
 
 def create_organization(auth_token, template_id):
