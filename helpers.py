@@ -268,33 +268,294 @@ def create_organization_template(auth_token, test_display_name, test_name, test_
 
 
 def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                 test_reference_attrib_display_name, organization_id):
+                           test_reference_attrib_display_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-
+    referencedSideAttributeName = f'Template Device{uuid.uuid4()}'[0:16]
     payload = {
-        "displayName": test_display_name,
         "name": test_name,
-        "entityType": "generic-entity",
-        "ownerOrganizationId": organization_id,
+        "displayName": test_display_name,
+        "customAttributes": [],
         "builtInAttributes": [
+            {
+                "name": "_bootTime",
+                "basePath": "_status",
+                "displayName": "Boot Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_certificateStatus",
+                "basePath": "_status",
+                "displayName": "Certificate Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_connected",
+                "basePath": "_status._connection",
+                "displayName": "Connected",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_description",
+                "basePath": None,
+                "displayName": "Description",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_fwVersion",
+                "basePath": "_status",
+                "displayName": "FW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_hwVersion",
+                "basePath": "_status",
+                "displayName": "HW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ipAddress",
+                "basePath": "_status._connection",
+                "displayName": "IP Address",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastConnectedTime",
+                "basePath": "_status._connection",
+                "displayName": "Last Connected Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_message",
+                "basePath": "_status._operational",
+                "displayName": "Operational Message",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_status",
+                "basePath": "_status._operational",
+                "displayName": "Operational Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
             {
                 "name": "_ownerOrganization",
                 "basePath": None,
-                "displayName": "Org",
+                "displayName": "Owner Organization",
                 "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
                 "referenceConfiguration": {
-                    "uniquely": True,
+                    "uniquely": False,
                     "referencedSideAttributeName": test_referenced_attrib_name,
                     "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
                     "validTemplatesToReference": [],
                     "entityType": "organization"
+                }
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
                 },
-                "validation": {"mandatory": True}
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_registrationCode",
+                "basePath": None,
+                "displayName": "Registration Code",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": True,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "registration-code"
+                }
+            },
+            {
+                "name": "_timezone",
+                "basePath": None,
+                "displayName": "Time Zone",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_id",
+                "basePath": None,
+                "displayName": "Unique ID",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
             }
-        ]
+        ],
+        "templateAttributes": [],
+        "entityType": "device",
+        "ownerOrganizationId": organization_id
     }
-
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
 
 def delete_template(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -469,14 +730,14 @@ def get_registration_code_list():
     pass
 
 
-def create_device(auth_token, template_name, device_id, registration_code_id):
+def create_device(auth_token, template_name, device_id, registration_code_id, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_description": "integ_test_device",
         "_timezone": "Europe/Oslo",
         "_id": device_id,
         "_ownerOrganization": {
-            "id": "00000000-0000-0000-0000-000000000000"
+            "id": organization_id
         },
         "_registrationCode": {
             "id": registration_code_id

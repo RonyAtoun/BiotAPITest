@@ -24,17 +24,16 @@ from helpers import (login_with_with_credentials,
 # Username and password have to be set in the environment in advance for each individual test
 #############################################################################################
 
-# @pytest.mark.skip
 def test_patient_organization_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
-    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # default org
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create device template in new organization   ######!!!!!!!!!!!!!!!!!
+    # create device template in new organization
     device_template = create_template_setup(admin_auth_token, organization_id, "device")
-    device_template_name = device_template[2]
+    device_template_name = device_template[1]
 
     # create patient, registration and device
     patient_setup = self_signup_patient_setup(admin_auth_token, organization_id, device_template_name)
@@ -274,7 +273,8 @@ def test_patient_devices_abac_rules():
     patient_email = patient_setup['email']
 
     # create device by patient fails
-    create_device_response = create_device(patient_auth_token, 'DeviceType1', device_id[0], registration_code_id[0])
+    create_device_response = create_device(patient_auth_token, 'DeviceType1', device_id[0],
+                                           registration_code_id[0], "00000000-0000-0000-0000-000000000000")
     assert create_device_response.status_code == 403
 
     # update device by patient fails
@@ -487,7 +487,7 @@ def self_signup_patient_setup(admin_auth_token, organization_id, device_template
         # device_template_name = 'DeviceType1'
         device_id.append(f'test_{uuid.uuid4().hex}'[0:16])
         create_device_response = create_device(admin_auth_token, device_template_name, device_id[n],
-                                               registration_code_id[n])
+                                               registration_code_id[n], organization_id)
         assert create_device_response.status_code == 201
         self_signup_response = identified_self_signup_with_registration_code(admin_auth_token, test_name, email[n],
                                                                              registration_code[n], organization_id)
@@ -530,11 +530,11 @@ def create_template_setup(auth_token, organization_id, entity_type):
                                                                 test_referenced_attrib_name,
                                                                 test_reference_attrib_display_name, organization_id)
     elif entity_type is "device":
-        create_device_template(auth_token, test_display_name, test_name,
-                               test_referenced_attrib_name,
-                               test_reference_attrib_display_name, organization_id)
+        create_template_response = create_device_template(auth_token, test_display_name, test_name,
+                                                          test_referenced_attrib_name,
+                                                          test_reference_attrib_display_name, organization_id)
     else:
-        pass
+        create_template_response = None
 
     assert create_template_response.status_code == 201
     return (create_template_response.json()['id'], create_template_response.json()['name'],
