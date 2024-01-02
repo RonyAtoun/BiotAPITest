@@ -237,14 +237,15 @@ def resend_invitation(auth_token, user_id):
                          headers=headers)
 
 
-def create_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                    test_reference_attrib_display_name):
+def create_organization_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                 test_reference_attrib_display_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
     payload = {
         "displayName": test_display_name,
         "name": test_name,
         "entityType": "generic-entity",
+        "ownerOrganizationId": organization_id,
         "builtInAttributes": [
             {
                 "name": "_ownerOrganization",
@@ -265,6 +266,35 @@ def create_template(auth_token, test_display_name, test_name, test_referenced_at
 
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
+
+def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                 test_reference_attrib_display_name, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    payload = {
+        "displayName": test_display_name,
+        "name": test_name,
+        "entityType": "generic-entity",
+        "ownerOrganizationId": organization_id,
+        "builtInAttributes": [
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Org",
+                "phi": False,
+                "referenceConfiguration": {
+                    "uniquely": True,
+                    "referencedSideAttributeName": test_referenced_attrib_name,
+                    "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                },
+                "validation": {"mandatory": True}
+            }
+        ]
+    }
+
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 def delete_template(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -404,12 +434,12 @@ def update_organization(auth_token, organization_id, change_string):
         headers=headers, data=json.dumps(payload))
 
 
-def create_registration_code(auth_token, template_name, registration_code):
+def create_registration_code(auth_token, template_name, registration_code, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_code": registration_code,
         "_ownerOrganization": {
-            "id": "00000000-0000-0000-0000-000000000000"
+            "id": organization_id
         }
     }
     return requests.post(ENDPOINT + '/organization/v1/registration-codes/templates/{templateName}'
