@@ -27,13 +27,14 @@ from helpers import (login_with_with_credentials,
 def test_patient_organization_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
-    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # default org
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # default organization template
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
     # create device template in new organization
     device_template = create_template_setup(admin_auth_token, organization_id, "device")
     device_template_name = device_template[1]
+    device_template_id = device_template[0]
 
     # create patient, registration and device
     patient_setup = self_signup_patient_setup(admin_auth_token, organization_id, device_template_name)
@@ -67,6 +68,8 @@ def test_patient_organization_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, device_template_id)
+    assert delete_template_response.status_code == 204
 
 
 def test_patient_organization_users_abac_rules():
@@ -309,19 +312,22 @@ def test_patient_devices_abac_rules():
 @pytest.mark.skip
 def test_patient_generic_entity_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create two patients, registration codes and devices
+    # create two patients, registration codes and devices (use only one)
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
     patient_auth_token = patient_setup['patient_auth_token']
-    patient_email = patient_setup['email']
     # create organization
-    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d" # default organization template
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create generic entity template
+
+    # create generic entity template in both organizations
     generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                                       "organization")
+                                                       "organization")[0]
+    generic_entity_template_id2 = create_template_setup(admin_auth_token, organization_id,
+                                                        "organization")[0]
+    # NOTE: function returns tuple. First element is id
 
     # create generic entity by patient only for self organization
     create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
@@ -333,14 +339,13 @@ def test_patient_generic_entity_abac_rules():
     # create should fail for other organization
     create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
-    assert create_generic_entity_response.status_code == 403  ############  succeeding but it shouldn't   ###############
+    assert create_generic_entity_response.status_code == 403
 
     # update generic entity by patient only for self organization
     # create second generic entity by admin on second organization
-    create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id,
+    create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id2,
                                                             f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
-    assert create_generic_entity_response2.status_code == 201  ####### getting 403 already referenced uniquely
-    # probably because already created with same template on same organization due to bug in previous test case
+    assert create_generic_entity_response2.status_code == 201
 
     entity2_id = create_generic_entity_response2.json()["_id"]
 
@@ -349,20 +354,18 @@ def test_patient_generic_entity_abac_rules():
     assert update_generic_entity_response.status_code == 200
     # Negative - second organization
     update_generic_entity_response = update_generic_entity(patient_auth_token, entity2_id, "change string")
-    assert update_generic_entity_response.status_code == 403  ###### getting 200   #####
+    assert update_generic_entity_response.status_code == 403   ### getting 200
 
     # get only for same organization
     get_generic_entity_response = get_generic_entity(patient_auth_token, entity_id)
     assert get_generic_entity_response.status_code == 200
-    # login as second patient. Get should fail
-    patient2_auth_token = login_with_with_credentials(patient_email[1], "Ab12z456")
-    get_generic_entity_response = get_generic_entity_response(patient2_auth_token, entity_id)
-    assert get_generic_entity_response.status_code == 403
+    get_generic_entity_response = get_generic_entity(patient_auth_token, entity2_id)
+    assert get_generic_entity_response.status_code == 403   ### getting 200
 
     # search only for same organization
     get_generic_entity_list_response = get_generic_entity_list(patient_auth_token)
     assert get_generic_entity_list_response.status_code == 200
-    assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] == 1
+    assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] == 1  ### getting all users
     # negative (system admin should get all defined patients)
     get_generic_entity_list_response = get_generic_entity_list(admin_auth_token)
     assert get_generic_entity_list_response.status_code == 200
@@ -373,7 +376,7 @@ def test_patient_generic_entity_abac_rules():
     assert delete_generic_entity_response.status_code == 204
     # should fail for generic entity in other organization
     delete_generic_entity_response = delete_generic_entity(patient_auth_token, entity2_id)
-    assert delete_generic_entity_response.status_code == 403  ##### getting 204
+    assert delete_generic_entity_response.status_code == 403 ### getting 204
 
     # Teardown
     self_signup_patient_teardown(admin_auth_token, patient_setup)
@@ -382,10 +385,12 @@ def test_patient_generic_entity_abac_rules():
     assert delete_organization_response.status_code == 204
     # delete second generic entity created
     delete_generic_entity_response = delete_generic_entity(admin_auth_token, entity2_id)
-    assert delete_generic_entity_response.status_code == 204  ##### getting entity not found
-    # delete generic entity template
-    delete_generic_entity_template_response = delete_template(admin_auth_token, template_id)
-    assert delete_generic_entity_template_response.status_code == 204  ##### getting delete template not allowed
+    assert delete_generic_entity_response.status_code == 204
+    # delete generic entity templates
+    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id)
+    assert delete_generic_entity_template_response.status_code == 204
+    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id2)
+    assert delete_generic_entity_template_response.status_code == 204
 
 
 @pytest.mark.skip
