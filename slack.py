@@ -1,12 +1,13 @@
+import os
+
 import pytest
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import unquote, parse_qs, urlparse
 
-
 MAX_RETRIES = 3
 
-#slack_token = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+slack_token = os.getenv('SLACK')
 channel_id = "C04M7N12T7G"
 url = f"https://slack.com/api/conversations.history"
 

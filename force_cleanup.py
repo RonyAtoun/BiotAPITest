@@ -38,7 +38,6 @@ def cleanup_generic_entities():
                 print(generic_entity['_name'])
                 delete_generic_entity_response = delete_generic_entity(admin_auth_token, generic_entity['_id'])
                 assert delete_generic_entity_response.status_code == 204
-    pass
 
 
 if __name__ == "__main__":

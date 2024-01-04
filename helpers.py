@@ -34,7 +34,7 @@ def create_organization_user(auth_token, template_name, name, email, employee_id
         },
         "_description": "Lorem Ipsum",
         "_email": email,
-        "_phone": "+12345678901",
+        "_phone": None,
         "_locale": "en-us",
         "_gender": "FEMALE",
         "_dateOfBirth": "2007-12-20",
@@ -47,8 +47,8 @@ def create_organization_user(auth_token, template_name, name, email, employee_id
             "address2": "Entry B, Apartment 1"
         },
         "_mfa": {
-            "enabled": True,
-            "expirationInMinutes": 1440
+            "enabled": False,
+            "expirationInMinutes": None
         },
         "_employeeId": employee_id,
         "_ownerOrganization": {
@@ -107,7 +107,7 @@ def create_patient(auth_token, name, email, template_name, organization_id):
         "_name": name,
         "_description": "Lorem Ipsum",
         "_email": email,
-        "_phone": "+12345678901",
+        #"_phone": "+12345678901",
         "_locale": "en-us",
         "_gender": "FEMALE",
         "_dateOfBirth": "2007-12-20",
@@ -123,7 +123,7 @@ def create_patient(auth_token, name, email, template_name, organization_id):
             "enabled": False,
 
         },
-        "_additionalPhone": "+12345678901",
+        #"_additionalPhone": "+12345678901",
         "_nationalId": "123456789",
         "_ownerOrganization": {
             "id": organization_id
@@ -621,7 +621,7 @@ def create_organization(auth_token, template_id):
             "address1": "11 Main St.",
             "address2": "Entry B, Apartment 1"
         },
-        "_phone": "+12345678901",
+        #"_phone": "+12345678901",
         "_timezone": "Europe/Oslo",
         "_locale": "en-us",
         "_primaryAdministrator": {
@@ -631,7 +631,7 @@ def create_organization(auth_token, template_id):
             },
             "_description": "Lorem Ipsum",
             "_email": email,
-            "_phone": "+12345678901",
+            #"_phone": "+12345678901",
             "_locale": "en-us",
             "_gender": "FEMALE",
             "_dateOfBirth": "2007-12-20",
@@ -686,7 +686,7 @@ def update_organization(auth_token, organization_id, change_string):
             "address1": "11 Main St.",
             "address2": "Entry B, Apartment 1"
         },
-        "_phone": "+12345678901",
+        #"_phone": "+12345678901",
         "_timezone": "Europe/Oslo",
         "_locale": "en-us"
     }
@@ -722,12 +722,16 @@ def update_registration_code(auth_token, registration_code_id, change_string):
                           headers=headers, data=json.dumps(payload))
 
 
-def get_registration_code():
-    pass
+def get_registration_code(auth_token, registration_code_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", registration_code_id),
+                        headers=headers)
 
 
-def get_registration_code_list():
-    pass
+def get_registration_code_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/organization/v1/registration-codes', data=json.dumps(query_params), headers=headers)
 
 
 def create_device(auth_token, template_name, device_id, registration_code_id, organization_id):
@@ -775,12 +779,11 @@ def get_device_list(auth_token):
 
 
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    headers = {"content-type": "application/json"}
     payload = {
         "_name": test_name,
         "_description": "Test Self-signup",
         "_email": email,
-        "_phone": "+12345678901",
         "_locale": "en-us",
         "_gender": "FEMALE",
         "_dateOfBirth": "2007-12-20",
@@ -795,10 +798,10 @@ def identified_self_signup_with_registration_code(auth_token, test_name, email, 
         "_mfa": {
             "enabled": False,
         },
-        "_additionalPhone": "+12345678901",
+        #"_additionalPhone": "+12345678901",
         "_nationalId": "123456789",
         "_username": email,
-        "_password": "Ab12z456",
+        "_password": "Q2207819w",
         "_deviceRegistrationCode": registration_code,
         "_ownerOrganization": {
             "id": organization_id
@@ -808,10 +811,10 @@ def identified_self_signup_with_registration_code(auth_token, test_name, email, 
 
 
 def anonymous_self_signup_with_registration_code(auth_token, test_name, email, registration_code):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    headers = {"content-type": "application/json"}
     payload = {
         "_username": email,
-        "_password": "Aa123456",
+        "_password": "Q2207819w",
         "_nickname": test_name,
         "_deviceRegistrationCode": registration_code
     }
