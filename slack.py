@@ -14,7 +14,7 @@ url = f"https://slack.com/api/conversations.history"
 
 @pytest.fixture()
 def get_user_token_and_id():
-    user_email = "reginay+1228@biotmail.com"
+    user_email = "oksana+31@biotmail.com"
     headers = {
         "Authorization": f"Bearer {slack_token}",
         "Content-Type": "application/json"
