@@ -19,7 +19,8 @@ from helpers import (
     get_generic_entity_list,
     update_organization, get_organization, get_organization_list,
     create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
-    get_caregiver_list, resend_invitation)
+    get_caregiver_list, resend_invitation,
+    create_file, get_file)
 
 
 #############################################################################################
@@ -403,9 +404,6 @@ def test_patient_registration_codes_abac_rules():
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
     patient_auth_token = patient_setup['patient_auth_token']
-    patient_email = patient_setup['email']
-    registration_code = patient_setup['registration_code']
-    registration_code_id = patient_setup['registration_code_id']
 
     # first create new organization
     template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # This is the template id of the organization template in the console
@@ -473,9 +471,39 @@ def test_patient_registration_codes_abac_rules():
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
 
-
+@pytest.mark.skip
 def test_patient_files_abac_rules():
-    pass
+    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # create second organization
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # This is the template id of the organization template in the console
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create patient in new org
+    patient_auth_token, patient_id, registration_code_id, device_id = create_single_patient_self_signup(
+        admin_auth_token, organization_id, 'DeviceType1')
+
+    # create files in default and new organization
+    name = f'est_file{uuid.uuid4().hex}'[0:16]
+    mime_type = 'text/plain'
+    create_file_response = create_file(admin_auth_token, name, mime_type)
+    assert create_file_response.status_code == 200
+    file1_id = create_file_response.json()['id']
+    create_file2_response = create_file(patient_auth_token, name, mime_type)
+    assert create_file2_response.status_code == 200
+    file2_id = create_file2_response.json()['id']
+
+    # get should succeed only in self organization
+    get_file_response = get_file(patient_auth_token, file2_id)  # should succeed
+    assert get_file_response.status_code == 200
+    get_file_response = get_file(patient_auth_token, file1_id)  # should fail
+    assert get_file_response.status_code == 403
+
+    # teardown
+    single_self_signup_patient_teardown(admin_auth_token, patient_id, registration_code_id, device_id)
+    # delete second organization
+    delete_organization_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_organization_response.status_code == 204
 
 
 def test_patient_usage_session_abac_rules():
@@ -549,6 +577,39 @@ def self_signup_patient_teardown(admin_auth_token, patient_setup):
         assert delete_device_response.status_code == 204
         delete_registration_response = delete_registration_code(admin_auth_token, registration_code_id[n])
         assert delete_registration_response.status_code == 204
+
+
+def create_single_patient_self_signup(admin_auth_token, organization_id, device_template_name):
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    template_name = "RegistrationCode"
+    create_registration_code_response = create_registration_code(admin_auth_token, template_name,
+                                                                 str(uuid.uuid4()), organization_id)
+    assert create_registration_code_response.status_code == 201
+    registration_code = create_registration_code_response.json()['_code']
+    registration_code_id = create_registration_code_response.json()['_id']
+    device_id = f'test_{uuid.uuid4().hex}'[0:16]
+    create_device_response = create_device(admin_auth_token, device_template_name, device_id,
+                                           registration_code_id, organization_id)
+    assert create_device_response.status_code == 201
+    self_signup_response = identified_self_signup_with_registration_code(admin_auth_token, test_name, email,
+                                                                         registration_code, organization_id)
+    assert self_signup_response.status_code == 201
+    patient_id = self_signup_response.json()['patient']['_id']
+
+    # login
+    patient_auth_token = login_with_with_credentials(email, "Q2207819w")
+    return patient_auth_token, patient_id, registration_code_id, device_id
+
+
+def single_self_signup_patient_teardown(admin_auth_token, patient_id, registration_code_id, device_id):
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
+    delete_device_response = delete_device(admin_auth_token, device_id)
+    assert delete_device_response.status_code == 204
+    delete_registration_response = delete_registration_code(admin_auth_token, registration_code_id)
+    assert delete_registration_response.status_code == 204
 
 
 def create_template_setup(auth_token, organization_id, entity_type):
