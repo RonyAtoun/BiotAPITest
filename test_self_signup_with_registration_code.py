@@ -1,8 +1,8 @@
 import uuid
 import os
-from helpers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
-                     identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
-                     delete_patient, get_device, delete_device)
+from API_drivers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
+                         identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
+                         delete_patient, get_device, delete_device)
 
 
 def test_identified_self_signup():

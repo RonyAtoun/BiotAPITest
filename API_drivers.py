@@ -268,7 +268,7 @@ def create_organization_template(auth_token, test_display_name, test_name, test_
 
 
 def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                           test_reference_attrib_display_name, organization_id):
+                           test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     referencedSideAttributeName = f'Template Device{uuid.uuid4()}'[0:16]
     payload = {
@@ -551,7 +551,8 @@ def create_device_template(auth_token, test_display_name, test_name, test_refere
             }
         ],
         "templateAttributes": [],
-        "entityType": "device",
+        "entityType": entity_type,
+        "parentTemplateId": parent_template_id,
         "ownerOrganizationId": organization_id
     }
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
@@ -562,6 +563,14 @@ def delete_template(auth_token, template_id):
     return requests.delete(ENDPOINT + '/settings/v1/templates/{templateId}'.replace("{templateId}", template_id),
                            headers=headers)
 
+
+def update_template(auth_token, template_id, device_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "parentTemplateId": template_id
+    }
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
+                        headers=headers, data=json.dumps(payload))
 
 def create_generic_entity(auth_token, template_id, test_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -753,10 +762,13 @@ def create_device(auth_token, template_name, device_id, registration_code_id, or
                          .replace('{templateName}', template_name), headers=headers, data=json.dumps(payload))
 
 
-def update_device(auth_token, device_id, change_string):
+def update_device(auth_token, device_id, change_string, patient_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_description": change_string,
+        "_patient": {
+            "id": patient_id,
+        },
     }
     return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
                           headers=headers, data=json.dumps(payload))
@@ -779,6 +791,35 @@ def get_device_list(auth_token):
     return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
 
 
+def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_startTime": "2023-12-20T10:15:30Z",
+        "_state": "PAUSED",
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/usage-type/{usageType}'
+                         .replace('{deviceId}', device_id).replace('{usageType}', usage_type),
+                         data=json.dumps(payload), headers=headers)
+
+
+def create_usage_session(auth_token, device_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_startTime": "2023-12-20T10:15:30Z",
+        "_state": "PAUSED",
+        "_templateId": 'DeviceType1'
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions'
+                         .replace('{deviceId}', device_id), data=json.dumps(payload), headers=headers)
+
+
+def delete_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace("{deviceId}",
+                                                                                                  device_id).replace(
+        '{id}', session_id), headers=headers)
+
+
 def create_file(auth_token, name, mime_type):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -791,6 +832,11 @@ def create_file(auth_token, name, mime_type):
 def get_file(auth_token, file_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/file/v1/files/{id}/download'.replace('{id}', file_id), headers=headers)
+
+
+def get_entities(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
 
 
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):

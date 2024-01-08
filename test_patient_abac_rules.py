@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from helpers import (
+from API_drivers import (
     login_with_with_credentials,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
@@ -11,7 +11,8 @@ from helpers import (
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
     delete_patient,
     create_device, get_device, delete_device, update_device, get_device_list,
-    create_organization_template, create_device_template, delete_template,
+    create_usage_session, create_usage_session_by_usage_type, delete_usage_session,
+    create_organization_template, create_device_template, delete_template, update_template,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -35,7 +36,7 @@ def test_patient_organization_abac_rules():
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
     # create device template in new organization
-    device_template = create_template_setup(admin_auth_token, organization_id, "device")
+    device_template = create_template_setup(admin_auth_token, organization_id, "device", None)
     device_template_name = device_template[1]
     device_template_id = device_template[0]
 
@@ -284,7 +285,7 @@ def test_patient_devices_abac_rules():
     assert create_device_response.status_code == 403
 
     # update device by patient fails
-    update_device_response = update_device(patient_auth_token, device_id[0], "change_string")
+    update_device_response = update_device(patient_auth_token, device_id[0], "change_string", None)
     assert update_device_response.status_code == 403
 
     # delete device by patient fails
@@ -327,9 +328,9 @@ def test_patient_generic_entity_abac_rules():
 
     # create generic entity template in both organizations
     generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                                       "organization")[0]
+                                                       "organization", None)[0]
     generic_entity_template_id2 = create_template_setup(admin_auth_token, organization_id,
-                                                        "organization")[0]
+                                                        "organization", None)[0]
     # NOTE: function returns tuple. First element is id
 
     # create generic entity by patient only for self organization
@@ -399,7 +400,7 @@ def test_patient_generic_entity_abac_rules():
 # @pytest.mark.skip
 def test_patient_registration_codes_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    #### Setup  ####
+    # Setup
     # create patients, registration codes and devices in default organization
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
@@ -471,6 +472,7 @@ def test_patient_registration_codes_abac_rules():
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
 
+
 @pytest.mark.skip
 def test_patient_files_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -506,8 +508,42 @@ def test_patient_files_abac_rules():
     assert delete_organization_response.status_code == 204
 
 
+@pytest.mark.skip
 def test_patient_usage_session_abac_rules():
-    pass
+    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # Setup
+    # create patients, registration codes and devices in default organization
+    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+                                              'DeviceType1')
+    patient_id = patient_setup['patient_id'][0]
+    patient_auth_token = patient_setup['patient_auth_token']
+    device_id = patient_setup['device_id'][0]
+    # associate patient with device
+    update_device_response = update_device(admin_auth_token, device_id, "change_string", patient_id)
+    assert update_device_response.status_code == 200
+    # get the device templateId
+    get_device_response = get_device(admin_auth_token, device_id)
+    device_template_id = get_device_response.json()['_template']['id']
+    # create usage_session template
+    create_template_response = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+                                                     "usage_session", device_template_id)
+    #usage_session_template_id = create_template_response[0]
+    #update_template_response = update_template(admin_auth_token, usage_session_template_id, device_template_id)
+    #assert update_template_response == 200
+
+    create_session_response = create_usage_session_by_usage_type(patient_auth_token, device_id, "usage_session")
+    assert create_session_response.status_code == 201  # returns 403
+    usage_session_id = create_session_response.json('_id')
+
+    create_session_response = create_usage_session(patient_auth_token, device_id)
+    assert create_session_response.status_code == 201  # returns 403
+    usage_session_id = create_session_response.json('_id')
+
+    # Teardown
+    delete_usage_session_response = delete_usage_session(admin_auth_token, device_id, usage_session_id)
+    assert delete_usage_session_response.status_code == 204
+
+    self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
 def test_patient_commands_abac_rules():
@@ -612,7 +648,7 @@ def single_self_signup_patient_teardown(admin_auth_token, patient_id, registrati
     assert delete_registration_response.status_code == 204
 
 
-def create_template_setup(auth_token, organization_id, entity_type):
+def create_template_setup(auth_token, organization_id, entity_type, parent_template_id):
     test_display_name = f'test_templ_{uuid.uuid4().hex}'[0:35]
     test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
@@ -624,7 +660,12 @@ def create_template_setup(auth_token, organization_id, entity_type):
     elif entity_type is "device":
         create_template_response = create_device_template(auth_token, test_display_name, test_name,
                                                           test_referenced_attrib_name,
-                                                          test_reference_attrib_display_name, organization_id)
+                                                          test_reference_attrib_display_name, organization_id, "device", None)
+    elif entity_type is "usage_session":
+        create_template_response = create_device_template(auth_token, test_display_name, test_name,
+                                                          test_referenced_attrib_name,
+                                                          test_reference_attrib_display_name, organization_id,
+                                                          "usage-session", parent_template_id)
     else:
         create_template_response = None
 
