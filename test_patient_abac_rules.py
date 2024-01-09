@@ -11,8 +11,9 @@ from API_drivers import (
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
     delete_patient,
     create_device, get_device, delete_device, update_device, get_device_list,
-    create_usage_session, create_usage_session_by_usage_type, delete_usage_session,
-    create_organization_template, create_device_template, delete_template, update_template,
+    create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
+    get_usage_session_list,
+    create_organization_template, create_device_template, delete_template, create_usage_session_template,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -508,13 +509,14 @@ def test_patient_files_abac_rules():
     assert delete_organization_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_patient_usage_session_abac_rules():
     admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create patients, registration codes and devices in default organization
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
+    email = patient_setup['email']
     patient_id = patient_setup['patient_id'][0]
     patient_auth_token = patient_setup['patient_auth_token']
     device_id = patient_setup['device_id'][0]
@@ -525,23 +527,53 @@ def test_patient_usage_session_abac_rules():
     get_device_response = get_device(admin_auth_token, device_id)
     device_template_id = get_device_response.json()['_template']['id']
     # create usage_session template
-    create_template_response = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                                     "usage_session", device_template_id)
-    #usage_session_template_id = create_template_response[0]
-    #update_template_response = update_template(admin_auth_token, usage_session_template_id, device_template_id)
-    #assert update_template_response == 200
+    usage_template_data = create_template_setup(admin_auth_token, None,
+                                                "usage_session", device_template_id)
+    usage_session_template_name = usage_template_data[1]
+    usage_session_template_id = usage_template_data[0]
 
-    create_session_response = create_usage_session_by_usage_type(patient_auth_token, device_id, "usage_session")
-    assert create_session_response.status_code == 201  # returns 403
-    usage_session_id = create_session_response.json('_id')
+    # create session should succeed for self
+    create_session_response = create_usage_session_by_usage_type(patient_auth_token, device_id,
+                                                                 usage_session_template_name)
+    assert create_session_response.status_code == 201
+    usage_session_id = create_session_response.json()['_id']
+    # create session should fail for other user
+    patient2_auth_token = login_with_with_credentials(email[1], "Q2207819w")
+    create_session_response = create_usage_session_by_usage_type(patient2_auth_token, device_id,
+                                                                 usage_session_template_name)
+    assert create_session_response.status_code == 403
 
-    create_session_response = create_usage_session(patient_auth_token, device_id)
-    assert create_session_response.status_code == 201  # returns 403
-    usage_session_id = create_session_response.json('_id')
+    # update session should succeed for self and fail for other
+    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert update_session_response.status_code == 200
+    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id)
+    assert update_session_response.status_code == 403
+
+    # get session should succeed only for self
+    get_session_response_code = get_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert get_session_response_code.status_code == 200
+    get_session_response_code = get_usage_session(patient2_auth_token, device_id, usage_session_id)
+    assert get_session_response_code.status_code == 403
+
+    # search usage session by patient only for self
+    # Positive - for self
+    get_session_list_response = get_usage_session_list(patient_auth_token)
+    assert get_session_list_response.status_code == 200
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 1
+    # negative (system admin should get all defined patients)
+    get_session_list_response = get_usage_session_list(patient2_auth_token)
+    assert get_session_list_response.status_code == 200
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 0
+
+    # delete session by patient should always fail
+    delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert delete_session_response.status_code == 403
 
     # Teardown
     delete_usage_session_response = delete_usage_session(admin_auth_token, device_id, usage_session_id)
     assert delete_usage_session_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
+    assert delete_template_response.status_code == 204
 
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
@@ -660,12 +692,13 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
     elif entity_type is "device":
         create_template_response = create_device_template(auth_token, test_display_name, test_name,
                                                           test_referenced_attrib_name,
-                                                          test_reference_attrib_display_name, organization_id, "device", None)
+                                                          test_reference_attrib_display_name, organization_id, "device",
+                                                          None)
     elif entity_type is "usage_session":
-        create_template_response = create_device_template(auth_token, test_display_name, test_name,
-                                                          test_referenced_attrib_name,
-                                                          test_reference_attrib_display_name, organization_id,
-                                                          "usage-session", parent_template_id)
+        create_template_response = create_usage_session_template(auth_token, test_display_name, test_name,
+                                                                 test_referenced_attrib_name,
+                                                                 test_reference_attrib_display_name, organization_id,
+                                                                 "usage-session", parent_template_id)
     else:
         create_template_response = None
 

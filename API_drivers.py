@@ -241,7 +241,385 @@ def create_organization_template(auth_token, test_display_name, test_name, test_
                                  test_reference_attrib_display_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
+    payload = get_organization_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                                test_reference_attrib_display_name, organization_id)
+
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                           test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    payload = get_device_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                          test_reference_attrib_display_name, organization_id, entity_type,
+                                          parent_template_id)
+
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_usage_session_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                  test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    payload = get_usage_session_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                                 test_reference_attrib_display_name, organization_id, entity_type,
+                                                 parent_template_id)
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def delete_template(auth_token, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/settings/v1/templates/{templateId}'.replace("{templateId}", template_id),
+                           headers=headers)
+
+
+def update_template(auth_token, template_id, device_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
+        "parentTemplateId": template_id
+    }
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
+                        headers=headers, data=json.dumps(payload))
+
+
+def create_generic_entity(auth_token, template_id, test_name, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_ownerOrganization": {"id": organization_id},
+        "_name": test_name,
+        "_templateId": template_id
+    }
+    return requests.post(ENDPOINT + '/generic-entity/v1/generic-entities', headers=headers, data=json.dumps(payload))
+
+
+def delete_generic_entity(auth_token, entity_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace("{id}", entity_id),
+                           headers=headers)
+
+
+def update_generic_entity(auth_token, entity_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_name": change_string,
+    }
+    return requests.patch(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def get_generic_entity(auth_token, entity_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
+                        headers=headers)
+
+
+def get_generic_entity_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params),
+                        headers=headers)
+
+
+def create_organization(auth_token, template_id):
+    email = f'integ_test_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
+    organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "email-confirmation-landing-page": "https://example.com/en/landing-page",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {
+        "_name": organization_name,
+        "_description": "Lorem Ipsum",
+        "_headquarters": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        # "_phone": "+12345678901",
+        "_timezone": "Europe/Oslo",
+        "_locale": "en-us",
+        "_primaryAdministrator": {
+            "_name": {
+                "firstName": "Test",
+                "lastName": "User"
+            },
+            "_description": "Lorem Ipsum",
+            "_email": email,
+            # "_phone": "+12345678901",
+            "_locale": "en-us",
+            "_gender": "FEMALE",
+            "_dateOfBirth": "2007-12-20",
+            "_address": {
+                "countryCode": "US",
+                "state": "Massachusetts",
+                "city": "Boston",
+                "zipCode": "02101",
+                "address1": "11 Main St.",
+                "address2": "Entry B, Apartment 1"
+            },
+            "_mfa": {
+                "enabled": False,
+                "expirationInMinutes": None
+            },
+            "_employeeId": f'{uuid.uuid4().hex}'
+        },
+        "_templateId": template_id
+    }
+
+    return requests.post(ENDPOINT + '/organization/v1/organizations', headers=headers, data=json.dumps(payload))
+
+
+def get_organization(auth_token, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
+                        headers=headers)
+
+
+def get_organization_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/organization/v1/organizations', data=json.dumps(query_params), headers=headers)
+
+
+def delete_organization(auth_token, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
+                           headers=headers)
+
+
+def update_organization(auth_token, organization_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_name": change_string,
+        "_description": "Lorem Ipsum",
+        "_headquarters": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        # "_phone": "+12345678901",
+        "_timezone": "Europe/Oslo",
+        "_locale": "en-us"
+    }
+    return requests.patch(
+        ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
+        headers=headers, data=json.dumps(payload))
+
+
+def create_registration_code(auth_token, template_name, registration_code, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_code": registration_code,
+        "_ownerOrganization": {
+            "id": organization_id
+        }
+    }
+    return requests.post(ENDPOINT + '/organization/v1/registration-codes/templates/{templateName}'
+                         .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
+
+
+def delete_registration_code(auth_token, code_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", code_id),
+                           headers=headers)
+
+
+def update_registration_code(auth_token, registration_code_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_code": change_string,
+    }
+    return requests.patch(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace('{id}', registration_code_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def get_registration_code(auth_token, registration_code_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", registration_code_id),
+                        headers=headers)
+
+
+def get_registration_code_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/organization/v1/registration-codes', data=json.dumps(query_params),
+                        headers=headers)
+
+
+def create_device(auth_token, template_name, device_id, registration_code_id, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": "integ_test_device",
+        "_timezone": "Europe/Oslo",
+        "_id": device_id,
+        "_ownerOrganization": {
+            "id": organization_id
+        },
+        "_registrationCode": {
+            "id": registration_code_id
+        }
+    }
+
+    return requests.post(ENDPOINT + '/device/v2/devices/templates/{templateName}'
+                         .replace('{templateName}', template_name), headers=headers, data=json.dumps(payload))
+
+
+def update_device(auth_token, device_id, change_string, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": change_string,
+        "_patient": {
+            "id": patient_id,
+        },
+    }
+    return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def delete_device(auth_token, device_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id),
+                           headers=headers)
+
+
+def get_device(auth_token, device_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id), headers=headers)
+
+
+def get_device_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
+
+
+def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_startTime": "2023-12-20T10:15:30Z",
+        "_state": "PAUSED",
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/usage-type/{usageType}'
+                         .replace('{deviceId}', device_id).replace('{usageType}', usage_type),
+                         data=json.dumps(payload), headers=headers)
+
+
+def create_usage_session(auth_token, device_id, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_startTime": "2023-12-20T10:15:30Z",
+        "_state": "PAUSED",
+        "_templateId": template_id
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions'
+                         .replace('{deviceId}', device_id), data=json.dumps(payload), headers=headers)
+
+
+def get_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
+                        .replace('{id}', session_id), headers=headers)
+
+
+def get_usage_session_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/device/v1/devices/usage-sessions', data=json.dumps(query_params), headers=headers)
+
+
+def update_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_startTime": "2023-12-20T10:15:30Z",
+        "_state": "ACTIVE",
+    }
+    return requests.patch(
+        ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
+        .replace('{id}', session_id), headers=headers, data=json.dumps(payload))
+
+
+def delete_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace("{deviceId}",
+                                                                                                  device_id).replace(
+        '{id}', session_id), headers=headers)
+
+
+def create_file(auth_token, name, mime_type):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        'name': name,
+        'mimeType': mime_type
+    }
+    return requests.post(ENDPOINT + '/file/v1/files/upload', data=json.dumps(payload), headers=headers)
+
+
+def get_file(auth_token, file_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/file/v1/files/{id}/download'.replace('{id}', file_id), headers=headers)
+
+
+def get_entities(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
+
+
+def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
+    headers = {"content-type": "application/json"}
+    payload = {
+        "_name": test_name,
+        "_description": "Test Self-signup",
+        "_email": email,
+        "_locale": "en-us",
+        "_gender": "FEMALE",
+        "_dateOfBirth": "2007-12-20",
+        "_address": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        "_mfa": {
+            "enabled": False,
+        },
+        # "_additionalPhone": "+12345678901",
+        "_nationalId": "123456789",
+        "_username": email,
+        "_password": "Q2207819w",
+        "_deviceRegistrationCode": registration_code,
+        "_ownerOrganization": {
+            "id": organization_id
+        }
+    }
+    return requests.post(ENDPOINT + '/api-gateway/v1/sign-up', headers=headers, data=json.dumps(payload))
+
+
+def anonymous_self_signup_with_registration_code(auth_token, test_name, email, registration_code):
+    headers = {"content-type": "application/json"}
+    payload = {
+        "_username": email,
+        "_password": "Q2207819w",
+        "_nickname": test_name,
+        "_deviceRegistrationCode": registration_code
+    }
+
+    return requests.post(ENDPOINT + '/api-gateway/v1/sign-up/anonymous', headers=headers, data=json.dumps(payload))
+
+
+def get_organization_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                      test_reference_attrib_display_name, organization_id):
+    return {
         "displayName": test_display_name,
         "name": test_name,
         "entityType": "generic-entity",
@@ -264,14 +642,11 @@ def create_organization_template(auth_token, test_display_name, test_name, test_
         ]
     }
 
-    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
-
-def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                           test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+def get_device_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
     referencedSideAttributeName = f'Template Device{uuid.uuid4()}'[0:16]
-    payload = {
+    return {
         "name": test_name,
         "displayName": test_display_name,
         "customAttributes": [],
@@ -555,329 +930,231 @@ def create_device_template(auth_token, test_display_name, test_name, test_refere
         "parentTemplateId": parent_template_id,
         "ownerOrganizationId": organization_id
     }
-    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
-def delete_template(auth_token, template_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/settings/v1/templates/{templateId}'.replace("{templateId}", template_id),
-                           headers=headers)
-
-
-def update_template(auth_token, template_id, device_template_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "parentTemplateId": template_id
-    }
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
-                        headers=headers, data=json.dumps(payload))
-
-def create_generic_entity(auth_token, template_id, test_name, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_ownerOrganization": {"id": organization_id},
-        "_name": test_name,
-        "_templateId": template_id
-    }
-    return requests.post(ENDPOINT + '/generic-entity/v1/generic-entities', headers=headers, data=json.dumps(payload))
-
-
-def delete_generic_entity(auth_token, entity_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace("{id}", entity_id),
-                           headers=headers)
-
-
-def update_generic_entity(auth_token, entity_id, change_string):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_name": change_string,
-    }
-    return requests.patch(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
-                          headers=headers, data=json.dumps(payload))
-
-
-def get_generic_entity(auth_token, entity_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
-                        headers=headers)
-
-
-def get_generic_entity_list(auth_token):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
-    return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params),
-                        headers=headers)
-
-
-def create_organization(auth_token, template_id):
-    email = f'integ_test_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
-    organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
-    headers = {
-        "accept": "application/json",
-        "content-type": "application/json",
-        "email-confirmation-landing-page": "https://example.com/en/landing-page",
-        "Authorization": "Bearer " + auth_token
-    }
-    payload = {
-        "_name": organization_name,
-        "_description": "Lorem Ipsum",
-        "_headquarters": {
-            "countryCode": "US",
-            "state": "Massachusetts",
-            "city": "Boston",
-            "zipCode": "02101",
-            "address1": "11 Main St.",
-            "address2": "Entry B, Apartment 1"
-        },
-        # "_phone": "+12345678901",
-        "_timezone": "Europe/Oslo",
-        "_locale": "en-us",
-        "_primaryAdministrator": {
-            "_name": {
-                "firstName": "Test",
-                "lastName": "User"
+def get_usage_session_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                       test_reference_attrib_display_name, organization_id, entity_type,
+                                       parent_template_id):
+    referencedSideAttributeName = f'Template Device{uuid.uuid4()}'[0:30]
+    usage_session_to_device = f'Test us-session{uuid.uuid4()}'[0:30]
+    return {
+        "name": test_name,
+        "displayName": test_display_name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
             },
-            "_description": "Lorem Ipsum",
-            "_email": email,
-            # "_phone": "+12345678901",
-            "_locale": "en-us",
-            "_gender": "FEMALE",
-            "_dateOfBirth": "2007-12-20",
-            "_address": {
-                "countryCode": "US",
-                "state": "Massachusetts",
-                "city": "Boston",
-                "zipCode": "02101",
-                "address1": "11 Main St.",
-                "address2": "Entry B, Apartment 1"
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": usage_session_to_device,
+                    "referencedSideAttributeDisplayName": usage_session_to_device,
+                    "validTemplatesToReference": [
+                        parent_template_id
+                    ],
+                    "entityType": "device"
+                }
             },
-            "_mfa": {
-                "enabled": False,
-                "expirationInMinutes": None
+            {
+                "name": "_endTime",
+                "basePath": None,
+                "displayName": "End Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
             },
-            "_employeeId": f'{uuid.uuid4().hex}'
-        },
-        "_templateId": template_id
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": test_referenced_attrib_name,
+                    "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_initiator",
+                "basePath": None,
+                "displayName": "Session Initiator",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_startTime",
+                "basePath": None,
+                "displayName": "Start Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_stopReason",
+                "basePath": "_summary",
+                "displayName": "Stop Reason",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_stopReasonCode",
+                "basePath": "_summary",
+                "displayName": "Stop Reason Code",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [
+            {
+                "name": "_requiredMeasurementIntervalMilliseconds",
+                "basePath": None,
+                "displayName": "Required Measurement Interval",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": 1000,
+                "organizationSelectionConfiguration": None
+            }
+        ],
+        "entityType": entity_type,
+        "ownerOrganizationId": organization_id,
+        "parentTemplateId": parent_template_id
     }
-
-    return requests.post(ENDPOINT + '/organization/v1/organizations', headers=headers, data=json.dumps(payload))
-
-
-def get_organization(auth_token, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
-                        headers=headers)
-
-
-def get_organization_list(auth_token):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
-    return requests.get(ENDPOINT + '/organization/v1/organizations', data=json.dumps(query_params), headers=headers)
-
-
-def delete_organization(auth_token, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
-                           headers=headers)
-
-
-def update_organization(auth_token, organization_id, change_string):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_name": change_string,
-        "_description": "Lorem Ipsum",
-        "_headquarters": {
-            "countryCode": "US",
-            "state": "Massachusetts",
-            "city": "Boston",
-            "zipCode": "02101",
-            "address1": "11 Main St.",
-            "address2": "Entry B, Apartment 1"
-        },
-        # "_phone": "+12345678901",
-        "_timezone": "Europe/Oslo",
-        "_locale": "en-us"
-    }
-    return requests.patch(
-        ENDPOINT + '/organization/v1/organizations/{id}'.replace('{id}', organization_id),
-        headers=headers, data=json.dumps(payload))
-
-
-def create_registration_code(auth_token, template_name, registration_code, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_code": registration_code,
-        "_ownerOrganization": {
-            "id": organization_id
-        }
-    }
-    return requests.post(ENDPOINT + '/organization/v1/registration-codes/templates/{templateName}'
-                         .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
-
-
-def delete_registration_code(auth_token, code_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", code_id),
-                           headers=headers)
-
-
-def update_registration_code(auth_token, registration_code_id, change_string):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_code": change_string,
-    }
-    return requests.patch(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace('{id}', registration_code_id),
-                          headers=headers, data=json.dumps(payload))
-
-
-def get_registration_code(auth_token, registration_code_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/organization/v1/registration-codes/{id}'.replace("{id}", registration_code_id),
-                        headers=headers)
-
-
-def get_registration_code_list(auth_token):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
-    return requests.get(ENDPOINT + '/organization/v1/registration-codes', data=json.dumps(query_params),
-                        headers=headers)
-
-
-def create_device(auth_token, template_name, device_id, registration_code_id, organization_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_description": "integ_test_device",
-        "_timezone": "Europe/Oslo",
-        "_id": device_id,
-        "_ownerOrganization": {
-            "id": organization_id
-        },
-        "_registrationCode": {
-            "id": registration_code_id
-        }
-    }
-
-    return requests.post(ENDPOINT + '/device/v2/devices/templates/{templateName}'
-                         .replace('{templateName}', template_name), headers=headers, data=json.dumps(payload))
-
-
-def update_device(auth_token, device_id, change_string, patient_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_description": change_string,
-        "_patient": {
-            "id": patient_id,
-        },
-    }
-    return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
-                          headers=headers, data=json.dumps(payload))
-
-
-def delete_device(auth_token, device_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id),
-                           headers=headers)
-
-
-def get_device(auth_token, device_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/device/v2/devices/{id}'.replace("{id}", device_id), headers=headers)
-
-
-def get_device_list(auth_token):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
-    return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
-
-
-def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_startTime": "2023-12-20T10:15:30Z",
-        "_state": "PAUSED",
-    }
-    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/usage-type/{usageType}'
-                         .replace('{deviceId}', device_id).replace('{usageType}', usage_type),
-                         data=json.dumps(payload), headers=headers)
-
-
-def create_usage_session(auth_token, device_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_startTime": "2023-12-20T10:15:30Z",
-        "_state": "PAUSED",
-        "_templateId": 'DeviceType1'
-    }
-    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions'
-                         .replace('{deviceId}', device_id), data=json.dumps(payload), headers=headers)
-
-
-def delete_usage_session(auth_token, device_id, session_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace("{deviceId}",
-                                                                                                  device_id).replace(
-        '{id}', session_id), headers=headers)
-
-
-def create_file(auth_token, name, mime_type):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        'name': name,
-        'mimeType': mime_type
-    }
-    return requests.post(ENDPOINT + '/file/v1/files/upload', data=json.dumps(payload), headers=headers)
-
-
-def get_file(auth_token, file_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/file/v1/files/{id}/download'.replace('{id}', file_id), headers=headers)
-
-
-def get_entities(auth_token):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
-
-
-def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
-    headers = {"content-type": "application/json"}
-    payload = {
-        "_name": test_name,
-        "_description": "Test Self-signup",
-        "_email": email,
-        "_locale": "en-us",
-        "_gender": "FEMALE",
-        "_dateOfBirth": "2007-12-20",
-        "_address": {
-            "countryCode": "US",
-            "state": "Massachusetts",
-            "city": "Boston",
-            "zipCode": "02101",
-            "address1": "11 Main St.",
-            "address2": "Entry B, Apartment 1"
-        },
-        "_mfa": {
-            "enabled": False,
-        },
-        # "_additionalPhone": "+12345678901",
-        "_nationalId": "123456789",
-        "_username": email,
-        "_password": "Q2207819w",
-        "_deviceRegistrationCode": registration_code,
-        "_ownerOrganization": {
-            "id": organization_id
-        }
-    }
-    return requests.post(ENDPOINT + '/api-gateway/v1/sign-up', headers=headers, data=json.dumps(payload))
-
-
-def anonymous_self_signup_with_registration_code(auth_token, test_name, email, registration_code):
-    headers = {"content-type": "application/json"}
-    payload = {
-        "_username": email,
-        "_password": "Q2207819w",
-        "_nickname": test_name,
-        "_deviceRegistrationCode": registration_code
-    }
-
-    return requests.post(ENDPOINT + '/api-gateway/v1/sign-up/anonymous', headers=headers, data=json.dumps(payload))
