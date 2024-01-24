@@ -5,7 +5,7 @@ import requests
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
 
 
-def login_with_with_credentials(username, password):
+def login_with_credentials(username, password):
     headers = {
         "accept": "application/json",
         "content-type": "application/json"
@@ -136,11 +136,15 @@ def create_patient(auth_token, name, email, template_name, organization_id):
                          .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
 
 
-def update_patient(auth_token, patient_id, organization_id, change_string, caregiver_id):
+def update_patient(auth_token, patient_id, organization_id, change_string, caregiver_id, data):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {"_description": change_string, "_ownerOrganization": {"id": organization_id}} \
-        if (caregiver_id is None) else {"_description": change_string, "_ownerOrganization": {"id": organization_id},
-                                        "_caregiver": {"id": caregiver_id}}
+    if data is not None:
+        payload = data
+    else:
+        payload = {"_description": change_string, "_ownerOrganization": {"id": organization_id}} \
+            if (caregiver_id is None) else {"_description": change_string,
+                                            "_ownerOrganization": {"id": organization_id},
+                                            "_caregiver": {"id": caregiver_id}}
 
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id),
                           headers=headers, data=json.dumps(payload))
@@ -247,6 +251,16 @@ def create_organization_template(auth_token, test_display_name, test_name, test_
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
+def create_patient_template(auth_token, test_display_name, test_name, organization_id, entity_type):
+    pass
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    payload = get_patient_template_payload(test_display_name, test_name, organization_id, entity_type)
+    data = json.dumps(payload)
+
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
 def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
                            test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -268,6 +282,12 @@ def create_usage_session_template(auth_token, test_display_name, test_name, test
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
+def get_template(auth_token, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
+                        headers=headers)
+
+
 def delete_template(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/settings/v1/templates/{templateId}'.replace("{templateId}", template_id),
@@ -280,6 +300,14 @@ def update_template(auth_token, template_id, device_template_id):
         "parentTemplateId": template_id
     }
     return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
+                        headers=headers, data=json.dumps(payload))
+
+
+def update_patient_template(auth_token, template_id, payload):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    data = json.dumps(payload)
+    request = 'ENDPOINT + /settings/v1/templates/{templateId}'.replace('{templateId}', template_id)
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
 
@@ -513,7 +541,7 @@ def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
                          data=json.dumps(payload), headers=headers)
 
 
-def create_usage_session(auth_token, device_id, template_id):
+def create_usage_session(auth_token, device_id, template_id):  ##### doesn't work
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_startTime": "2023-12-20T10:15:30Z",
@@ -536,12 +564,28 @@ def get_usage_session_list(auth_token):
     return requests.get(ENDPOINT + '/device/v1/devices/usage-sessions', data=json.dumps(query_params), headers=headers)
 
 
-def update_usage_session(auth_token, device_id, session_id):
+def update_usage_session(auth_token, device_id, session_id, state):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_startTime": "2023-12-20T10:15:30Z",
-        "_state": "ACTIVE",
-    }
+    if state is "DONE":
+        payload = {
+            "_startTime": "2023-12-20T10:15:30Z",
+            "_state": "DONE",
+            "_summary": {
+                "_stopReasonCode": "COMPLETION",
+                "_stopReason": "Manual stop"
+            },
+            "_endTime": "2023-12-25T10:15:30Z",
+        }
+    else:
+        payload = {
+            "_startTime": "2023-12-20T10:15:30Z",
+            "_state": "ACTIVE",
+            "_summary": {
+                "_stopReasonCode": None,
+                "_stopReason": None
+            },
+            "_endTime": None,
+        }
     return requests.patch(
         ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
         .replace('{id}', session_id), headers=headers, data=json.dumps(payload))
@@ -552,6 +596,35 @@ def delete_usage_session(auth_token, device_id, session_id):
     return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace("{deviceId}",
                                                                                                   device_id).replace(
         '{id}', session_id), headers=headers)
+
+
+def start_usage_session(auth_token, device_id, template_id, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_templateId": template_id,
+        "_name": "test start session",
+        "_patient": {
+            "id": patient_id
+        }
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/remote-control/start'
+                         .replace('{deviceId}', device_id), headers=headers, data=json.dumps(payload))
+
+
+def stop_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.post(ENDPOINT + '/v1/devices/{deviceId}/usage-sessions/{id}/remote-control/stop'
+                         .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers)
+
+
+def pause_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}/remote-control/pause'
+                         .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers)
+
+
+def resume_usage_session():
+    pass
 
 
 def create_file(auth_token, name, mime_type):
@@ -1157,4 +1230,54 @@ def get_usage_session_template_payload(test_display_name, test_name, test_refere
         "entityType": entity_type,
         "ownerOrganizationId": organization_id,
         "parentTemplateId": parent_template_id
+    }
+
+
+def get_patient_template_payload(test_display_name, test_name, organization_id, entity_type):
+    return {
+        "displayName": test_display_name,
+        "name": test_name,
+        "description": "Patient template",
+        "entityType": entity_type,
+        "ownerOrganizationId": None,
+        "parentTemplateId": None,
+        "forceUpdate": False,
+        "customAttributes": [
+            {
+                "name": "uploadFile",
+                "type": "FILE",
+                "displayName": "uploadFile",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": 20971520,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "id": "2885fbe6-1f26-4ac7-92cf-206d1a60e813",
+                "selectableValues": [],
+                "category": "REGULAR",
+                "numericMetaData": None,
+                "referenceConfiguration": None,
+                "linkConfiguration": None
+            }
+        ],
+#        "templateAttributes": [
+#            {
+#                "id": "5175bf5f-63fd-4502-b2d6-c4c8f4526a87",
+#                "displayName": "Self Sign Up Methods",
+#                "phi": False,
+#                "referenceConfiguration": None,
+#                "organizationSelectionConfiguration": {
+#                    "selected": None,
+#                    "all": True
+#                },
+#                "linkConfiguration": None,
+#                "value": [
+#                    "SELF",
+#                    "ANONYMOUS"
+#                ]
+#            }
+#        ],
     }

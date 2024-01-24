@@ -1,10 +1,12 @@
+import json
 import uuid
 import os
 
 import pytest
+import requests
 
 from API_drivers import (
-    login_with_with_credentials,
+    login_with_credentials,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
     identified_self_signup_with_registration_code,
@@ -12,8 +14,10 @@ from API_drivers import (
     delete_patient,
     create_device, get_device, delete_device, update_device, get_device_list,
     create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
-    get_usage_session_list,
-    create_organization_template, create_device_template, delete_template, create_usage_session_template,
+    get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
+    create_organization_template, create_device_template, create_patient_template, delete_template,
+    create_usage_session_template, get_template,
+    update_template, update_patient_template,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -30,7 +34,7 @@ from API_drivers import (
 #############################################################################################
 
 def test_patient_organization_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # default organization template
     create_organization_response = create_organization(admin_auth_token, template_id)
@@ -78,7 +82,7 @@ def test_patient_organization_abac_rules():
 
 
 def test_patient_organization_users_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization user
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
             "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
@@ -139,7 +143,7 @@ def test_patient_organization_users_abac_rules():
 
 
 def test_patient_patient_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
@@ -160,12 +164,12 @@ def test_patient_patient_abac_rules():
 
     # update patient only for self
     update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
-                                             "change string", None)
+                                             "change string", None, None)
     assert update_patient_response.status_code == 200
     # should fail for other patient
     update_patient_response = update_patient(patient_auth_token, patient_id[1],
                                              "00000000-0000-0000-0000-000000000000",
-                                             "change string", None)
+                                             "change string", None, None)
     assert update_patient_response.status_code == 403
 
     # get patient only for self
@@ -197,7 +201,7 @@ def test_patient_patient_abac_rules():
 
 
 def test_patient_caregiver_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
@@ -217,7 +221,7 @@ def test_patient_caregiver_abac_rules():
     # associate first of two patients setup with caregiver
     update_patient_response = update_patient(admin_auth_token, patient_id[0],
                                              "00000000-0000-0000-0000-000000000000", "change string",
-                                             caregiver_id)
+                                             caregiver_id, None)
     assert update_patient_response.status_code == 200
 
     # create caregiver by patient should fail
@@ -245,7 +249,7 @@ def test_patient_caregiver_abac_rules():
     get_caregiver_response = get_caregiver(patient_auth_token, caregiver_id)
     assert get_caregiver_response.status_code == 200
     # login with the second patient who is not associated with caregiver
-    patient2_auth_token = login_with_with_credentials(patient_email[1], "Q2207819w")
+    patient2_auth_token = login_with_credentials(patient_email[1], "Q2207819w")
     # get should now fail
     get_caregiver_response = get_caregiver(patient2_auth_token, caregiver_id)
     assert get_caregiver_response.status_code == 403
@@ -271,7 +275,7 @@ def test_patient_caregiver_abac_rules():
 
 
 def test_patient_devices_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
@@ -296,7 +300,7 @@ def test_patient_devices_abac_rules():
     # get device succeeds for self, fails for other (use patient[0] for self, patient[1] for other
     get_device_response = get_device(patient_auth_token, device_id[0])
     assert get_device_response.status_code == 200
-    patient2_auth_token = login_with_with_credentials(patient_email[1], "Q2207819w")
+    patient2_auth_token = login_with_credentials(patient_email[1], "Q2207819w")
     get_device_response = get_device(patient2_auth_token, device_id[0])
     assert get_device_response.status_code == 403
 
@@ -316,7 +320,7 @@ def test_patient_devices_abac_rules():
 
 # @pytest.mark.skip
 def test_patient_generic_entity_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices (use only one)
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                               'DeviceType1')
@@ -400,7 +404,7 @@ def test_patient_generic_entity_abac_rules():
 
 # @pytest.mark.skip
 def test_patient_registration_codes_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create patients, registration codes and devices in default organization
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -474,44 +478,61 @@ def test_patient_registration_codes_abac_rules():
     assert delete_organization_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_patient_files_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # This is the template id of the organization template in the console
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
     # create patient in new org
-    patient_auth_token, patient_id, registration_code_id, device_id = create_single_patient_self_signup(
-        admin_auth_token, organization_id, 'DeviceType1')
+    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
+            admin_auth_token, organization_id, 'DeviceType1')
+    # create patient in default org
+    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
+        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
 
-    # create files in default and new organization
-    name = f'est_file{uuid.uuid4().hex}'[0:16]
+    # create files in new organization and default , associate the files to patients
+    name = f'test_file{uuid.uuid4().hex}'[0:16]
     mime_type = 'text/plain'
-    create_file_response = create_file(admin_auth_token, name, mime_type)
+    data = open('./upload-file.txt', 'rb').read()
+    create_file_response = create_file(patient1_auth_token, name, mime_type)
     assert create_file_response.status_code == 200
     file1_id = create_file_response.json()['id']
-    create_file2_response = create_file(patient_auth_token, name, mime_type)
+    signed_url = create_file_response.json()['signedUrl']
+    upload_response = requests.put(signed_url, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200
+    create_file2_response = create_file(patient2_auth_token, name, mime_type)
     assert create_file2_response.status_code == 200
     file2_id = create_file2_response.json()['id']
-
+    signed_url2 = create_file2_response.json()['signedUrl']
+    upload_response = requests.put(signed_url2, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200
+    # associate files to patients
+    update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
+                                             {"uploadFile": {"id": file1_id}})
+    assert update_patient_response.status_code == 200
+    update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000", None, None,
+                                             {"uploadFile": {"id": file2_id}})
+    assert update_patient_response.status_code == 200
     # get should succeed only in self organization
-    get_file_response = get_file(patient_auth_token, file2_id)  # should succeed
+    get_file_response = get_file(patient1_auth_token, file1_id)  # should succeed
     assert get_file_response.status_code == 200
-    get_file_response = get_file(patient_auth_token, file1_id)  # should fail
+    get_file_response = get_file(patient1_auth_token, file2_id)  # should fail
     assert get_file_response.status_code == 403
 
     # teardown
-    single_self_signup_patient_teardown(admin_auth_token, patient_id, registration_code_id, device_id)
+    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
+    single_self_signup_patient_teardown(admin_auth_token,patient2_id, registration_code2_id, device2_id)
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_patient_usage_session_abac_rules():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create patients, registration codes and devices in default organization
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -520,6 +541,7 @@ def test_patient_usage_session_abac_rules():
     patient_id = patient_setup['patient_id'][0]
     patient_auth_token = patient_setup['patient_auth_token']
     device_id = patient_setup['device_id'][0]
+    device2_id = patient_setup['device_id'][1]
     # associate patient with device
     update_device_response = update_device(admin_auth_token, device_id, "change_string", patient_id)
     assert update_device_response.status_code == 200
@@ -538,15 +560,15 @@ def test_patient_usage_session_abac_rules():
     assert create_session_response.status_code == 201
     usage_session_id = create_session_response.json()['_id']
     # create session should fail for other user
-    patient2_auth_token = login_with_with_credentials(email[1], "Q2207819w")
+    patient2_auth_token = login_with_credentials(email[1], "Q2207819w")
     create_session_response = create_usage_session_by_usage_type(patient2_auth_token, device_id,
                                                                  usage_session_template_name)
     assert create_session_response.status_code == 403
 
     # update session should succeed for self and fail for other
-    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id)
+    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id, "DONE")
     assert update_session_response.status_code == 200
-    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id)
+    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id, "DONE")
     assert update_session_response.status_code == 403
 
     # get session should succeed only for self
@@ -560,7 +582,7 @@ def test_patient_usage_session_abac_rules():
     get_session_list_response = get_usage_session_list(patient_auth_token)
     assert get_session_list_response.status_code == 200
     assert get_session_list_response.json()['metadata']['page']['totalResults'] == 1
-    # negative (system admin should get all defined patients)
+    # negative: other patient should get zero results
     get_session_list_response = get_usage_session_list(patient2_auth_token)
     assert get_session_list_response.status_code == 200
     assert get_session_list_response.json()['metadata']['page']['totalResults'] == 0
@@ -569,11 +591,34 @@ def test_patient_usage_session_abac_rules():
     delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
     assert delete_session_response.status_code == 403
 
+    # start session only for self device (use second device)
+    start_session_response = start_usage_session(patient2_auth_token, device2_id, usage_session_template_id, patient_id)
+    assert start_session_response.status_code == 403
+    start_session_response = start_usage_session(patient_auth_token, device_id, usage_session_template_id, patient_id)
+    assert start_session_response.status_code == 201
+    usage_session2_id = start_session_response.json()['_id']
+
+    # pause only for self; first make sure it's active
+    #### Cannot perform this test since wihout a simulator I can't get the session into active state and update won't work
+    #### because the session was initiated by the command API
+    #### Same for stop, resume
+
+    # pause_session_response = pause_usage_session(patient2_auth_token, device_id, usage_session2_id)
+    # assert pause_session_response.status_code == 403
+    # pause_session_response = pause_usage_session(patient_auth_token, device_id, usage_session2_id)
+    # assert pause_session_response.status_code == 200
+
     # Teardown
+    # stop_session_response = stop_usage_session(admin_auth_token, device2_id, usage_session2_id)
+    # assert stop_session_response.status_code == 200      ###### getting 503
+    stop_usage_session_response = stop_usage_session(patient_auth_token, device_id, usage_session2_id)
+    assert stop_usage_session_response.status_code == 200  ### getting 503
+    delete_usage_session_response = delete_usage_session(patient2_auth_token, device_id, usage_session2_id)
+    assert delete_usage_session_response.status_code == 204  ####### getting 403
     delete_usage_session_response = delete_usage_session(admin_auth_token, device_id, usage_session_id)
     assert delete_usage_session_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
-    assert delete_template_response.status_code == 204
+    assert delete_template_response.status_code == 204  #### getting template in use
 
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
@@ -622,7 +667,7 @@ def self_signup_patient_setup(admin_auth_token, organization_id, device_template
         patient_id.append(self_signup_response.json()['patient']['_id'])
 
     # login with one of the two patients
-    patient_auth_token = login_with_with_credentials(email[0], "Q2207819w")
+    patient_auth_token = login_with_credentials(email[0], "Q2207819w")
     return {
         'patient_id': patient_id,
         'email': email,
@@ -667,7 +712,7 @@ def create_single_patient_self_signup(admin_auth_token, organization_id, device_
     patient_id = self_signup_response.json()['patient']['_id']
 
     # login
-    patient_auth_token = login_with_with_credentials(email, "Q2207819w")
+    patient_auth_token = login_with_credentials(email, "Q2207819w")
     return patient_auth_token, patient_id, registration_code_id, device_id
 
 
@@ -699,9 +744,68 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
                                                                  test_referenced_attrib_name,
                                                                  test_reference_attrib_display_name, organization_id,
                                                                  "usage-session", parent_template_id)
+    elif entity_type is "patient":
+        create_template_response = create_patient_template(auth_token, test_display_name, test_name, organization_id,
+                                                           "patient")
     else:
         create_template_response = None
 
     assert create_template_response.status_code == 201
     return (create_template_response.json()['id'], create_template_response.json()['name'],
             create_template_response.json()['displayName'])
+
+
+def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
+    append_data = {
+        "name": file_name,
+        "type": "FILE",
+        "displayName": file_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "max": 20971520,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "REGULAR",
+        "numericMetaData": None,
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    get_patient_response = get_patient(auth_token, patient_id)
+    assert get_patient_response.status_code == 200
+    patient_payload = get_patient_response.json()
+    template_id = get_patient_response.json()['_template']['id']
+    get_template_response = get_template(auth_token, template_id)
+    assert get_template_response.status_code == 200
+    # add the file element
+    template_attributes = get_template_response.json()['templateAttributes']
+    template_attributes[0]['organizationSelectionConfiguration'] = {
+        "selected": [],
+        "all": True
+    }
+    del template_attributes[0]['organizationSelection']
+    del template_attributes[0]['name']
+    del template_attributes[0]['basePath']
+    del template_attributes[0]['validation']
+    del template_attributes[0]['category']
+    del template_attributes[0]['selectableValues']
+    del template_attributes[0]['numericMetaData']
+    del template_attributes[0]['typeEnum']
+
+    payload = {
+        "displayName": get_template_response.json()['displayName'],
+        "name": get_template_response.json()['name'],
+        "description": get_template_response.json()['description'],
+        "ownerOrganizationId": get_template_response.json()['ownerOrganizationId'],
+        "forceUpdate": True,
+        "customAttributes": get_template_response.json()['customAttributes'],
+        "builtInAttributes": [],  # get_template_response.json()['builtInAttributes'],
+        "templateAttributes": [],  # template_attributes,
+    }
+    # payload['customAttributes'].append(append_data)
+
+    update_template_response = update_patient_template(auth_token, template_id, payload)
+    assert update_template_response.status_code == 200
+
+    return template_id, patient_payload

@@ -3,7 +3,7 @@ import os
 import pytest
 
 from API_drivers import (
-    login_with_with_credentials,
+    login_with_credentials,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
     identified_self_signup_with_registration_code,
@@ -26,7 +26,7 @@ from API_drivers import (
 #############################################################################################
 
 def cleanup_generic_entities():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
