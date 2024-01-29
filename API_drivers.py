@@ -566,7 +566,7 @@ def get_usage_session_list(auth_token):
 
 def update_usage_session(auth_token, device_id, session_id, state):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    if state is "DONE":
+    if state == "DONE":
         payload = {
             "_startTime": "2023-12-20T10:15:30Z",
             "_state": "DONE",
@@ -669,7 +669,7 @@ def identified_self_signup_with_registration_code(auth_token, test_name, email, 
         # "_additionalPhone": "+12345678901",
         "_nationalId": "123456789",
         "_username": email,
-        "_password": "Q2207819w",
+        "_password": "Q2207819w@",
         "_deviceRegistrationCode": registration_code,
         "_ownerOrganization": {
             "id": organization_id
@@ -682,7 +682,7 @@ def anonymous_self_signup_with_registration_code(auth_token, test_name, email, r
     headers = {"content-type": "application/json"}
     payload = {
         "_username": email,
-        "_password": "Q2207819w",
+        "_password": "Q2207819w@",
         "_nickname": test_name,
         "_deviceRegistrationCode": registration_code
     }
