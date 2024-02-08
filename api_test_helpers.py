@@ -194,3 +194,5 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     assert update_template_response.status_code == 200
 
     return template_id, patient_payload
+
+

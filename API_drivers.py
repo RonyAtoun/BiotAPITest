@@ -1,6 +1,8 @@
 import json
+import os
 import uuid
 import requests
+from urllib.parse import urlencode
 
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
 
@@ -256,7 +258,6 @@ def create_patient_template(auth_token, test_display_name, test_name, organizati
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
     payload = get_patient_template_payload(test_display_name, test_name, organization_id, entity_type)
-    data = json.dumps(payload)
 
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
@@ -305,8 +306,6 @@ def update_template(auth_token, template_id, device_template_id):
 
 def update_patient_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    data = json.dumps(payload)
-    request = 'ENDPOINT + /settings/v1/templates/{templateId}'.replace('{templateId}', template_id)
     return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
@@ -530,6 +529,11 @@ def get_device_list(auth_token):
     return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
 
 
+def get_device_credentials(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/device/v2/credentials/organization', headers=headers)
+
+
 def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -625,6 +629,110 @@ def pause_usage_session(auth_token, device_id, session_id):
 
 def resume_usage_session():
     pass
+
+
+def create_measurement(auth_token, device_id, patient_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "metadata": {
+            "timestamp": "2023-12-20T10:15:30Z",
+            "deviceId": device_id,
+            "patientId": patient_id,
+            "sessionId": session_id
+        },
+        "data": {
+            "test_hr": 70
+        }
+    }
+    return requests.post(ENDPOINT + '/measurement/v1/measurements', data=json.dumps(payload), headers=headers)
+
+
+def create_bulk_measurement(auth_token, device_id, patient_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "metadata": {
+            "timestamp": "2023-10-20T10:15:30Z",
+            "deviceId": device_id,
+            "patientId": patient_id,
+            "sessionId": session_id
+        },
+        "data": {
+            "test_hr": 70,
+        }
+    }
+    return requests.post(ENDPOINT + '/measurement/v1/measurements/bulk', data=json.dumps(payload), headers=headers)
+
+
+def get_raw_measurements(auth_token, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {
+        "attributes": "test_hr",
+        "patientId": patient_id,
+        "startTime": "2023-12-30T10:15:30Z",
+        "endTime": "2024-01-30T08:15:30Z"
+    }
+    encoded_params = urlencode(query_params)
+    return requests.get(ENDPOINT + "/measurement/v1/measurements/raw?" + encoded_params, headers=headers)
+
+
+def get_aggregated_measurements(auth_token, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {
+        "attributes": "test_hr",
+        "patientId": patient_id,
+        "startTime": "2023-12-30T10:15:30Z",
+        "endTime": "2024-01-30T08:15:30Z",
+        "binIntervalSeconds": 120
+    }
+    encoded_params = urlencode(query_params)
+    return requests.get(ENDPOINT + "/measurement/v1/measurements/aggregated?" + encoded_params, headers=headers)
+
+
+def get_v2_raw_measurements(auth_token, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_patient.id": {
+                    "eq": patient_id
+                },
+                "test_hr": {
+                    "gt": 25,
+                    "gte": 25,
+                    },
+                "timestamp": {
+                    "from": "2023-12-30T10:15:30Z",
+                    "to": "2023-12-30T10:15:35Z",
+                }
+            }
+        })
+    }
+    return requests.get(ENDPOINT + "/measurement/v2/measurements/raw?", params=search_request, headers=headers)
+
+
+def get_v2_aggregated_measurements(auth_token, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_patient.id": {
+                    "eq": patient_id
+                },
+                "test_hr": {
+                    "gt": 25,
+                    "gte": 25,
+                },
+                "timestamp": {
+                    "from": "2023-12-30T10:15:30Z",
+                    "to": "2023-12-30T10:15:35Z",
+                },
+                "binIntervalSeconds": {
+                    "eq": 120
+                }
+            }
+        })
+    }
+    return requests.get(ENDPOINT + "/measurement/v2/measurements/aggregated?", params=search_request, headers=headers)
 
 
 def create_file(auth_token, name, mime_type):
@@ -1263,21 +1371,21 @@ def get_patient_template_payload(test_display_name, test_name, organization_id, 
                 "linkConfiguration": None
             }
         ],
-#        "templateAttributes": [
-#            {
-#                "id": "5175bf5f-63fd-4502-b2d6-c4c8f4526a87",
-#                "displayName": "Self Sign Up Methods",
-#                "phi": False,
-#                "referenceConfiguration": None,
-#                "organizationSelectionConfiguration": {
-#                    "selected": None,
-#                    "all": True
-#                },
-#                "linkConfiguration": None,
-#                "value": [
-#                    "SELF",
-#                    "ANONYMOUS"
-#                ]
-#            }
-#        ],
+        #        "templateAttributes": [
+        #            {
+        #                "id": "5175bf5f-63fd-4502-b2d6-c4c8f4526a87",
+        #                "displayName": "Self Sign Up Methods",
+        #                "phi": False,
+        #                "referenceConfiguration": None,
+        #                "organizationSelectionConfiguration": {
+        #                    "selected": None,
+        #                    "all": True
+        #                },
+        #                "linkConfiguration": None,
+        #                "value": [
+        #                    "SELF",
+        #                    "ANONYMOUS"
+        #                ]
+        #            }
+        #        ],
     }

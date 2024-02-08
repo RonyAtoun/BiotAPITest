@@ -1,31 +1,23 @@
 import os
 
-import pytest
+from dotenv import load_dotenv, find_dotenv
 
 from API_drivers import (
     login_with_credentials,
-    create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
-    get_registration_code_list,
-    identified_self_signup_with_registration_code,
-    create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
-    delete_patient,
-    create_device, get_device, delete_device, update_device, get_device_list,
-    create_organization_template, create_device_template, delete_template,
-    create_organization, delete_organization,
-    create_organization_user, delete_organization_user, update_organization_user,
-    change_organization_user_state, get_organization_user, get_organization_user_list,
-    create_generic_entity, delete_generic_entity, update_generic_entity, get_generic_entity,
-    get_generic_entity_list,
-    update_organization, get_organization, get_organization_list,
-    create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
-    get_caregiver_list, resend_invitation)
+    get_patient_list, delete_patient,
+    delete_device, get_device_list,
+    delete_organization,
+    delete_generic_entity, get_generic_entity_list,
+    get_organization_list)
 
 
 #############################################################################################
 # Username and password have to be set in the environment in advance
 #############################################################################################
 
-def cleanup_generic_entities():
+def force_cleanup():
+    #load_dotenv()
+    #print(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
@@ -58,4 +50,4 @@ def cleanup_generic_entities():
 
 
 if __name__ == "__main__":
-    cleanup_generic_entities()
+    force_cleanup()
