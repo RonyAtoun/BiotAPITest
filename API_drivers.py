@@ -1,5 +1,4 @@
 import json
-import os
 import uuid
 import requests
 from urllib.parse import urlencode
@@ -22,6 +21,7 @@ def login_with_credentials(username, password):
     return response.json()["accessJwt"]["token"]
 
 
+# Organization user APIs ###############################################################################################
 def create_organization_user(auth_token, template_name, name, email, employee_id):
     headers = {
         "accept": "application/json",
@@ -98,6 +98,7 @@ def change_organization_user_state(auth_token, user_id, state):
                          '/enabled-state/{state}'.replace('{state}', state), headers=headers)
 
 
+# Patient APIs ################################################################################################
 def create_patient(auth_token, name, email, template_name, organization_id):
     headers = {
         "accept": "application/json",
@@ -176,6 +177,7 @@ def delete_patient(auth_token, user_id):
                            headers=headers)
 
 
+# Caregiver APIs ################################################################################################
 def create_caregiver(auth_token, name, email, template_name, organization_id):
     headers = {
         "accept": "application/json",
@@ -232,6 +234,7 @@ def get_caregiver_list(auth_token):
     return requests.get(ENDPOINT + '/organization/v1/users/caregivers', data=json.dumps(query_params), headers=headers)
 
 
+# Misc user APIs ################################################################################################
 def reset_password(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/ums/v2/users/{id}/password/generate'.replace('{id}', user_id), headers=headers)
@@ -243,6 +246,7 @@ def resend_invitation(auth_token, user_id):
                          headers=headers)
 
 
+# Template APIs ################################################################################################
 def create_organization_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
                                  test_reference_attrib_display_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -270,6 +274,21 @@ def create_device_template(auth_token, test_display_name, test_name, test_refere
                                           test_reference_attrib_display_name, organization_id, entity_type,
                                           parent_template_id)
 
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_alert_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                          test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    if entity_type == "patient-alert":
+        payload = get_patient_alert_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                                     test_reference_attrib_display_name, organization_id, entity_type,
+                                                     parent_template_id)
+    else:
+        payload = get_device_alert_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                                    test_reference_attrib_display_name, organization_id, entity_type,
+                                                    parent_template_id)
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
@@ -310,6 +329,7 @@ def update_patient_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
+# Generic Entity APIs ################################################################################################
 def create_generic_entity(auth_token, template_id, test_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -348,6 +368,7 @@ def get_generic_entity_list(auth_token):
                         headers=headers)
 
 
+# Organization APIs ################################################################################################
 def create_organization(auth_token, template_id):
     email = f'integ_test_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
     organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
@@ -442,6 +463,7 @@ def update_organization(auth_token, organization_id, change_string):
         headers=headers, data=json.dumps(payload))
 
 
+# Registration codes APIs ##############################################################################################
 def create_registration_code(auth_token, template_name, registration_code, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -482,6 +504,7 @@ def get_registration_code_list(auth_token):
                         headers=headers)
 
 
+# Device APIs ################################################################################################
 def create_device(auth_token, template_name, device_id, registration_code_id, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -534,6 +557,7 @@ def get_device_credentials(auth_token):
     return requests.get(ENDPOINT + '/device/v2/credentials/organization', headers=headers)
 
 
+# Usage session APIs ################################################################################################
 def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -631,6 +655,7 @@ def resume_usage_session():
     pass
 
 
+# Measurement APIs ################################################################################################
 def create_measurement(auth_token, device_id, patient_id, session_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -699,7 +724,7 @@ def get_v2_raw_measurements(auth_token, patient_id):
                 "test_hr": {
                     "gt": 25,
                     "gte": 25,
-                    },
+                },
                 "timestamp": {
                     "from": "2023-12-30T10:15:30Z",
                     "to": "2023-12-30T10:15:35Z",
@@ -735,6 +760,136 @@ def get_v2_aggregated_measurements(auth_token, patient_id):
     return requests.get(ENDPOINT + "/measurement/v2/measurements/aggregated?", params=search_request, headers=headers)
 
 
+# Alert APIs (patient & device)########################################################################################
+def create_patient_alert_by_id(auth_token, patient_id, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test patient alert",
+        "_templateId": template_id
+    }
+    return requests.post(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts'
+                         .replace('{patientId}', patient_id), data=json.dumps(payload), headers=headers)
+
+
+def create_patient_alert_by_name(auth_token, patient_id, template_name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test patient alert",
+    }
+    return requests.post(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{templateName}'
+                         .replace('{patientId}', patient_id).replace('{templateName}', template_name),
+                         data=json.dumps(payload), headers=headers)
+
+
+def get_patient_alert(auth_token, patient_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'
+                        .replace('{patientId}', patient_id).replace('{id}', alert_id), headers=headers)
+
+
+def delete_patient_alert(auth_token, patient_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
+                           patient_id).replace('{id}', alert_id), headers=headers)
+
+
+def update_patient_alert(auth_token, patient_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test patient alert",
+    }
+    return requests.patch(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
+                          patient_id).replace('{id}', alert_id), data=json.dumps(payload), headers=headers)
+
+
+def get_patient_alert_list(auth_token, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_id": {
+                    "like": alert_id
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
+
+
+def create_device_alert_by_id(auth_token, device_id, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test device alert",
+        "_templateId": template_id
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/alerts'
+                         .replace('{deviceId}', device_id), data=json.dumps(payload), headers=headers)
+
+
+def create_device_alert_by_name(auth_token, device_id, template_name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test patient alert",
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{templateName}'
+                         .replace('{deviceId}', device_id).replace('{templateName}', template_name),
+                         data=json.dumps(payload), headers=headers)
+
+
+def delete_device_alert(auth_token, device_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
+                           device_id).replace('{id}', alert_id), headers=headers)
+
+
+def update_device_alert(auth_token, device_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_state": "ACTIVE",
+        "_severity": "MAJOR",
+        "_clearNotes": None,
+        "_name": "test patient alert",
+    }
+    return requests.patch(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
+                          device_id).replace('{id}', alert_id), data=json.dumps(payload), headers=headers)
+
+
+def get_device_alert(auth_token, device_id, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'
+                        .replace('{deviceId}', device_id).replace('{id}', alert_id), headers=headers)
+
+
+def get_device_alert_list(auth_token, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_id": {
+                    "like": alert_id
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
+
+
+# File APIs ################################################################################################
 def create_file(auth_token, name, mime_type):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
@@ -749,6 +904,7 @@ def get_file(auth_token, file_id):
     return requests.get(ENDPOINT + '/file/v1/files/{id}/download'.replace('{id}', file_id), headers=headers)
 
 
+# Get entities PIs ################################################################################################
 def get_entities(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
@@ -798,6 +954,7 @@ def anonymous_self_signup_with_registration_code(auth_token, test_name, email, r
     return requests.post(ENDPOINT + '/api-gateway/v1/sign-up/anonymous', headers=headers, data=json.dumps(payload))
 
 
+# Payloads for template APIs # #######################################################################################
 def get_organization_template_payload(test_display_name, test_name, test_referenced_attrib_name,
                                       test_reference_attrib_display_name, organization_id):
     return {
@@ -832,186 +989,6 @@ def get_device_template_payload(test_display_name, test_name, test_referenced_at
         "displayName": test_display_name,
         "customAttributes": [],
         "builtInAttributes": [
-            {
-                "name": "_bootTime",
-                "basePath": "_status",
-                "displayName": "Boot Time",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_certificateStatus",
-                "basePath": "_status",
-                "displayName": "Certificate Status",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_connected",
-                "basePath": "_status._connection",
-                "displayName": "Connected",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_creationTime",
-                "basePath": None,
-                "displayName": "Creation Time",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_description",
-                "basePath": None,
-                "displayName": "Description",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_fwVersion",
-                "basePath": "_status",
-                "displayName": "FW Version",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_hwVersion",
-                "basePath": "_status",
-                "displayName": "HW Version",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_ipAddress",
-                "basePath": "_status._connection",
-                "displayName": "IP Address",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_lastConnectedTime",
-                "basePath": "_status._connection",
-                "displayName": "Last Connected Time",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_lastModifiedTime",
-                "basePath": None,
-                "displayName": "Last Modified Time",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_message",
-                "basePath": "_status._operational",
-                "displayName": "Operational Message",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_status",
-                "basePath": "_status._operational",
-                "displayName": "Operational Status",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
             {
                 "name": "_ownerOrganization",
                 "basePath": None,
@@ -1075,25 +1052,27 @@ def get_device_template_payload(test_display_name, test_name, test_referenced_at
                     "entityType": "registration-code"
                 }
             },
+        ],
+        "templateAttributes": [],
+        "entityType": entity_type,
+        "parentTemplateId": parent_template_id,
+        "ownerOrganizationId": organization_id
+    }
+
+
+def get_patient_alert_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                       test_reference_attrib_display_name, organization_id, entity_type,
+                                       parent_template_id):
+    referencedSideAttributeName = f'Template Alert{uuid.uuid4()}'[0:16]
+    return {
+        "name": test_name,
+        "displayName": test_display_name,
+        "customAttributes": [],
+        "builtInAttributes": [
             {
-                "name": "_timezone",
+                "name": "_ownerOrganization",
                 "basePath": None,
-                "displayName": "Time Zone",
-                "phi": False,
-                "validation": {
-                    "mandatory": False,
-                    "min": None,
-                    "max": None,
-                    "regex": None,
-                    "defaultValue": None
-                },
-                "numericMetaData": None,
-                "referenceConfiguration": None
-            },
-            {
-                "name": "_id",
-                "basePath": None,
-                "displayName": "Unique ID",
+                "displayName": "Owner Organization",
                 "phi": False,
                 "validation": {
                     "mandatory": True,
@@ -1103,8 +1082,136 @@ def get_device_template_payload(test_display_name, test_name, test_referenced_at
                     "defaultValue": None
                 },
                 "numericMetaData": None,
-                "referenceConfiguration": None
-            }
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": test_referenced_attrib_name,
+                    "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_clearedBy",
+                "basePath": None,
+                "displayName": "clearedBy",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "caregiver"
+                }
+            },
+        ],
+        "templateAttributes": [],
+        "entityType": entity_type,
+        "parentTemplateId": parent_template_id,
+        "ownerOrganizationId": organization_id
+    }
+
+
+def get_device_alert_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                      test_reference_attrib_display_name, organization_id, entity_type,
+                                      parent_template_id):
+    referencedSideAttributeName = f'Template Alert{uuid.uuid4()}'[0:16]
+    return {
+        "name": test_name,
+        "displayName": test_display_name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": test_referenced_attrib_name,
+                    "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "device"
+                }
+            },
+            {
+                "name": "_clearedBy",
+                "basePath": None,
+                "displayName": "clearedBy",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": referencedSideAttributeName,
+                    "referencedSideAttributeDisplayName": referencedSideAttributeName,
+                    "validTemplatesToReference": [],
+                    "entityType": "caregiver"
+                }
+            },
         ],
         "templateAttributes": [],
         "entityType": entity_type,
@@ -1371,21 +1478,4 @@ def get_patient_template_payload(test_display_name, test_name, organization_id, 
                 "linkConfiguration": None
             }
         ],
-        #        "templateAttributes": [
-        #            {
-        #                "id": "5175bf5f-63fd-4502-b2d6-c4c8f4526a87",
-        #                "displayName": "Self Sign Up Methods",
-        #                "phi": False,
-        #                "referenceConfiguration": None,
-        #                "organizationSelectionConfiguration": {
-        #                    "selected": None,
-        #                    "all": True
-        #                },
-        #                "linkConfiguration": None,
-        #                "value": [
-        #                    "SELF",
-        #                    "ANONYMOUS"
-        #                ]
-        #            }
-        #        ],
     }

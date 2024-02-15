@@ -10,7 +10,8 @@ from API_drivers import (
     create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
     get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
     create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
-    create_organization_template, create_device_template, create_patient_template, delete_template,
+    create_organization_template, create_device_template, create_patient_template, create_alert_template,
+    delete_template,
     create_usage_session_template, get_template,
     update_template, update_patient_template,
     create_organization, delete_organization,
@@ -115,23 +116,28 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
     test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
-    if entity_type is "organization":
+    if entity_type == "organization":
         create_template_response = create_organization_template(auth_token, test_display_name, test_name,
                                                                 test_referenced_attrib_name,
                                                                 test_reference_attrib_display_name, organization_id)
-    elif entity_type is "device":
+    elif entity_type == "device":
         create_template_response = create_device_template(auth_token, test_display_name, test_name,
                                                           test_referenced_attrib_name,
-                                                          test_reference_attrib_display_name, organization_id, "device",
-                                                          None)
-    elif entity_type is "usage_session":
+                                                          test_reference_attrib_display_name, organization_id,
+                                                          entity_type, None)
+    elif entity_type == "usage-session":
         create_template_response = create_usage_session_template(auth_token, test_display_name, test_name,
                                                                  test_referenced_attrib_name,
                                                                  test_reference_attrib_display_name, organization_id,
-                                                                 "usage-session", parent_template_id)
-    elif entity_type is "patient":
+                                                                 entity_type, parent_template_id)
+    elif entity_type == "patient":
         create_template_response = create_patient_template(auth_token, test_display_name, test_name, organization_id,
-                                                           "patient")
+                                                           entity_type)
+    elif entity_type == "patient-alert" or entity_type == "device-alert":
+        create_template_response = create_alert_template(auth_token, test_display_name, test_name,
+                                                         test_referenced_attrib_name,
+                                                         test_reference_attrib_display_name, organization_id,
+                                                         entity_type, parent_template_id)
     else:
         create_template_response = None
 
@@ -194,5 +200,3 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     assert update_template_response.status_code == 200
 
     return template_id, patient_payload
-
-
