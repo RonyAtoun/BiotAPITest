@@ -131,9 +131,6 @@ def create_patient(auth_token, name, email, template_name, organization_id):
         "_ownerOrganization": {
             "id": organization_id
         },
-        "_caregiver": {
-
-        }
     }
     return requests.post(ENDPOINT + '/organization/v1/users/patients/templates/{templateName}'
                          .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
@@ -240,6 +237,20 @@ def reset_password(auth_token, user_id):
     return requests.post(ENDPOINT + '/ums/v2/users/{id}/password/generate'.replace('{id}', user_id), headers=headers)
 
 
+def set_password(auth_token, old_password, new_password):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "password": {
+            "current": old_password,
+            "new": new_password
+        },
+        "mfa": {
+            "enabled": False,
+        }
+    }
+    return requests.patch(ENDPOINT + '/ums/v2/users/self', data=json.dumps(payload), headers=headers)
+
+
 def resend_invitation(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/organization/v1/invitations/{userId}'.replace('{userId}', user_id),
@@ -306,6 +317,12 @@ def get_template(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
                         headers=headers)
+
+
+def get_all_templates(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    query_params = {}
+    return requests.get(ENDPOINT + '/settings/v1/templates/minimized', data=json.dumps(query_params), headers=headers)
 
 
 def delete_template(auth_token, template_id):
@@ -796,7 +813,8 @@ def get_patient_alert(auth_token, patient_id, alert_id):
 def delete_patient_alert(auth_token, patient_id, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
-                           patient_id).replace('{id}', alert_id), headers=headers)
+                                                                                                        patient_id).replace(
+        '{id}', alert_id), headers=headers)
 
 
 def update_patient_alert(auth_token, patient_id, alert_id):
@@ -808,7 +826,8 @@ def update_patient_alert(auth_token, patient_id, alert_id):
         "_name": "test patient alert",
     }
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
-                          patient_id).replace('{id}', alert_id), data=json.dumps(payload), headers=headers)
+                                                                                                       patient_id).replace(
+        '{id}', alert_id), data=json.dumps(payload), headers=headers)
 
 
 def get_patient_alert_list(auth_token, alert_id):
@@ -854,7 +873,9 @@ def create_device_alert_by_name(auth_token, device_id, template_name):
 def delete_device_alert(auth_token, device_id, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.delete(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
-                           device_id).replace('{id}', alert_id), headers=headers)
+                                                                                          device_id).replace('{id}',
+                                                                                                             alert_id),
+                           headers=headers)
 
 
 def update_device_alert(auth_token, device_id, alert_id):
@@ -866,7 +887,9 @@ def update_device_alert(auth_token, device_id, alert_id):
         "_name": "test patient alert",
     }
     return requests.patch(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
-                          device_id).replace('{id}', alert_id), data=json.dumps(payload), headers=headers)
+                                                                                         device_id).replace('{id}',
+                                                                                                            alert_id),
+                          data=json.dumps(payload), headers=headers)
 
 
 def get_device_alert(auth_token, device_id, alert_id):

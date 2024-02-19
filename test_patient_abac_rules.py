@@ -5,7 +5,7 @@ import uuid
 import os
 
 from API_drivers import (
-    login_with_credentials,
+    login_with_credentials, reset_password, set_password,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
@@ -15,7 +15,7 @@ from API_drivers import (
     get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
     create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
     get_v2_aggregated_measurements, get_v2_raw_measurements,
-    delete_template,
+    delete_template, get_all_templates,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -30,8 +30,8 @@ from API_drivers import (
     get_device_alert, get_device_alert_list, get_patient_alert, get_patient_alert_list)
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
-    create_single_patient_self_signup, create_template_setup
-)
+    create_single_patient_self_signup, create_template_setup)
+from accept_invitation import accept_invitation
 
 
 #############################################################################################
@@ -639,7 +639,9 @@ def test_patient_alerts_abac_rules():  ## in progress
     # Should be separate for patient alerts and device alerts
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
-    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"  # This is the template id of the organization template in the console
+    # This is the template id of the organization template in the staging console
+    template_id = "2aaa71cf-8a10-4253-9576-6fd160a85b2d"
+
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
@@ -653,12 +655,10 @@ def test_patient_alerts_abac_rules():  ## in progress
     get_patient_response = get_patient(patient1_auth_token, patient1_id)
     assert get_patient_response.status_code == 200
     patient_template_id = get_patient_response.json()['_template']['id']
-    patient_template_name = get_patient_response.json()['_template']['name']
     # get the device template
     get_device_response = get_device(patient1_auth_token, device1_id)
     assert get_device_response.status_code == 200
     device_template_id = get_device_response.json()['_template']['id']
-    device_template_name = get_device_response.json()['_template']['name']
 
     # create alert template based on patient parent (template1) and device parent (template2)
     alert_template1_id, alert_template1_name, alert_template1_display_name = (
@@ -742,9 +742,11 @@ def test_patient_alerts_abac_rules():  ## in progress
     assert update_alert_response.status_code == 200  # same org
     update_alert_response = update_device_alert(patient2_auth_token, device1_id, alert_id)
     assert update_alert_response.status_code == 403  # other org
-    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
 
     # teardown
+    # clean up the last device alert
+    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
+    assert delete_alert_response.status_code == 204
     single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
     single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
     # delete second organization
@@ -832,4 +834,36 @@ def test_patient_measurements_abac_rules():
 
 
 def test_patient_ums_abac_rules():
-    pass
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    template_list_response = get_all_templates(admin_auth_token)
+    assert template_list_response.status_code == 200
+    # get the Patient template id
+    for template in template_list_response.json()['data']:
+        if "Patient" == template['name']:
+            patient_template_name = template['name']
+            break
+
+    # create a patient user
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    # create patient
+    create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
+                                             "00000000-0000-0000-0000-000000000000")
+    assert create_patient_response.status_code == 201
+    patient_id = create_patient_response.json()['_id']
+
+    response_text, accept_invitation_response = accept_invitation(email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    patient_auth_token = login_with_credentials(email, password)
+    # set password by patient
+    new_password = "Bb234567NewPass"
+    set_password_response = set_password(patient_auth_token, password, new_password)
+    assert set_password_response.status_code == 200
+    # check login with new password
+    patient_auth_token = login_with_credentials(email, new_password)
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
