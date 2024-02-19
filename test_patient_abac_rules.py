@@ -94,8 +94,8 @@ def test_patient_organization_users_abac_rules():
     template_name = "OrganizationOperator"
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'
-    employee_id = f'test_{uuid.uuid4().hex}'[0:35]
-    create_user_response = create_organization_user(admin_auth_token, template_name, name, email, employee_id)
+    create_user_response = create_organization_user(admin_auth_token, template_name, name, email,
+                                                    "00000000-0000-0000-0000-000000000000")
     assert create_user_response.status_code == 201
     organization_user_id = create_user_response.json()['_id']
 
@@ -110,8 +110,8 @@ def test_patient_organization_users_abac_rules():
     template_name = "OrganizationOperator"
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'
-    employee_id = f'test_{uuid.uuid4().hex}'[0:35]
-    create_user_response = create_organization_user(patient_auth_token, template_name, name, email, employee_id)
+    create_user_response = create_organization_user(patient_auth_token, template_name, name, email,
+                                                    "00000000-0000-0000-0000-000000000000")
     assert create_user_response.status_code == 403
 
     # delete organization user by patient should fail
@@ -573,9 +573,9 @@ def test_patient_usage_session_abac_rules():
     assert create_session_response.status_code == 403
 
     # update session should succeed for self and fail for other
-    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id, "DONE")
+    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id)
     assert update_session_response.status_code == 200
-    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id, "DONE")
+    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id)
     assert update_session_response.status_code == 403
 
     # get session should succeed only for self
@@ -837,7 +837,8 @@ def test_patient_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
-    # get the Patient template id
+    # get the Patient template name
+    patient_template_name = None
     for template in template_list_response.json()['data']:
         if "Patient" == template['name']:
             patient_template_name = template['name']

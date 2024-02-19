@@ -1,7 +1,10 @@
 import json
+import os
 import uuid
 import requests
 from urllib.parse import urlencode
+
+# from test_constants import *
 
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
 
@@ -21,8 +24,19 @@ def login_with_credentials(username, password):
     return response.json()["accessJwt"]["token"]
 
 
-# Organization user APIs ###############################################################################################
-def create_organization_user(auth_token, template_name, name, email, employee_id):
+def get_self_user_email(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {}
+    response = requests.get(ENDPOINT + '/organization/v1/users/self', headers=headers, data=json.dumps(payload))
+    assert response.status_code == 200
+    return response.json()["_email"]
+
+
+def create_organization_user(auth_token, template_name, name, email, organization_id):
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
@@ -30,10 +44,7 @@ def create_organization_user(auth_token, template_name, name, email, employee_id
         "Authorization": "Bearer " + auth_token
     }
     payload = {
-        "_name": {
-            "firstName": name["firstName"],
-            "lastName": name["lastName"]
-        },
+        "_name": name,
         "_description": "Lorem Ipsum",
         "_email": email,
         "_phone": None,
@@ -52,13 +63,13 @@ def create_organization_user(auth_token, template_name, name, email, employee_id
             "enabled": False,
             "expirationInMinutes": None
         },
-        "_employeeId": employee_id,
+        "_employeeId": f'integ_test_{uuid.uuid4().hex}'[0:32],
         "_ownerOrganization": {
-            "id": '00000000-0000-0000-0000-000000000000'
+            "id": organization_id
         }
     }
-    return requests.post(ENDPOINT + '/organization/v1/users/organizations/templates/{templateName}'
-                         .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
+    return requests.post(f"{ENDPOINT}/organization/v1/users/organizations/templates/{template_name}",
+                         headers=headers, data=json.dumps(payload))
 
 
 def delete_organization_user(auth_token, user_id):
@@ -136,6 +147,44 @@ def create_patient(auth_token, name, email, template_name, organization_id):
                          .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
 
 
+def create_patient_with_phi(auth_token, name, email, template_name, organization_id):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "email-confirmation-landing-page": "https://example.com/en/landing-page",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {
+        "_name": name,
+        "_description": "Lorem Ipsum",
+        "phitruelabel": "testphi",
+        "_email": email,
+        # "_phone": "+12345678901",
+        "_locale": "en-us",
+        "_gender": "FEMALE",
+        "_dateOfBirth": "2007-12-20",
+        "_address": {
+            "countryCode": "US",
+            "state": "Massachusetts",
+            "city": "Boston",
+            "zipCode": "02101",
+            "address1": "11 Main St.",
+            "address2": "Entry B, Apartment 1"
+        },
+        "_mfa": {
+            "enabled": False,
+
+        },
+        # "_additionalPhone": "+12345678901",
+        "_nationalId": "123456789",
+        "_ownerOrganization": {
+            "id": organization_id
+        }
+    }
+    return requests.post(ENDPOINT + '/organization/v1/users/patients/templates/{templateName}'
+                         .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
+
+
 def update_patient(auth_token, patient_id, organization_id, change_string, caregiver_id, data):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     if data is not None:
@@ -150,6 +199,14 @@ def update_patient(auth_token, patient_id, organization_id, change_string, careg
                           headers=headers, data=json.dumps(payload))
 
 
+def update_patient_without_caregiver(auth_token, patient_id, organization_id, change_string):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {"_description": change_string, "_ownerOrganization": {"id": organization_id}}
+
+    return requests.patch(ENDPOINT + '/organization/v1/users/patients/{id}'.replace("{id}", patient_id),
+                          headers=headers, data=json.dumps(payload))
+
+
 def get_patient(auth_token, patient_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/organization/v1/users/patients/{id}'.replace('{id}', patient_id),
@@ -158,7 +215,7 @@ def get_patient(auth_token, patient_id):
 
 def get_patient_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
+    query_params = {"limit": 200}
     return requests.get(ENDPOINT + '/organization/v1/users/patients', data=json.dumps(query_params), headers=headers)
 
 
@@ -251,6 +308,10 @@ def set_password(auth_token, old_password, new_password):
     return requests.patch(ENDPOINT + '/ums/v2/users/self', data=json.dumps(payload), headers=headers)
 
 
+def forgot_password():
+    pass
+
+
 def resend_invitation(auth_token, user_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.post(ENDPOINT + '/organization/v1/invitations/{userId}'.replace('{userId}', user_id),
@@ -340,6 +401,189 @@ def update_template(auth_token, template_id, device_template_id):
                         headers=headers, data=json.dumps(payload))
 
 
+def get_template_by_id(auth_token, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v1/templates/{template_id}'
+                        .replace('{template_id}', template_id), headers=headers)
+
+
+def get_templates_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v1/templates', headers=headers)
+
+
+def get_template_by_parent_id(auth_token, parent_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {}
+    return requests.get(
+        ENDPOINT + f'/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22parentTemplateId%22%3A%7B%22in%22%3A%5B%22{parent_template_id}%22%5D%7D%7D%7D',
+        headers=headers, params=payload)
+
+
+def create_generic_template(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    name = f"Generic_template_{uuid.uuid4().hex}"[0:32]
+    payload = json.dumps({
+        "name": name,
+        "displayName": name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": name,
+                    "referencedSideAttributeDisplayName": name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            }
+        ],
+        "templateAttributes": [],
+        "entityType": "generic-entity",
+        "ownerOrganizationId": ""
+    })
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_generic_template_with_phi_true(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    name = f"Generic_template_phi_{uuid.uuid4().hex}"[0:32]
+    payload = json.dumps({
+        "name": name,
+        "displayName": name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": True,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": name,
+                    "referencedSideAttributeDisplayName": name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            }
+        ],
+        "templateAttributes": [],
+        "entityType": "generic-entity",
+        "ownerOrganizationId": ""
+    })
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
 def update_patient_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
@@ -387,7 +631,7 @@ def get_generic_entity_list(auth_token):
 
 # Organization APIs ################################################################################################
 def create_organization(auth_token, template_id):
-    email = f'integ_test_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
+    email = f'primary_admin_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
     organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
     headers = {
         "accept": "application/json",
@@ -411,8 +655,8 @@ def create_organization(auth_token, template_id):
         "_locale": "en-us",
         "_primaryAdministrator": {
             "_name": {
-                "firstName": "Test",
-                "lastName": "User"
+                "firstName": "Primary",
+                "lastName": "Admin"
             },
             "_description": "Lorem Ipsum",
             "_email": email,
@@ -574,6 +818,41 @@ def get_device_credentials(auth_token):
     return requests.get(ENDPOINT + '/device/v2/credentials/organization', headers=headers)
 
 
+def create_device_without_registration_code(auth_token, template_name, organization_id):
+    device_id = f"device_by_manu_admin{uuid.uuid4().hex}"[0:32]
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": "integ_test_device",
+        "_timezone": "Europe/Oslo",
+        "_id": device_id,
+        "_ownerOrganization": {
+            "id": organization_id
+        }
+    }
+    return requests.post(ENDPOINT + '/device/v2/devices/templates/{templateName}'
+                         .replace('{templateName}', template_name), headers=headers, data=json.dumps(payload))
+
+
+def update_device_without_patient(auth_token, device_id):
+    change_string = f'Updated device description {uuid.uuid4().hex}'[0:32]
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_description": change_string
+    }
+    return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
+                          headers=headers, data=json.dumps(payload)), change_string
+
+
+def update_device_with_new_patient(auth_token, device_id, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_patient":
+            {"id": patient_id}
+    }
+    return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
+                          headers=headers, data=json.dumps(payload))
+
+
 # Usage session APIs ################################################################################################
 def create_usage_session_by_usage_type(auth_token, device_id, usage_type):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -597,6 +876,47 @@ def create_usage_session(auth_token, device_id, template_id):  ##### doesn't wor
                          .replace('{deviceId}', device_id), data=json.dumps(payload), headers=headers)
 
 
+# creates usage session without name which is considered to be phi=true
+def create_usage_session_without_name(auth_token, device_id, patient_id, usage_session_template):
+    headers = {
+        'accept': 'application/json', "Authorization": "Bearer " + auth_token
+    }
+    payload = json.dumps({
+        "_patient": {
+            "id": patient_id
+        },
+        "_startTime": "2024-02-13T00:00:53.000Z",
+        "_state": "ACTIVE",
+        "_endTime": None,
+        "_templateId": usage_session_template
+    })
+
+    response = requests.request("POST", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions",
+                                headers=headers, data=payload)
+    return response
+
+
+# creates usage session name which is considered to be phi=true
+def create_usage_session_with_name(auth_token, device_id, patient_id, usage_session_template):
+    headers = {
+        'accept': 'application/json', "Authorization": "Bearer " + auth_token
+    }
+    payload = json.dumps({
+        "_patient": {
+            "id": patient_id
+        },
+        "_startTime": "2024-02-13T00:00:53.000Z",
+        "_state": "ACTIVE",
+        "_endTime": None,
+        "_name": f"Name for Usage{uuid.uuid4().hex}"[0:32],
+        "_templateId": usage_session_template
+    })
+
+    response = requests.request("POST", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions",
+                                headers=headers, data=payload)
+    return response
+
+
 def get_usage_session(auth_token, device_id, session_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
@@ -609,31 +929,21 @@ def get_usage_session_list(auth_token):
     return requests.get(ENDPOINT + '/device/v1/devices/usage-sessions', data=json.dumps(query_params), headers=headers)
 
 
-def update_usage_session(auth_token, device_id, session_id, state):
+def get_current_usage_sessions(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    if state == "DONE":
-        payload = {
-            "_startTime": "2023-12-20T10:15:30Z",
-            "_state": "DONE",
-            "_summary": {
-                "_stopReasonCode": "COMPLETION",
-                "_stopReason": "Manual stop"
-            },
-            "_endTime": "2023-12-25T10:15:30Z",
-        }
-    else:
-        payload = {
-            "_startTime": "2023-12-20T10:15:30Z",
-            "_state": "ACTIVE",
-            "_summary": {
-                "_stopReasonCode": None,
-                "_stopReason": None
-            },
-            "_endTime": None,
-        }
+    query_params = {}
+    return requests.get(ENDPOINT + '/device/v1/devices/current/usage-sessions', data=json.dumps(query_params),
+                        headers=headers)
+
+
+def update_usage_session(auth_token, device_id, session_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "_state": "PAUSING"
+    })
     return requests.patch(
         ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
-        .replace('{id}', session_id), headers=headers, data=json.dumps(payload))
+        .replace('{id}', session_id), headers=headers, data=payload)
 
 
 def delete_usage_session(auth_token, device_id, session_id):
@@ -668,8 +978,100 @@ def pause_usage_session(auth_token, device_id, session_id):
                          .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers)
 
 
-def resume_usage_session():
-    pass
+def resume_usage_session(auth_token, device_id, session_id):
+    payload = {}
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    response = requests.request("POST", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions"
+                                                   f"/{session_id}/remote-control/resume", headers=headers,
+                                data=payload)
+    assert response.status_code == 200, f"{response.text}"
+    return response
+
+
+def get_usage_session_by_id(auth_token, device_id, usage_session_id):
+    payload = {}
+    headers = {
+        'accept': 'application/json', "Authorization": "Bearer " + auth_token
+    }
+
+    response = requests.request("GET", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions/{usage_session_id}",
+                                headers=headers, data=payload)
+    assert response.status_code == 200
+    return response
+
+
+def start_simulation_with_existing_device(device_id):
+    payload = json.dumps({
+        "username": os.getenv('MANU_ADMIN_LOGIN'),
+        "password": os.getenv('MANU_ADMIN_PASSWORD'),
+        "simulationLength": 60,
+        "shouldFailSession": False,
+        "devicesIds": [
+            device_id
+        ],
+        # must be replaced by another array if using another env (it's Observation attribute in Patient template)
+        "chosenMeasurementsAttributes": [
+            {
+                "displayName": "integer hr",
+                "phi": False,
+                "referenceConfiguration": None,
+                "linkConfiguration": None,
+                "name": "integer_hr",
+                "type": "INTEGER",
+                "validation": {
+                    "mandatory": False,
+                    "defaultValue": None,
+                    "min": None,
+                    "max": None,
+                    "regex": None
+                },
+                "numericMetaData": {
+                    "units": "int",
+                    "upperRange": None,
+                    "lowerRange": None,
+                    "subType": None
+                },
+                "id": "ec92a2fb-86a4-4e8c-be69-b1d7121d6bb4",
+                "selectableValues": [],
+                "category": {
+                    "name": "MEASUREMENT",
+                    "displayName": "Measurement"
+                },
+                "basePath": None,
+                "typeEnum": "INTEGER"
+            }
+        ],
+        "commandConfigurationRequest": {
+            "commandsLengthInSeconds": 1,
+            "shouldFailCommand": True,
+            "shouldFailStop": True,
+            "sendStatusAttributes": True,
+            "sendSummaryAttributes": True,
+            "errorMessage": "string"
+        }
+    })
+    headers = {
+        'accept': '*/*',
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", ENDPOINT + "/simulator/v1/simulation/withExisting/start", headers=headers,
+                                data=payload)
+    assert response.status_code == 200, f"{response.text}"
+
+
+def get_simulation_status():
+    payload = {}
+    headers = {'accept': '*/*'}
+    response = requests.request("GET", ENDPOINT + "/simulator/v1/simulation/status", headers=headers, data=payload)
+    return response
+
+
+def stop_simulation():
+    payload = {}
+    headers = {'accept': '*/*'}
+    response = requests.request("GET", ENDPOINT + "/simulator/v1/simulation/stop", headers=headers, data=payload)
+    return response
 
 
 # Measurement APIs ################################################################################################
@@ -927,7 +1329,7 @@ def get_file(auth_token, file_id):
     return requests.get(ENDPOINT + '/file/v1/files/{id}/download'.replace('{id}', file_id), headers=headers)
 
 
-# Get entities PIs ################################################################################################
+# Get entities APIs ################################################################################################
 def get_entities(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
@@ -1013,6 +1415,186 @@ def get_device_template_payload(test_display_name, test_name, test_referenced_at
         "customAttributes": [],
         "builtInAttributes": [
             {
+                "name": "_bootTime",
+                "basePath": "_status",
+                "displayName": "Boot Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_certificateStatus",
+                "basePath": "_status",
+                "displayName": "Certificate Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_connected",
+                "basePath": "_status._connection",
+                "displayName": "Connected",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_description",
+                "basePath": None,
+                "displayName": "Description",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_fwVersion",
+                "basePath": "_status",
+                "displayName": "FW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_hwVersion",
+                "basePath": "_status",
+                "displayName": "HW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ipAddress",
+                "basePath": "_status._connection",
+                "displayName": "IP Address",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastConnectedTime",
+                "basePath": "_status._connection",
+                "displayName": "Last Connected Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_message",
+                "basePath": "_status._operational",
+                "displayName": "Operational Message",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_status",
+                "basePath": "_status._operational",
+                "displayName": "Operational Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
                 "name": "_ownerOrganization",
                 "basePath": None,
                 "displayName": "Owner Organization",
@@ -1075,6 +1657,36 @@ def get_device_template_payload(test_display_name, test_name, test_referenced_at
                     "entityType": "registration-code"
                 }
             },
+            {
+                "name": "_timezone",
+                "basePath": None,
+                "displayName": "Time Zone",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_id",
+                "basePath": None,
+                "displayName": "Unique ID",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
         ],
         "templateAttributes": [],
         "entityType": entity_type,
@@ -1502,3 +2114,1045 @@ def get_patient_template_payload(test_display_name, test_name, organization_id, 
             }
         ],
     }
+
+
+def create_caregiver_template(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    name = f"caregiver{uuid.uuid4().hex}"[0:35]
+    payload = json.dumps({
+        "name": name,
+        "displayName": name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_address",
+                "basePath": None,
+                "displayName": "Address",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_dateOfBirth",
+                "basePath": None,
+                "displayName": "Date of Birth",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_degree",
+                "basePath": None,
+                "displayName": "Degree",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_description",
+                "basePath": None,
+                "displayName": "Description",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_email",
+                "basePath": None,
+                "displayName": "Email",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_employeeId",
+                "basePath": None,
+                "displayName": "Employee ID",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_enabled",
+                "basePath": None,
+                "displayName": "Enabled",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_gender",
+                "basePath": None,
+                "displayName": "Gender",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_locale",
+                "basePath": None,
+                "displayName": "Locale",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "enabled",
+                "basePath": "_mfa",
+                "displayName": "Login Using MFA",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "expirationInMinutes",
+                "basePath": "_mfa",
+                "displayName": "MFA Expiration Period",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name} Caregivers",
+                    "referencedSideAttributeDisplayName": f"{name} Caregivers",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_phone",
+                "basePath": None,
+                "displayName": "Phone",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [],
+        "entityType": "caregiver",
+        "ownerOrganizationId": ""
+    })
+    response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
+    assert response.status_code == 201, f"{response.text}"
+    return response.json()["name"], response.json()["id"]
+
+
+def create_org_user_template(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    name = f"org_user{uuid.uuid4().hex}"[0:35]
+    payload = json.dumps(
+        {
+            "name": name,
+            "displayName": name,
+            "customAttributes": [],
+            "builtInAttributes": [
+                {
+                    "name": "_address",
+                    "basePath": None,
+                    "displayName": "Address",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_creationTime",
+                    "basePath": None,
+                    "displayName": "Creation Time",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_dateOfBirth",
+                    "basePath": None,
+                    "displayName": "Date of Birth",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_description",
+                    "basePath": None,
+                    "displayName": "Description",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_email",
+                    "basePath": None,
+                    "displayName": "Email",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": True,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_employeeId",
+                    "basePath": None,
+                    "displayName": "Employee ID",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": True,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_enabled",
+                    "basePath": None,
+                    "displayName": "Enabled",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_gender",
+                    "basePath": None,
+                    "displayName": "Gender",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_lastModifiedTime",
+                    "basePath": None,
+                    "displayName": "Last Modified Time",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_locale",
+                    "basePath": None,
+                    "displayName": "Locale",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "enabled",
+                    "basePath": "_mfa",
+                    "displayName": "Login Using MFA",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "expirationInMinutes",
+                    "basePath": "_mfa",
+                    "displayName": "MFA Expiration Period",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_name",
+                    "basePath": None,
+                    "displayName": "Name",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": True,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                },
+                {
+                    "name": "_ownerOrganization",
+                    "basePath": None,
+                    "displayName": "Owner Organization",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": True,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": {
+                        "uniquely": False,
+                        "referencedSideAttributeName": f"{name} Organizational Users",
+                        "referencedSideAttributeDisplayName": f"{name} Organizational Users",
+                        "validTemplatesToReference": [],
+                        "entityType": "organization"
+                    }
+                },
+                {
+                    "name": "_phone",
+                    "basePath": None,
+                    "displayName": "Phone",
+                    "phi": False,
+                    "validation": {
+                        "mandatory": False,
+                        "min": None,
+                        "max": None,
+                        "regex": None,
+                        "defaultValue": None
+                    },
+                    "numericMetaData": None,
+                    "referenceConfiguration": None
+                }
+            ],
+            "templateAttributes": [],
+            "entityType": "organization-user",
+            "ownerOrganizationId": ""
+        })
+    response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
+    assert response.status_code == 201, f"{response.text}"
+    return response.json()["name"], response.json()["id"]
+
+
+def create_device_template_with_session(auth_token):
+    name_device = f'device_templ_{uuid.uuid4().hex}'[0:32]
+    name_usage = f'session_templ_{uuid.uuid4().hex}'[0:32]
+
+    headers = {
+        'accept': 'application/json, text/plain, */*',
+        'authorization': "Bearer " + auth_token}
+
+    payload = json.dumps({
+        "name": name_device,
+        "displayName": name_device,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_bootTime",
+                "basePath": "_status",
+                "displayName": "Boot Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_certificateStatus",
+                "basePath": "_status",
+                "displayName": "Certificate Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_connected",
+                "basePath": "_status._connection",
+                "displayName": "Connected",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_description",
+                "basePath": None,
+                "displayName": "Description",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_fwVersion",
+                "basePath": "_status",
+                "displayName": "FW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_hwVersion",
+                "basePath": "_status",
+                "displayName": "HW Version",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ipAddress",
+                "basePath": "_status._connection",
+                "displayName": "IP Address",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastConnectedTime",
+                "basePath": "_status._connection",
+                "displayName": "Last Connected Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_message",
+                "basePath": "_status._operational",
+                "displayName": "Operational Message",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_status",
+                "basePath": "_status._operational",
+                "displayName": "Operational Status",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name_device} Devices",
+                    "referencedSideAttributeDisplayName": f"{name_device} Devices",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name_device} Device",
+                    "referencedSideAttributeDisplayName": f"{name_device} Device",
+                    "validTemplatesToReference": [],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_registrationCode",
+                "basePath": None,
+                "displayName": "Registration Code",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": True,
+                    "referencedSideAttributeName": f"{name_device} Registration Code Devices",
+                    "referencedSideAttributeDisplayName": f"{name_device} Registration Code Devices",
+                    "validTemplatesToReference": [],
+                    "entityType": "registration-code"
+                }
+            },
+            {
+                "name": "_timezone",
+                "basePath": None,
+                "displayName": "Time Zone",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_id",
+                "basePath": None,
+                "displayName": "Unique ID",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [],
+        "entityType": "device",
+        "ownerOrganizationId": ""
+    })
+
+    response_device_template = requests.request("POST", ENDPOINT + '/settings/v1/templates', headers=headers,
+                                                data=payload)
+    assert response_device_template.status_code == 201, f"{response_device_template.status_code}, " \
+                                                        f"{response_device_template.text}"
+    device_template_id = response_device_template.json()["id"]
+    payload_usage = json.dumps({
+        "name": name_usage,
+        "displayName": name_usage,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name_usage} Usage Sessions to Device",
+                    "referencedSideAttributeDisplayName": f"{name_usage} Usage Sessions to Device",
+                    "validTemplatesToReference": [
+                        device_template_id
+                    ],
+                    "entityType": "device"
+                }
+            },
+            {
+                "name": "_endTime",
+                "basePath": None,
+                "displayName": "End Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": True,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name_usage} Usage Sessions to Organization",
+                    "referencedSideAttributeDisplayName": f"{name_usage} Usage Sessions to Organization",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{name_usage} Usage Sessions to Patient",
+                    "referencedSideAttributeDisplayName": f"{name_usage} Usage Sessions to Patient",
+                    "validTemplatesToReference": [],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_initiator",
+                "basePath": None,
+                "displayName": "Session Initiator",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_startTime",
+                "basePath": None,
+                "displayName": "Start Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_stopReason",
+                "basePath": "_summary",
+                "displayName": "Stop Reason",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_stopReasonCode",
+                "basePath": "_summary",
+                "displayName": "Stop Reason Code",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [
+            {
+                "name": "_requiredMeasurementIntervalMilliseconds",
+                "basePath": None,
+                "displayName": "Required Measurement Interval",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": 1000,
+                "organizationSelectionConfiguration": None
+            }
+        ],
+        "entityType": "usage-session",
+        "ownerOrganizationId": "",
+        "parentTemplateId": device_template_id
+    })
+
+    response_usage_session_template = requests.request("POST", ENDPOINT + '/settings/v1/templates', headers=headers,
+                                                       data=payload_usage)
+    assert response_usage_session_template.status_code == 201, f"{response_usage_session_template.status_code}, " \
+                                                               f"{response_usage_session_template.text}"
+    return response_device_template
+
+
