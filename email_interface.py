@@ -5,7 +5,8 @@ from urllib.parse import unquote, parse_qs, urlparse
 import time
 import json
 
-ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
+
+ENDPOINT = os.getenv('ENDPOINT')
 MAX_RETRIES = 7
 
 
