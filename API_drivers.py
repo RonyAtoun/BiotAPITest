@@ -6,8 +6,8 @@ from urllib.parse import urlencode
 
 # from test_constants import *
 
-ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
-forgot_password_landing_page = "https://organization.app.staging.biot-gen2.biot-med.com/auth/password/reset"
+forgot_password_landing_page = os.getenv('forgot_password_landing_page')
+ENDPOINT = os.getenv('ENDPOINT')
 
 
 def login_with_credentials(username, password):
@@ -2638,8 +2638,8 @@ def create_org_user_template(auth_token):
             "ownerOrganizationId": ""
         })
     response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
-    #assert response.status_code == 201, f"{response.text}"
-    #return response.json()["name"], response.json()["id"]
+    # assert response.status_code == 201, f"{response.text}"
+    # return response.json()["name"], response.json()["id"]
     return response
 
 
@@ -3167,5 +3167,3 @@ def create_device_template_with_session(auth_token):
     assert response_usage_session_template.status_code == 201, f"{response_usage_session_template.status_code}, " \
                                                                f"{response_usage_session_template.text}"
     return response_device_template
-
-
