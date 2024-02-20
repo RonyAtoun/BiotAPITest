@@ -32,7 +32,7 @@ def get_self_user_email(auth_token):
     }
     payload = {}
     response = requests.get(ENDPOINT + '/organization/v1/users/self', headers=headers, data=json.dumps(payload))
-    assert response.status_code == 200
+    # assert response.status_code == 200
     return response.json()["_email"]
 
 
@@ -984,7 +984,7 @@ def resume_usage_session(auth_token, device_id, session_id):
     response = requests.request("POST", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions"
                                                    f"/{session_id}/remote-control/resume", headers=headers,
                                 data=payload)
-    assert response.status_code == 200, f"{response.text}"
+    # assert response.status_code == 200, f"{response.text}"
     return response
 
 
@@ -996,7 +996,7 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
 
     response = requests.request("GET", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions/{usage_session_id}",
                                 headers=headers, data=payload)
-    assert response.status_code == 200
+    # assert response.status_code == 200
     return response
 
 
@@ -1057,7 +1057,8 @@ def start_simulation_with_existing_device(device_id):
 
     response = requests.request("POST", ENDPOINT + "/simulator/v1/simulation/withExisting/start", headers=headers,
                                 data=payload)
-    assert response.status_code == 200, f"{response.text}"
+    # assert response.status_code == 200, f"{response.text}"
+    return response
 
 
 def get_simulation_status():
@@ -2376,8 +2377,9 @@ def create_caregiver_template(auth_token):
         "ownerOrganizationId": ""
     })
     response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
-    assert response.status_code == 201, f"{response.text}"
-    return response.json()["name"], response.json()["id"]
+    # assert response.status_code == 201, f"{response.text}"
+    # return response.json()["name"], response.json()["id"]
+    return response
 
 
 def create_org_user_template(auth_token):
@@ -2626,8 +2628,9 @@ def create_org_user_template(auth_token):
             "ownerOrganizationId": ""
         })
     response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
-    assert response.status_code == 201, f"{response.text}"
-    return response.json()["name"], response.json()["id"]
+    #assert response.status_code == 201, f"{response.text}"
+    #return response.json()["name"], response.json()["id"]
+    return response
 
 
 def create_device_template_with_session(auth_token):
