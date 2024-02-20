@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 # from test_constants import *
 
 ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
+forgot_password_landing_page = "https://organization.app.staging.biot-gen2.biot-med.com/auth/password/reset"
 
 
 def login_with_credentials(username, password):
@@ -308,8 +309,17 @@ def set_password(auth_token, old_password, new_password):
     return requests.patch(ENDPOINT + '/ums/v2/users/self', data=json.dumps(payload), headers=headers)
 
 
-def forgot_password():
-    pass
+def forgot_password(user_email):
+    headers = {
+        "Content-Type": "application/json",
+        "forgot-password-landing-page": forgot_password_landing_page
+    }
+    payload = json.dumps({
+        "username": user_email
+    })
+    response = requests.request("POST", ENDPOINT + "/ums/v2/users/self/password/forgot", headers=headers, data=payload)
+    assert response.status_code == 200, f"{response.text}"
+    return response
 
 
 def resend_invitation(auth_token, user_id):

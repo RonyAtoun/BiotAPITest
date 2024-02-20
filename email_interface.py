@@ -5,7 +5,7 @@ from urllib.parse import unquote, parse_qs, urlparse
 import time
 import json
 
-ENDPOINT = "https://api.qa.biot-gen2.biot-med.com"
+ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
 MAX_RETRIES = 7
 
 
@@ -41,7 +41,7 @@ def accept_invitation(user_email):
                     signup_url = ENDPOINT + f"/organization/v1/tokens/{token}?entityId={entity_id}" \
                                             f"&operation=accept-invitation"
                     headers = {'Content-Type': 'application/json'}
-                    payload = f"{{\"operationData\":{{\"password\":\"Aa123456strong\",\"username\":\"{user_email}\"}}}}"
+                    payload = f"{{\"operationData\":{{\"password\":\"Aa123456strong!@\",\"username\":\"{user_email}\"}}}}"
                     response = requests.request("POST", signup_url, headers=headers, data=payload)
                     assert response.status_code == 200, f"Error: {response.status_code}, {response.text}"
                     return response.text, response

@@ -31,7 +31,7 @@ from API_drivers import (
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
     create_single_patient_self_signup, create_template_setup)
-from accept_invitation import accept_invitation
+from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
 
 #############################################################################################
@@ -635,7 +635,7 @@ def test_patient_commands_abac_rules():
 
 
 # @pytest.mark.skip
-def test_patient_alerts_abac_rules():  ## in progress
+def test_patient_alerts_abac_rules():
     # Should be separate for patient alerts and device alerts
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
@@ -833,7 +833,7 @@ def test_patient_measurements_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
-def test_patient_ums_abac_rules():
+def test_patient_ums_abac_rules(): # in progress
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
@@ -864,6 +864,8 @@ def test_patient_ums_abac_rules():
     assert set_password_response.status_code == 200
     # check login with new password
     patient_auth_token = login_with_credentials(email, new_password)
+
+    # forgot password flow
 
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
