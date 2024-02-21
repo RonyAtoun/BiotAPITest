@@ -1,8 +1,9 @@
+import os
 import requests
 import time
 
-ENDPOINT = "https://api.qa.biot-gen2.biot-med.com"
-SIMULATOR_ENDPOINT = "https://simulator.app.qa.biot-gen2.biot-med.com"
+ENDPOINT = os.getenv('ENDPOINT')
+SIMULATOR_ENDPOINT = os.getenv('SIMULATOR_ENDPOINT')
 
 
 headers = {'accept': 'application/json, text/plain, */*'}

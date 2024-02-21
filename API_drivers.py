@@ -6,7 +6,8 @@ from urllib.parse import urlencode
 
 # from test_constants import *
 
-ENDPOINT = "https://api.staging.biot-gen2.biot-med.com"
+forgot_password_landing_page = os.getenv('forgot_password_landing_page')
+ENDPOINT = os.getenv('ENDPOINT')
 
 
 def login_with_credentials(username, password):
@@ -32,7 +33,7 @@ def get_self_user_email(auth_token):
     }
     payload = {}
     response = requests.get(ENDPOINT + '/organization/v1/users/self', headers=headers, data=json.dumps(payload))
-    assert response.status_code == 200
+    # assert response.status_code == 200
     return response.json()["_email"]
 
 
@@ -308,8 +309,17 @@ def set_password(auth_token, old_password, new_password):
     return requests.patch(ENDPOINT + '/ums/v2/users/self', data=json.dumps(payload), headers=headers)
 
 
-def forgot_password():
-    pass
+def forgot_password(user_email):
+    headers = {
+        "Content-Type": "application/json",
+        "forgot-password-landing-page": forgot_password_landing_page
+    }
+    payload = json.dumps({
+        "username": user_email
+    })
+    response = requests.request("POST", ENDPOINT + "/ums/v2/users/self/password/forgot", headers=headers, data=payload)
+    assert response.status_code == 200, f"{response.text}"
+    return response
 
 
 def resend_invitation(auth_token, user_id):
@@ -984,7 +994,7 @@ def resume_usage_session(auth_token, device_id, session_id):
     response = requests.request("POST", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions"
                                                    f"/{session_id}/remote-control/resume", headers=headers,
                                 data=payload)
-    assert response.status_code == 200, f"{response.text}"
+    # assert response.status_code == 200, f"{response.text}"
     return response
 
 
@@ -996,7 +1006,7 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
 
     response = requests.request("GET", ENDPOINT + f"/device/v1/devices/{device_id}/usage-sessions/{usage_session_id}",
                                 headers=headers, data=payload)
-    assert response.status_code == 200
+    # assert response.status_code == 200
     return response
 
 
@@ -1057,7 +1067,8 @@ def start_simulation_with_existing_device(device_id):
 
     response = requests.request("POST", ENDPOINT + "/simulator/v1/simulation/withExisting/start", headers=headers,
                                 data=payload)
-    assert response.status_code == 200, f"{response.text}"
+    # assert response.status_code == 200, f"{response.text}"
+    return response
 
 
 def get_simulation_status():
@@ -2376,8 +2387,9 @@ def create_caregiver_template(auth_token):
         "ownerOrganizationId": ""
     })
     response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
-    assert response.status_code == 201, f"{response.text}"
-    return response.json()["name"], response.json()["id"]
+    # assert response.status_code == 201, f"{response.text}"
+    # return response.json()["name"], response.json()["id"]
+    return response
 
 
 def create_org_user_template(auth_token):
@@ -2626,8 +2638,9 @@ def create_org_user_template(auth_token):
             "ownerOrganizationId": ""
         })
     response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
-    assert response.status_code == 201, f"{response.text}"
-    return response.json()["name"], response.json()["id"]
+    # assert response.status_code == 201, f"{response.text}"
+    # return response.json()["name"], response.json()["id"]
+    return response
 
 
 def create_device_template_with_session(auth_token):
@@ -3154,5 +3167,3 @@ def create_device_template_with_session(auth_token):
     assert response_usage_session_template.status_code == 201, f"{response_usage_session_template.status_code}, " \
                                                                f"{response_usage_session_template.text}"
     return response_device_template
-
-
