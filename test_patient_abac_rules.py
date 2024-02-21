@@ -1,11 +1,9 @@
-import pytest
-# from dotenv import load_dotenv
 import requests
 import uuid
 import os
 
 from API_drivers import (
-    login_with_credentials, reset_password, set_password,
+    login_with_credentials, set_password, forgot_password,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
@@ -833,7 +831,7 @@ def test_patient_measurements_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
-def test_patient_ums_abac_rules(): # in progress
+def test_patient_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
@@ -848,7 +846,7 @@ def test_patient_ums_abac_rules(): # in progress
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    # create patient
+
     create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
                                              "00000000-0000-0000-0000-000000000000")
     assert create_patient_response.status_code == 201
@@ -866,6 +864,11 @@ def test_patient_ums_abac_rules(): # in progress
     patient_auth_token = login_with_credentials(email, new_password)
 
     # forgot password flow
+    forgot_password_response = forgot_password(email)
+    new_password = "Cc345678NewPass2"
+    reset_password_open_email_and_set_new_password(email, new_password)
+    # check login with new password
+    patient_auth_token = login_with_credentials(email, new_password)
 
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)

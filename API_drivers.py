@@ -290,9 +290,6 @@ def get_caregiver_list(auth_token):
 
 
 # Misc user APIs ################################################################################################
-def reset_password(auth_token, user_id):
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.post(ENDPOINT + '/ums/v2/users/{id}/password/generate'.replace('{id}', user_id), headers=headers)
 
 
 def set_password(auth_token, old_password, new_password):
@@ -317,7 +314,7 @@ def forgot_password(user_email):
     payload = json.dumps({
         "username": user_email
     })
-    response = requests.request("POST", ENDPOINT + "/ums/v2/users/self/password/forgot", headers=headers, data=payload)
+    response = requests.post(ENDPOINT + "/ums/v2/users/self/password/forgot", headers=headers, data=payload)
     assert response.status_code == 200, f"{response.text}"
     return response
 

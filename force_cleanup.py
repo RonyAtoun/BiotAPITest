@@ -1,7 +1,5 @@
 import os
 
-from dotenv import load_dotenv, find_dotenv
-
 from API_drivers import (
     login_with_credentials,
     get_patient_list, delete_patient,
