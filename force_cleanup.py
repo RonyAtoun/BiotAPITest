@@ -52,7 +52,7 @@ def force_cleanup():
         if "rony_test" in template['name']:
             delete_template_response = delete_template(admin_auth_token, template['id'])
             if delete_template_response.status_code == 204:
-                print(template['name'])
+                print("Template", template['name'])
 
 
 if __name__ == "__main__":
