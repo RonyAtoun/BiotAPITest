@@ -326,12 +326,12 @@ def resend_invitation(auth_token, user_id):
 
 
 # Template APIs ################################################################################################
-def create_organization_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                 test_reference_attrib_display_name, organization_id):
+def create_generic_entity_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                   test_reference_attrib_display_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
-    payload = get_organization_template_payload(test_display_name, test_name, test_referenced_attrib_name,
-                                                test_reference_attrib_display_name, organization_id)
+    payload = get_generic_entity_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                                  test_reference_attrib_display_name, organization_id)
 
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
@@ -946,7 +946,7 @@ def get_current_usage_sessions(auth_token):
 def update_usage_session(auth_token, device_id, session_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = json.dumps({
-        "_state": "PAUSING"
+        "_state": "ACTIVE"
     })
     return requests.patch(
         ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}'.replace('{deviceId}', device_id)
@@ -1007,10 +1007,10 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
     return response
 
 
-def start_simulation_with_existing_device(device_id):
+def start_simulation_with_existing_device(device_id, username, password):
     payload = json.dumps({
-        "username": os.getenv('MANU_ADMIN_LOGIN'),
-        "password": os.getenv('MANU_ADMIN_PASSWORD'),
+        "username": username,
+        "password": password,
         "simulationLength": 60,
         "shouldFailSession": False,
         "devicesIds": [
@@ -1388,8 +1388,8 @@ def anonymous_self_signup_with_registration_code(auth_token, test_name, email, r
 
 
 # Payloads for template APIs # #######################################################################################
-def get_organization_template_payload(test_display_name, test_name, test_referenced_attrib_name,
-                                      test_reference_attrib_display_name, organization_id):
+def get_generic_entity_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                        test_reference_attrib_display_name, organization_id):
     return {
         "displayName": test_display_name,
         "name": test_name,
