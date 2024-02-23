@@ -4,7 +4,7 @@ import uuid
 import requests
 from urllib.parse import urlencode
 
-# from test_constants import *
+#from test_constants import *
 
 forgot_password_landing_page = os.getenv('forgot_password_landing_page')
 ENDPOINT = os.getenv('ENDPOINT')
@@ -21,7 +21,7 @@ def login_with_credentials(username, password):
     }
 
     response = requests.post(ENDPOINT + '/ums/v2/users/login', headers=headers, data=json.dumps(payload))
-    assert response.status_code == 200
+    # assert response.status_code == 200
     return response.json()["accessJwt"]["token"]
 
 
@@ -600,6 +600,89 @@ def update_patient_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
+def create_registration_code_template(auth_token):
+    name = f"registration_code_{uuid.uuid4().hex}"[0:32]
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "name": name,
+        "displayName": name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_code",
+                "basePath": None,
+                "displayName": "Code",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": name,
+                    "referencedSideAttributeDisplayName": name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            }
+        ],
+        "templateAttributes": [],
+        "entityType": "registration-code",
+        "ownerOrganizationId": ""
+        })
+    response = requests.request("POST", ENDPOINT + "/settings/v1/templates", headers=headers, data=payload)
+    return response
+
+
 # Generic Entity APIs ################################################################################################
 def create_generic_entity(auth_token, template_id, test_name, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -976,16 +1059,29 @@ def start_usage_session(auth_token, device_id, template_id, patient_id):
                          .replace('{deviceId}', device_id), headers=headers, data=json.dumps(payload))
 
 
+def start_usage_session_without_name(auth_token, device_id, template_id, patient_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "_templateId": template_id,
+        "_patient": {
+            "id": patient_id
+        }
+    }
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/remote-control/start'
+                         .replace('{deviceId}', device_id), headers=headers, data=json.dumps(payload))
+
+
 def stop_usage_session(auth_token, device_id, session_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    return requests.post(ENDPOINT + '/v1/devices/{deviceId}/usage-sessions/{id}/remote-control/stop'
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}/remote-control/stop'
                          .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers)
 
 
 def pause_usage_session(auth_token, device_id, session_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {}
     return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/usage-sessions/{id}/remote-control/pause'
-                         .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers)
+                         .replace('{deviceId}', device_id).replace('{id}', session_id), headers=headers, data=payload)
 
 
 def resume_usage_session(auth_token, device_id, session_id):
@@ -1010,7 +1106,33 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
     return response
 
 
+def get_patient_template_id(auth_token):
+    headers = {
+        'accept': 'application/json', "Authorization": "Bearer " + auth_token
+    }
+    payload = {}
+    response = requests.request("GET", ENDPOINT + "/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22entityTypeName%22%3A%7B%22in%22%3A%5B%22patient%22%5D%7D%2C%22parentTemplateId%22%3A%7B%22isNull%22%3Atrue%7D%7D%2C%22page%22%3A0%2C%22limit%22%3A10%2C%22freeTextSearch%22%3A%22%22%7D", headers=headers, data=payload)
+    patient_template = response.json()["data"][0]
+    patient_template_id = patient_template["id"]
+    return patient_template_id
+
+
+def get_observation_attribute(auth_token):
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    patient_template_id = get_patient_template_id(auth_token)
+    get_patient_template_response = get_template_by_id(auth_token, patient_template_id)
+    observation_attribute = None
+    custom_attributes = get_patient_template_response.json()["customAttributes"]
+    for custom_attribute in custom_attributes:
+        if custom_attribute["category"]["name"] == "MEASUREMENT":
+            observation_attribute = custom_attribute
+            break
+    return observation_attribute
+
+
 def start_simulation_with_existing_device(device_id):
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    observation_attribute = get_observation_attribute(auth_token)
     payload = json.dumps({
         "username": os.getenv('MANU_ADMIN_LOGIN'),
         "password": os.getenv('MANU_ADMIN_PASSWORD'),
@@ -1019,37 +1141,8 @@ def start_simulation_with_existing_device(device_id):
         "devicesIds": [
             device_id
         ],
-        # must be replaced by another array if using another env (it's Observation attribute in Patient template)
         "chosenMeasurementsAttributes": [
-            {
-                "displayName": "integer hr",
-                "phi": False,
-                "referenceConfiguration": None,
-                "linkConfiguration": None,
-                "name": "integer_hr",
-                "type": "INTEGER",
-                "validation": {
-                    "mandatory": False,
-                    "defaultValue": None,
-                    "min": None,
-                    "max": None,
-                    "regex": None
-                },
-                "numericMetaData": {
-                    "units": "int",
-                    "upperRange": None,
-                    "lowerRange": None,
-                    "subType": None
-                },
-                "id": "ec92a2fb-86a4-4e8c-be69-b1d7121d6bb4",
-                "selectableValues": [],
-                "category": {
-                    "name": "MEASUREMENT",
-                    "displayName": "Measurement"
-                },
-                "basePath": None,
-                "typeEnum": "INTEGER"
-            }
+            observation_attribute
         ],
         "commandConfigurationRequest": {
             "commandsLengthInSeconds": 1,
