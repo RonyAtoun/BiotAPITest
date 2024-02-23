@@ -1117,7 +1117,7 @@ def get_patient_template_id(auth_token):
     return patient_template_id
 
 
-def get_observation_attribute(auth_token):
+def get_observation_attribute():
     auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
     patient_template_id = get_patient_template_id(auth_token)
     get_patient_template_response = get_template_by_id(auth_token, patient_template_id)
@@ -1132,7 +1132,7 @@ def get_observation_attribute(auth_token):
 
 def start_simulation_with_existing_device(device_id):
     auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
-    observation_attribute = get_observation_attribute(auth_token)
+    observation_attribute = get_observation_attribute()
     payload = json.dumps({
         "username": os.getenv('MANU_ADMIN_LOGIN'),
         "password": os.getenv('MANU_ADMIN_PASSWORD'),
