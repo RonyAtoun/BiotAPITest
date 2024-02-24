@@ -1,32 +1,23 @@
 import os
 
-import pytest
-
 from API_drivers import (
-    login_with_with_credentials,
-    create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
-    get_registration_code_list,
-    identified_self_signup_with_registration_code,
-    create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
-    delete_patient,
-    create_device, get_device, delete_device, update_device, get_device_list,
-    create_organization_template, create_device_template, delete_template,
-    create_organization, delete_organization,
-    create_organization_user, delete_organization_user, update_organization_user,
-    change_organization_user_state, get_organization_user, get_organization_user_list,
-    create_generic_entity, delete_generic_entity, update_generic_entity, get_generic_entity,
-    get_generic_entity_list,
-    update_organization, get_organization, get_organization_list,
-    create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
-    get_caregiver_list, resend_invitation)
+    login_with_credentials,
+    get_patient_list, delete_patient,
+    delete_device, get_device_list, get_device_alert_list,
+    delete_organization,
+    delete_generic_entity, get_generic_entity_list,
+    get_organization_list, get_all_templates, delete_template)
 
 
 #############################################################################################
 # Username and password have to be set in the environment in advance
 #############################################################################################
 
-def cleanup_generic_entities():
-    admin_auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+def force_cleanup():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+#    get_device_alert_list_response = get_device_alert_list(admin_auth_token, "any")
+#    assert get_device_alert_list_response.status_code == 200
+
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
@@ -55,7 +46,14 @@ def cleanup_generic_entities():
                 assert delete_generic_entity_response.status_code == 204
             delete_organization_response = delete_organization(admin_auth_token, org['_id'])
             assert delete_organization_response.status_code == 204
+    template_list_response = get_all_templates(admin_auth_token)
+    assert template_list_response.status_code == 200
+    for template in template_list_response.json()['data']:
+        if "rony_test" in template['name']:
+            delete_template_response = delete_template(admin_auth_token, template['id'])
+            if delete_template_response.status_code == 204:
+                print("Template", template['name'])
 
 
 if __name__ == "__main__":
-    cleanup_generic_entities()
+    force_cleanup()

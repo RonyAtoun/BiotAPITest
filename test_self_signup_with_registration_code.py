@@ -1,13 +1,13 @@
 import uuid
 import os
-from API_drivers import (login_with_with_credentials, create_registration_code, delete_registration_code, create_device,
+from API_drivers import (login_with_credentials, create_registration_code, delete_registration_code, create_device,
                          identified_self_signup_with_registration_code, anonymous_self_signup_with_registration_code,
                          delete_patient, get_device, delete_device)
 
 
 def test_identified_self_signup():
     organization_id = "00000000-0000-0000-0000-000000000000"
-    auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
@@ -42,7 +42,7 @@ def test_identified_self_signup():
 
 def test_anonymous_self_signup():
     organization_id = "00000000-0000-0000-0000-000000000000"
-    auth_token = login_with_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     nick_name = f'nickname_test_{uuid.uuid4().hex}'[0:35]
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'

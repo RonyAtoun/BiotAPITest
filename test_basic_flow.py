@@ -1,11 +1,11 @@
 import uuid
 import os
-from API_drivers import (login_with_with_credentials, create_organization_template, delete_template, create_generic_entity,
+from API_drivers import (login_with_credentials, create_generic_entity_template, delete_template, create_generic_entity,
                          delete_generic_entity)
 
 user_name = os.getenv('USERNAME')  # Has to be set in the environment in advance
 pass_word = os.getenv('PASSWORD')
-auth_token = login_with_with_credentials(user_name, pass_word)
+auth_token = login_with_credentials(user_name, pass_word)
 
 
 def test_create_template():
@@ -13,17 +13,17 @@ def test_create_template():
     test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
-    create_template_response = create_organization_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                               test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+    create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                                              test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
     if "TEMPLATE_DUPLICATE_NAME" in str(
             create_template_response.content):  # delete previously created template with same name
         tmp = str(create_template_response.content)
         template_id = tmp.split('[')[2].split(']')[0]
         delete_template_response = delete_template(auth_token, template_id)
         assert delete_template_response.status_code == 204
-        create_template_response = create_organization_template(auth_token, test_display_name, test_name,
-                                                   test_referenced_attrib_name,
-                                                   test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+        create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
+                                                                  test_referenced_attrib_name,
+                                                                  test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
 
     assert create_template_response.status_code == 201
     data = create_template_response.json()
@@ -38,17 +38,17 @@ def test_create_generic_entity():  # redo create_template to make this test inde
     test_name = f'rony_test_{uuid.uuid4().hex}'[0:31]
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
-    create_template_response = create_organization_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                               test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+    create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                                                              test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
     if "TEMPLATE_DUPLICATE_NAME" in str(
             create_template_response.content):  # delete previously created template with same name
         tmp = str(create_template_response.content)
         template_id = tmp.split('[')[2].split(']')[0]
         delete_template_response = delete_template(auth_token, template_id)
         assert delete_template_response.status_code == 204
-        create_template_response = create_organization_template(auth_token, test_display_name, test_name,
-                                                   test_referenced_attrib_name,
-                                                   test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+        create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
+                                                                  test_referenced_attrib_name,
+                                                                  test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
 
     assert create_template_response.status_code == 201
     data = create_template_response.json()
