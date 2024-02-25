@@ -53,6 +53,8 @@ def force_cleanup():
             delete_template_response = delete_template(admin_auth_token, template['id'])
             if delete_template_response.status_code == 204:
                 print("Template", template['name'])
+            else:
+                print("Failed to delete template in use", template['name'])
 
 
 if __name__ == "__main__":
