@@ -339,15 +339,6 @@ def create_generic_entity_template(auth_token, test_display_name, test_name, tes
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
-def create_patient_template(auth_token, test_display_name, test_name, organization_id, entity_type):
-    pass
-    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-
-    payload = get_patient_template_payload(test_display_name, test_name, organization_id, entity_type)
-
-    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
-
-
 def create_device_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
                            test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -381,6 +372,16 @@ def create_usage_session_template(auth_token, test_display_name, test_name, test
     payload = get_usage_session_template_payload(test_display_name, test_name, test_referenced_attrib_name,
                                                  test_reference_attrib_display_name, organization_id, entity_type,
                                                  parent_template_id)
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_command_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
+                            test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    payload = get_command_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                           test_reference_attrib_display_name, organization_id, entity_type,
+                                           parent_template_id)
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
@@ -1117,7 +1118,7 @@ def get_observation_attribute(username, password):
     }
     payload = {}
     response = requests.request("GET",
-            ENDPOINT + "/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22entityTypeName%22%3A%7B%22in%22%3A%5B%22patient%22%5D%7D%2C%22parentTemplateId%22%3A%7B%22isNull%22%3Atrue%7D%7D%2C%22page%22%3A0%2C%22limit%22%3A10%2C%22freeTextSearch%22%3A%22%22%7D",
+                                ENDPOINT + "/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22entityTypeName%22%3A%7B%22in%22%3A%5B%22patient%22%5D%7D%2C%22parentTemplateId%22%3A%7B%22isNull%22%3Atrue%7D%7D%2C%22page%22%3A0%2C%22limit%22%3A10%2C%22freeTextSearch%22%3A%22%22%7D",
                                 headers=headers, data=payload)
     patient_template = response.json()["data"][0]
     patient_template_id = patient_template["id"]
@@ -1283,6 +1284,53 @@ def get_v2_aggregated_measurements(auth_token, patient_id):
     return requests.get(ENDPOINT + "/measurement/v2/measurements/aggregated?", params=search_request, headers=headers)
 
 
+# command APIs
+def start_command_by_template(auth_token, device_id, template_name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "_name": 'Reboot'
+    })
+    return requests.post(ENDPOINT + "/device/v1/devices/{deviceId}/commands/{templateName}/start"
+                         .replace('{deviceId}', device_id)
+                         .replace('{templateName}', template_name), headers=headers, data=payload)
+
+
+def start_command_by_id(auth_token, device_id, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "_templateId": template_id,
+        "_name": 'Reboot'
+    })
+    return requests.post(ENDPOINT + "/device/v1/devices/{deviceId}/commands/start"
+                         .replace('{deviceId}', device_id), headers=headers, data=payload)
+
+
+def stop_command(auth_token, device_id, command_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.post(ENDPOINT + '/device/v1/devices/{deviceId}/commands/{id}/stop'.replace('{deviceId}', device_id)
+                         .replace('{id}', command_id), headers=headers)
+
+
+def get_command(auth_token, device_id, command_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/device/v1/devices/{deviceId}/commands/{id}'.replace('{deviceId}', device_id)
+                        .replace('{id}', command_id), headers=headers)
+
+
+def search_commands(auth_token, command_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_id": {
+                    "like": command_id
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/device/v1/devices/commands?', params=search_request, headers=headers)
+
+
 # Alert APIs (patient & device)########################################################################################
 def create_patient_alert_by_id(auth_token, patient_id, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -1411,6 +1459,20 @@ def get_device_alert_list(auth_token, alert_id):
             "filter": {
                 "_id": {
                     "like": alert_id
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
+
+
+def get_open_device_alert_list(auth_token, organization_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_ownerOrganization.id": {
+                    "like": organization_id
                 },
             }
         })
@@ -2187,36 +2249,165 @@ def get_usage_session_template_payload(test_display_name, test_name, test_refere
     }
 
 
-def get_patient_template_payload(test_display_name, test_name, organization_id, entity_type):
+def get_command_template_payload(test_display_name, test_name, test_referenced_attrib_name,
+                                 test_reference_attrib_display_name, organization_id, entity_type,
+                                 parent_template_id):
+    referencedSideAttributeName = f'Template Device{uuid.uuid4()}'[0:30]
+    command_to_device = f'Test command{uuid.uuid4()}'[0:30]
     return {
-        "displayName": test_display_name,
         "name": test_name,
-        "description": "Patient template",
-        "entityType": entity_type,
-        "ownerOrganizationId": None,
-        "parentTemplateId": None,
-        "forceUpdate": False,
-        "customAttributes": [
+        "displayName": test_display_name,
+        "customAttributes": [],
+        "builtInAttributes": [
             {
-                "name": "uploadFile",
-                "type": "FILE",
-                "displayName": "uploadFile",
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
                 "phi": False,
                 "validation": {
                     "mandatory": False,
                     "min": None,
-                    "max": 20971520,
+                    "max": None,
                     "regex": None,
                     "defaultValue": None
                 },
-                "id": "2885fbe6-1f26-4ac7-92cf-206d1a60e813",
-                "selectableValues": [],
-                "category": "REGULAR",
                 "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": command_to_device,
+                    "referencedSideAttributeDisplayName": command_to_device,
+                    "validTemplatesToReference": [
+                        parent_template_id
+                    ],
+                    "entityType": "device"
+                }
+            },
+            {
+                "name": "_endTime",
+                "basePath": None,
+                "displayName": "End Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": test_referenced_attrib_name,
+                    "referencedSideAttributeDisplayName": test_reference_attrib_display_name,
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_startTime",
+                "basePath": None,
+                "displayName": "Start Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+        ],
+        "templateAttributes": [
+            {
+                "name": "_supportStop",
+                "basePath": None,
+                "displayName": 'Support Stop command',
+                "phi": False,
                 "referenceConfiguration": None,
-                "linkConfiguration": None
+                "value": True,
+                "organizationSelectionConfiguration": None
             }
         ],
+        "entityType": entity_type,
+        "ownerOrganizationId": organization_id,
+        "parentTemplateId": parent_template_id
     }
 
 
