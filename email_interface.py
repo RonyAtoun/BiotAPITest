@@ -3,15 +3,13 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import unquote, parse_qs, urlparse
 import time
-import json
-
 
 ENDPOINT = os.getenv('ENDPOINT')
+slack_token = os.getenv('SLACK_TOKEN')
 MAX_RETRIES = 7
 
 
 def accept_invitation(user_email):
-    slack_token = os.getenv('SLACK_TOKEN')
     channel_id = "C04M7N12T7G"
     url = f"https://slack.com/api/conversations.history"
 
@@ -53,7 +51,6 @@ def accept_invitation(user_email):
 
 
 def reset_password_open_email_and_set_new_password(user_email, new_password):
-    slack_token = os.getenv('SLACK_TOKEN')
     channel_id = "C04M7N12T7G"
     url = f"https://slack.com/api/conversations.history"
     headers = {

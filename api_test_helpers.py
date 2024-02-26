@@ -1,28 +1,13 @@
 import uuid
 from API_drivers import (
     login_with_credentials,
-    create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
-    get_registration_code_list,
+    create_registration_code, delete_registration_code,
     identified_self_signup_with_registration_code,
-    create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
-    delete_patient,
-    create_device, get_device, delete_device, update_device, get_device_list,
-    create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
-    get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
-    create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
-    create_organization_template, create_device_template, create_patient_template, create_alert_template,
-    delete_template,
-    create_usage_session_template, get_template,
-    update_template, update_patient_template,
-    create_organization, delete_organization,
-    create_organization_user, delete_organization_user, update_organization_user,
-    change_organization_user_state, get_organization_user, get_organization_user_list,
-    create_generic_entity, delete_generic_entity, update_generic_entity, get_generic_entity,
-    get_generic_entity_list,
-    update_organization, get_organization, get_organization_list,
-    create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
-    get_caregiver_list, resend_invitation,
-    create_file, get_file)
+    get_patient, delete_patient,
+    create_device, delete_device,
+    create_generic_entity_template, create_device_template, create_alert_template,
+    create_usage_session_template, create_command_template, get_template,
+    update_patient_template)
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id, device_template_name):
@@ -116,10 +101,10 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
     test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
-    if entity_type == "organization":
-        create_template_response = create_organization_template(auth_token, test_display_name, test_name,
-                                                                test_referenced_attrib_name,
-                                                                test_reference_attrib_display_name, organization_id)
+    if entity_type == "generic-entity":
+        create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
+                                                                  test_referenced_attrib_name,
+                                                                  test_reference_attrib_display_name, organization_id)
     elif entity_type == "device":
         create_template_response = create_device_template(auth_token, test_display_name, test_name,
                                                           test_referenced_attrib_name,
@@ -130,9 +115,12 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
                                                                  test_referenced_attrib_name,
                                                                  test_reference_attrib_display_name, organization_id,
                                                                  entity_type, parent_template_id)
-    elif entity_type == "patient":
-        create_template_response = create_patient_template(auth_token, test_display_name, test_name, organization_id,
-                                                           entity_type)
+    elif entity_type == "command":
+        create_template_response = create_command_template(auth_token, test_display_name, test_name,
+                                                           test_referenced_attrib_name,
+                                                           test_reference_attrib_display_name, organization_id,
+                                                           entity_type, parent_template_id)
+
     elif entity_type == "patient-alert" or entity_type == "device-alert":
         create_template_response = create_alert_template(auth_token, test_display_name, test_name,
                                                          test_referenced_attrib_name,
