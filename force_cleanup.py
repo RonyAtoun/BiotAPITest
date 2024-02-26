@@ -3,7 +3,7 @@ import os
 from API_drivers import (
     login_with_credentials,
     get_patient_list, delete_patient,
-    delete_device, get_device_list, get_device_alert_list,
+    delete_device, get_device_list, get_device_alert_list, get_open_device_alert_list, delete_device_alert,
     delete_organization,
     delete_generic_entity, get_generic_entity_list,
     get_organization_list, get_all_templates, delete_template)
@@ -15,8 +15,7 @@ from API_drivers import (
 
 def force_cleanup():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-#    get_device_alert_list_response = get_device_alert_list(admin_auth_token, "any")
-#    assert get_device_alert_list_response.status_code == 200
+    # get_device_alert_list_response = get_device_alert_list(admin_auth_token, "any")
 
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
