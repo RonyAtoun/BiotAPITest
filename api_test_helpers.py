@@ -5,8 +5,8 @@ from API_drivers import (
     identified_self_signup_with_registration_code,
     get_patient, delete_patient,
     create_device, delete_device,
-    create_generic_entity_template, create_device_template, create_patient_template, create_alert_template,
-    create_usage_session_template, get_template,
+    create_generic_entity_template, create_device_template, create_alert_template,
+    create_usage_session_template, create_command_template, get_template,
     update_patient_template)
 
 
@@ -115,9 +115,12 @@ def create_template_setup(auth_token, organization_id, entity_type, parent_templ
                                                                  test_referenced_attrib_name,
                                                                  test_reference_attrib_display_name, organization_id,
                                                                  entity_type, parent_template_id)
-    elif entity_type == "patient":
-        create_template_response = create_patient_template(auth_token, test_display_name, test_name, organization_id,
-                                                           entity_type)
+    elif entity_type == "command":
+        create_template_response = create_command_template(auth_token, test_display_name, test_name,
+                                                           test_referenced_attrib_name,
+                                                           test_reference_attrib_display_name, organization_id,
+                                                           entity_type, parent_template_id)
+
     elif entity_type == "patient-alert" or entity_type == "device-alert":
         create_template_response = create_alert_template(auth_token, test_display_name, test_name,
                                                          test_referenced_attrib_name,
