@@ -32,7 +32,9 @@ from API_drivers import (
     create_file, get_file,
     create_alert_template, create_device_alert_by_id, create_device_alert_by_name, create_patient_alert_by_id,
     create_patient_alert_by_name, delete_patient_alert, delete_device_alert, update_patient_alert, update_device_alert,
-    get_device_alert, get_device_alert_list, get_patient_alert, get_patient_alert_list)
+    get_device_alert, get_device_alert_list, get_current_device_alert_list, get_patient_alert, get_patient_alert_list,
+    get_current_patient_alert_list,
+    get_available_locales, delete_locale, update_locale, add_locale)
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
     create_single_patient_self_signup, create_template_setup)
@@ -166,7 +168,7 @@ def test_patient_patient_abac_rules():
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    # create patient
+    # create patient should fail
     test_patient_create_response = create_patient(patient_auth_token, test_name, email, "Patient",
                                                   "00000000-0000-0000-0000-000000000000")
     assert test_patient_create_response.status_code == 403
@@ -814,6 +816,9 @@ def test_patient_alerts_abac_rules():
     get_patient_alert_list_response = get_patient_alert_list(patient2_auth_token, alert_id)
     assert get_patient_alert_list_response.status_code == 200
     assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 0
+    # get current alerts (nursing station) should always fail
+    get_current_alert_response = get_current_patient_alert_list(patient1_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 403
 
     # delete patient-alert only in same organization
     delete_alert_response = delete_patient_alert(patient2_auth_token, patient1_id, alert_id)
@@ -850,6 +855,9 @@ def test_patient_alerts_abac_rules():
     get_device_alert_list_response = get_device_alert_list(patient2_auth_token, alert_id)
     assert get_device_alert_list_response.status_code == 200
     assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
+    # get current alerts (nursing station) should always fail
+    get_current_alert_response = get_current_device_alert_list(patient1_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 403
 
     # delete device-alert only in same organization
     delete_alert_response = delete_device_alert(patient2_auth_token, device1_id, alert_id)
@@ -961,9 +969,9 @@ def test_patient_measurements_abac_rules():
 
 def test_patient_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # get the Patient template name
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
-    # get the Patient template name
     patient_template_name = None
     for template in template_list_response.json()['data']:
         if "Patient" == template['name']:
@@ -1001,3 +1009,73 @@ def test_patient_ums_abac_rules():
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
+
+
+def test_patient_locales_abac_rules():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+
+    # create a patient
+    # get the Patient template name
+    template_list_response = get_all_templates(admin_auth_token)
+    assert template_list_response.status_code == 200
+    patient_template_name = None
+    for template in template_list_response.json()['data']:
+        if "Patient" == template['name']:
+            patient_template_name = template['name']
+            break
+
+    # create a patient user
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+
+    create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
+                                             "00000000-0000-0000-0000-000000000000")
+    assert create_patient_response.status_code == 201
+    patient_id = create_patient_response.json()['_id']
+
+    response_text, accept_invitation_response = accept_invitation(email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    patient_auth_token = login_with_credentials(email, password)
+    # get available locales should succeed
+    get_locales_response = get_available_locales(patient_auth_token)
+    assert get_locales_response.status_code == 200
+
+    # add locale should fail
+    code = 'en-us'
+    add_locale_response = add_locale(patient_auth_token, code)
+    assert add_locale_response.status_code == 403
+
+    # delete locale should fail
+    locale_id = 'any'
+    delete_locale_response = delete_locale(patient_auth_token, locale_id)
+    assert delete_locale_response.status_code == 403
+
+    # update locale should fail
+    update_locale_response = update_locale(patient_auth_token, code)
+    assert update_locale_response.status_code == 403
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
+
+
+def test_patient_plugins_abac_rules():
+    pass
+
+
+def test_patient_dms_abac_rules():
+    pass
+
+
+def test_patient_templates_abac_rules():
+    pass
+
+
+def test_patient_portal_builder_abac_rules():
+    pass
+
+
+def test_patient_adb_abac_rules():
+    pass
