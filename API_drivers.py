@@ -1147,8 +1147,8 @@ def start_simulation_with_existing_device(device_id, username, password):
         ],
         "commandConfigurationRequest": {
             "commandsLengthInSeconds": 10,
-            "shouldFailCommand": True,
-            "shouldFailStop": True,
+            "shouldFailCommand": False,
+            "shouldFailStop": False,
             "sendStatusAttributes": True,
             "sendSummaryAttributes": True,
             "errorMessage": "string"
