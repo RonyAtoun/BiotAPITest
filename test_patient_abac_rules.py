@@ -706,6 +706,12 @@ def test_patient_commands_abac_rules():
     start_command_response = start_command_by_template(patient2_auth_token, device2_id, command_template_name)
     assert start_command_response.status_code == 201
     command2_id = start_command_response.json()['_id']
+    # self
+    get_command_response = get_command(patient2_auth_token, device2_id, command2_id)
+    assert get_command_response.status_code == 200
+    # other
+    get_command_response = get_command(patient1_auth_token, device2_id, command2_id)
+    assert get_command_response.status_code == 403
     stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
     if stop_command_response.status_code == 200:
         assert stop_command_response.status_code == 200
@@ -725,12 +731,7 @@ def test_patient_commands_abac_rules():
     # other org
     start_command_response = start_command_by_id(patient1_auth_token, device2_id, command_template_id)
     assert start_command_response.status_code == 403
-    # self
-    get_command_response = get_command(patient2_auth_token, device2_id, command2_id)
-    assert get_command_response.status_code == 200
-    # other
-    get_command_response = get_command(patient1_auth_token, device2_id, command2_id)
-    assert get_command_response.status_code == 403
+
     # self
     search_command_response = search_commands(patient2_auth_token, command2_id)
     assert search_command_response.status_code == 200
