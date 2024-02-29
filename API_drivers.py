@@ -1572,8 +1572,8 @@ def get_entities(auth_token):
 # plugin APIs   ##############################################################################################
 def create_plugin(auth_token, name):
     headers = {
-               "Authorization": "Bearer " + auth_token
-               }
+        "Authorization": "Bearer " + auth_token
+    }
     config_payload = {
         "name": name,
         "displayName": name,
@@ -1583,7 +1583,7 @@ def create_plugin(auth_token, name):
         "timeout": 900,
         "memorySize": 128,
         "environmentVariables": {
-          "key": 'value'
+            "key": 'value'
         },
         "subscriptions": {
             "interceptionOrder": 1,
@@ -1685,6 +1685,36 @@ def delete_plugin(auth_token, name):
     return requests.delete(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name), headers=headers)
 
 
+# DMS APIs  ##########################################################################################
+def create_report(auth_token, output_metadata, queries):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "queries": queries,
+        "outputMetadata": output_metadata,
+        "name": "BioT Devices Export"
+    }
+    return requests.post(ENDPOINT + '/dms/v1/data/reports/export', headers=headers, data=json.dumps(payload))
+
+
+def delete_report(auth_token, report_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/dms/v1/data/reports/{id}'.replace('{id}', report_id), headers=headers)
+
+
+def get_report(auth_token, report_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/dms/v1/data/reports/{id}'.replace('{id}', report_id), headers=headers)
+
+
+def get_report_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+
+    }
+    return requests.get(ENDPOINT + '/dms/v1/data/reports', headers=headers, data=json.dumps(payload))
+
+
+# self signup APIs ##################################################################################
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
     headers = {"content-type": "application/json"}
     payload = {
