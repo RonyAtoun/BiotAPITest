@@ -1569,6 +1569,122 @@ def get_entities(auth_token):
     return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
 
 
+# plugin APIs   ##############################################################################################
+def create_plugin(auth_token, name):
+    headers = {
+               "Authorization": "Bearer " + auth_token
+               }
+    config_payload = {
+        "name": name,
+        "displayName": name,
+        "version": 1,
+        "runtime": "python3.10",
+        "handler": "index.handler",
+        "timeout": 900,
+        "memorySize": 128,
+        "environmentVariables": {
+          "key": 'value'
+        },
+        "subscriptions": {
+            "interceptionOrder": 1,
+            "interceptions": [
+                {
+                    "type": "PRE_REQUEST",
+                    "apiId": "string",
+                    "entityTypeName": "generic-entity",
+                    "order": 0
+                }
+            ],
+            "notifications": [
+                {
+                    "entityTypeName": "generic-entity",
+                    "actionName": "_create"
+                }
+            ]
+        },
+        "enabledState": "DISABLED",
+        "endpointUrl": "string",
+        "linkToConsole": "string",
+        "lastModifiedTime": "2007-12-20T10:15:30Z",
+        "creationTime": "2007-12-20T10:15:30Z"
+    }
+    deploy_payload = {
+        'code': None,
+        'configuration': json.dumps(config_payload)
+    }
+    return requests.post(ENDPOINT + '/settings/v2/plugins', files=deploy_payload, headers=headers)
+
+
+def get_plugin(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name), headers=headers)
+
+
+def get_plugin_list(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_ownerOrganization.id": {
+                    "like": name
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/settings/v2/plugins?', params=search_request, headers=headers)
+
+
+def update_plugin(auth_token, name):
+    headers = {
+        "Authorization": "Bearer " + auth_token
+    }
+    config_payload = {
+        "name": name,
+        "displayName": name,
+        "version": 1,
+        "runtime": "python3.10",
+        "handler": "index.handler",
+        "timeout": 900,
+        "memorySize": 128,
+        "environmentVariables": {
+            "key": 'value'
+        },
+        "subscriptions": {
+            "interceptionOrder": 1,
+            "interceptions": [
+                {
+                    "type": "PRE_REQUEST",
+                    "apiId": "string",
+                    "entityTypeName": "generic-entity",
+                    "order": 0
+                }
+            ],
+            "notifications": [
+                {
+                    "entityTypeName": "generic-entity",
+                    "actionName": "_create"
+                }
+            ]
+        },
+        "enabledState": "DISABLED",
+        "endpointUrl": "string",
+        "linkToConsole": "string",
+        "lastModifiedTime": "2007-12-20T10:15:30Z",
+        "creationTime": "2007-12-20T10:15:30Z"
+    }
+    deploy_payload = {
+        'code': None,
+        'configuration': json.dumps(config_payload)
+    }
+    return requests.patch(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name),
+                          files=deploy_payload, headers=headers)
+
+
+def delete_plugin(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name), headers=headers)
+
+
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
     headers = {"content-type": "application/json"}
     payload = {
