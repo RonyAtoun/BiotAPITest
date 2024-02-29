@@ -3,7 +3,7 @@ import os
 from API_drivers import (
     login_with_credentials,
     get_patient_list, delete_patient,
-    delete_device, get_device_list, get_device_alert_list, get_open_device_alert_list, delete_device_alert,
+    delete_device, get_device_list, get_device_alert_list, get_current_device_alert_list, delete_device_alert,
     delete_organization,
     delete_generic_entity, get_generic_entity_list,
     get_organization_list, get_all_templates, delete_template)
