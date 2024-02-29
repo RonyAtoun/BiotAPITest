@@ -35,10 +35,11 @@ from API_drivers import (
     get_device_alert, get_device_alert_list, get_current_device_alert_list, get_patient_alert, get_patient_alert_list,
     get_current_patient_alert_list,
     get_available_locales, delete_locale, update_locale, add_locale,
-    create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin)
+    create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin,
+    create_report, delete_report, get_report, get_report_list)
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
-    create_single_patient_self_signup, create_template_setup)
+    create_single_patient_self_signup, create_template_setup, create_single_patient)
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
 
@@ -1014,31 +1015,8 @@ def test_patient_ums_abac_rules():
 
 def test_patient_locales_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
 
-    # create a patient
-    # get the Patient template name
-    template_list_response = get_all_templates(admin_auth_token)
-    assert template_list_response.status_code == 200
-    patient_template_name = None
-    for template in template_list_response.json()['data']:
-        if "Patient" == template['name']:
-            patient_template_name = template['name']
-            break
-
-    # create a patient user
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-
-    create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
-    assert create_patient_response.status_code == 201
-    patient_id = create_patient_response.json()['_id']
-
-    response_text, accept_invitation_response = accept_invitation(email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    patient_auth_token = login_with_credentials(email, password)
     # get available locales should succeed
     get_locales_response = get_available_locales(patient_auth_token)
     assert get_locales_response.status_code == 200
@@ -1064,31 +1042,7 @@ def test_patient_locales_abac_rules():
 
 def test_patient_plugins_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-
-    # create a patient
-    # get the Patient template name
-    template_list_response = get_all_templates(admin_auth_token)
-    assert template_list_response.status_code == 200
-    patient_template_name = None
-    for template in template_list_response.json()['data']:
-        if "Patient" == template['name']:
-            patient_template_name = template['name']
-            break
-
-    # create a patient user
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-
-    create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
-    assert create_patient_response.status_code == 201
-    patient_id = create_patient_response.json()['_id']
-
-    response_text, accept_invitation_response = accept_invitation(email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    patient_auth_token = login_with_credentials(email, password)
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
 
     # create plugin should fail
     create_plugin_response = create_plugin(patient_auth_token, 'test_plugin')
@@ -1116,7 +1070,33 @@ def test_patient_plugins_abac_rules():
 
 
 def test_patient_dms_abac_rules():
-    pass
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+
+    # create_report should fail
+    output_metadata = {
+        "maxFileSizeInBytes": 500000,
+        "exportFormat": "JSON"
+    }
+    create_report_response = create_report(patient_auth_token, output_metadata, None)
+    assert create_report_response.status_code == 403
+
+    # delete report should fail
+    report_id = uuid.uuid4().hex
+    delete_report_response = delete_report(patient_auth_token, report_id)
+    assert delete_report_response.status_code == 403
+
+    # get report should fail
+    get_report_response = get_report(patient_auth_token, report_id)
+    assert get_report_response.status_code == 403
+
+    # search report should fail
+    search_report_response = get_report_list(patient_auth_token)
+    assert search_report_response.status_code == 403
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
 
 
 def test_patient_templates_abac_rules():
