@@ -20,7 +20,8 @@ from API_drivers import (
     start_simulation_with_existing_device, stop_simulation, get_simulation_status,
     create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
     get_v2_aggregated_measurements, get_v2_raw_measurements,
-    delete_template, get_all_templates, get_template_by_parent_id, get_template_by_id,
+    delete_template, get_all_templates, create_generic_template, get_template_by_id, get_template_overview,
+    update_template, get_templates_list, get_template,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user, get_self_organization,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -36,10 +37,11 @@ from API_drivers import (
     get_current_patient_alert_list,
     get_available_locales, delete_locale, update_locale, add_locale,
     create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin,
-    create_report, delete_report, get_report, get_report_list)
+    create_report, delete_report, get_report, get_report_list, update_patient_template)
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
-    create_single_patient_self_signup, create_template_setup, create_single_patient)
+    create_single_patient_self_signup, create_template_setup, create_single_patient,
+    update_patient_template_with_file_entity)
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
 
@@ -1099,8 +1101,46 @@ def test_patient_dms_abac_rules():
     assert delete_patient_response.status_code == 204
 
 
-def test_patient_templates_abac_rules():
-    pass
+def test_patient_templates_abac_rules():  # update is getting a 400
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+
+    # view templates should succeed
+    view_template_response = get_templates_list(patient_auth_token)
+    assert view_template_response.status_code == 200
+    get_minimized_response = get_all_templates(patient_auth_token)
+    assert get_minimized_response.status_code == 200
+
+    # extract valid id and parentId
+    template_id = get_minimized_response.json()['data'][0]['id']
+    parent_template_id = get_minimized_response.json()['data'][0]['parentTemplateId']
+
+    # get by id should succeed
+
+    get_template_response = get_template_by_id(patient_auth_token, template_id)
+    assert get_template_response.status_code == 200
+
+    # get overview should fail
+    get_overview_response = get_template_overview(patient_auth_token, template_id)
+    assert get_overview_response.status_code == 403
+
+    # delete should fail
+    delete_template_response = delete_template(patient_auth_token, template_id)
+    assert delete_template_response.status_code == 403
+
+    # create should fail
+    create_template_response = create_generic_template(patient_auth_token)
+    assert create_template_response.status_code == 403
+
+    # update should fail
+    payload = get_template_response.json()
+    update_template_response = update_template(patient_auth_token, template_id, payload)
+
+    assert update_template_response.status_code == 403
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
 
 
 def test_patient_portal_builder_abac_rules():

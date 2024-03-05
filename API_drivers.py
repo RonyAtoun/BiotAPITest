@@ -444,6 +444,12 @@ def get_template(auth_token, template_id):
                         headers=headers)
 
 
+def get_template_overview(auth_token, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v1/templates/{templateId}/overview'.replace('{templateId}', template_id),
+                        headers=headers)
+
+
 def get_all_templates(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
@@ -456,12 +462,10 @@ def delete_template(auth_token, template_id):
                            headers=headers)
 
 
-def update_template(auth_token, template_id, device_template_id):
+def update_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "parentTemplateId": template_id
-    }
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
+
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
 
