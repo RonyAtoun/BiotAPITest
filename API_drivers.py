@@ -89,7 +89,37 @@ def update_locale(auth_token, code):
     return requests.patch(ENDPOINT + '/settings/v1/locales/configuration', headers=headers, data=json.dumps(payload))
 
 
-# Organization user APIS ######################################
+# Portal builder APIs   ################################################################################
+def update_portal_views(auth_token, portal_type, view_id, payload):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.put(ENDPOINT + '/settings/v1/portal-builder/{portalType}/views/{viewId}'
+                        .replace('{portalType}', portal_type).replace('{viewId}', view_id), data=json.dumps(payload),
+                        headers=headers)
+
+
+def view_full_portal_information(auth_token, portal_type, view_type, template_id):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    if template_id is None:
+        return requests.get(ENDPOINT +
+                            '/settings/v1/portal-builder/{portalType}/views-full-info/{'
+                            'viewType}?entityTypeName=device'.replace('{portalType}', portal_type)
+                            .replace('{viewType}', view_type), headers=headers)
+    else:
+        return requests.get(ENDPOINT +
+                            '/settings/v1/portal-builder/{portalType}/views-full-info/{'
+                            'viewType}?entityTypeName=device&templateId='.replace('{portalType}', portal_type)
+                            .replace('{viewType}', view_type) + template_id, headers=headers)
+
+
+# Organization user APIS ###############################################################################
 def create_organization_user(auth_token, template_name, name, email, organization_id):
     headers = {
         "accept": "application/json",

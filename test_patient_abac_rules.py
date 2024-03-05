@@ -37,7 +37,8 @@ from API_drivers import (
     get_current_patient_alert_list,
     get_available_locales, delete_locale, update_locale, add_locale,
     create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin,
-    create_report, delete_report, get_report, get_report_list, update_patient_template)
+    create_report, delete_report, get_report, get_report_list,
+    update_portal_views, view_full_portal_information)
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
     create_single_patient_self_signup, create_template_setup, create_single_patient,
@@ -1144,7 +1145,29 @@ def test_patient_templates_abac_rules():  # update is getting a 400
 
 
 def test_patient_portal_builder_abac_rules():
-    pass
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+
+    # view full info should succeed
+    view_template_response = get_templates_list(patient_auth_token)
+    assert view_template_response.status_code == 200
+    get_minimized_response = get_all_templates(patient_auth_token)
+    assert get_minimized_response.status_code == 200
+
+    # extract valid id and parentId
+    template_id = get_minimized_response.json()['data'][0]['id']
+    view_portal_response = view_full_portal_information(patient_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
+                                                        None)
+    assert view_portal_response.status_code == 200
+    payload = view_portal_response.json()
+    view_id = payload['id']
+    # update views should fail
+    update_portal_view_response = update_portal_views(patient_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
+    assert update_portal_view_response.status_code == 403
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
 
 
 def test_patient_adb_abac_rules():
