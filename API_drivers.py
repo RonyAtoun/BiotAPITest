@@ -119,6 +119,62 @@ def view_full_portal_information(auth_token, portal_type, view_type, template_id
                             .replace('{viewType}', view_type) + template_id, headers=headers)
 
 
+# Analytics DB APIs  ###################################################################################
+
+def deploy_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/deploy', headers=headers)
+
+
+def undeploy_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/undeploy', headers=headers)
+
+
+def start_init_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/initialization/start', headers=headers)
+
+
+def stop_init_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/initialization/stop', headers=headers)
+
+
+def stop_sync_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/synchronization/stop', headers=headers)
+
+
+def get_adb_info(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.get(ENDPOINT + '/dms/v1/analytics/db/information', headers=headers)
+
+
 # Organization user APIS ###############################################################################
 def create_organization_user(auth_token, template_name, name, email, organization_id):
     headers = {

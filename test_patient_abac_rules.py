@@ -1,11 +1,10 @@
-import json
-import pytest
+# import pytest
 import requests
 import uuid
 import os
 
 from API_drivers import (
-    login_with_credentials, set_password, forgot_password, get_self_user_email,
+    login_with_credentials, set_password, forgot_password,
     create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
     get_registration_code_list,
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
@@ -13,15 +12,13 @@ from API_drivers import (
     create_device, get_device, delete_device, update_device, get_device_list, get_device_credentials,
     create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
     get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
-    create_device_template_with_session, create_device_without_registration_code, update_device_with_new_patient,
-    get_usage_session_by_id, create_usage_session_with_name,
-    create_usage_session_without_name, get_current_usage_sessions,
+    get_usage_session_by_id,
     start_command_by_id, start_command_by_template, stop_command, search_commands, get_command,
     start_simulation_with_existing_device, stop_simulation, get_simulation_status,
     create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
     get_v2_aggregated_measurements, get_v2_raw_measurements,
     delete_template, get_all_templates, create_generic_template, get_template_by_id, get_template_overview,
-    update_template, get_templates_list, get_template,
+    update_template, get_templates_list,
     create_organization, delete_organization,
     create_organization_user, delete_organization_user, update_organization_user, get_self_organization,
     change_organization_user_state, get_organization_user, get_organization_user_list,
@@ -31,18 +28,19 @@ from API_drivers import (
     create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
     get_caregiver_list, resend_invitation,
     create_file, get_file,
-    create_alert_template, create_device_alert_by_id, create_device_alert_by_name, create_patient_alert_by_id,
+    create_device_alert_by_id, create_device_alert_by_name, create_patient_alert_by_id,
     create_patient_alert_by_name, delete_patient_alert, delete_device_alert, update_patient_alert, update_device_alert,
     get_device_alert, get_device_alert_list, get_current_device_alert_list, get_patient_alert, get_patient_alert_list,
     get_current_patient_alert_list,
     get_available_locales, delete_locale, update_locale, add_locale,
     create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin,
     create_report, delete_report, get_report, get_report_list,
-    update_portal_views, view_full_portal_information)
+    update_portal_views, view_full_portal_information, deploy_adb, undeploy_adb, start_init_adb, stop_init_adb,
+    get_adb_info, stop_sync_adb)
+
 from api_test_helpers import (
     self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
-    create_single_patient_self_signup, create_template_setup, create_single_patient,
-    update_patient_template_with_file_entity)
+    create_single_patient_self_signup, create_template_setup, create_single_patient)
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
 
@@ -1171,4 +1169,33 @@ def test_patient_portal_builder_abac_rules():
 
 
 def test_patient_adb_abac_rules():
-    pass
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+
+    # deploy adb should fail
+    deploy_response = deploy_adb(patient_auth_token)
+    assert deploy_response.status_code == 403
+
+    # undeploy should fail
+    undeploy_response = undeploy_adb(patient_auth_token)
+    assert undeploy_response.status_code == 403
+
+    # start init should fail
+    start_init_response = start_init_adb(patient_auth_token)
+    assert start_init_response.status_code == 403
+
+    # stop init should fail
+    stop_init_response = stop_init_adb(patient_auth_token)
+    assert stop_init_response.status_code == 403
+
+    # stop sync should fail
+    stop_sync_response = stop_sync_adb(patient_auth_token)
+    assert stop_sync_response.status_code == 403
+
+    # get adb info should succeed
+    get_adb_response = get_adb_info(patient_auth_token)
+    assert get_adb_response.status_code == 200
+
+    # teardown
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204
