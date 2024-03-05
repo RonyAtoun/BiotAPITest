@@ -48,7 +48,7 @@ def force_cleanup():
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
     for template in template_list_response.json()['data']:
-        if "rony_test" in template['name']:
+        if "test" in template['name']:
             delete_template_response = delete_template(admin_auth_token, template['id'])
             if delete_template_response.status_code == 204:
                 print("Template", template['name'])

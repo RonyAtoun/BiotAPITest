@@ -2717,7 +2717,7 @@ def get_command_template_payload(test_display_name, test_name, test_referenced_a
 
 def create_caregiver_template(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    name = f"caregiver{uuid.uuid4().hex}"[0:35]
+    name = f"test_caregiver{uuid.uuid4().hex}"[0:35]
     payload = json.dumps({
         "name": name,
         "displayName": name,
