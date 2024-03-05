@@ -654,3 +654,67 @@ def test_manu_admin_registration_code_abac_rules():
     delete_registration_code_response = delete_template(auth_token, registration_code_template_id)
     assert delete_registration_code_response.status_code == 204, f"{delete_registration_code_response.text}"
 
+
+def test_manu_admin_command_abac_rules():
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+
+    # create device template
+    device_template_response = create_device_template_with_session(auth_token)
+    assert device_template_response.status_code == 201, f"{device_template_response.text}"
+    template_name = device_template_response.json()["name"]
+    device_template_id = device_template_response.json()["id"]
+
+    # create command template
+    command_template_name = f'cmd_support_stop_{uuid.uuid4().hex}'[0:32]
+    create_command_template_response = create_command_template_with_support_stop_true(auth_token, command_template_name,                                                                                 device_template_id)
+    assert create_command_template_response.status_code == 201, f"{create_command_template_response.text}"
+    command_template_id = create_command_template_response.json()['id']
+
+    # create device in Default Org-n
+    create_device_response = create_device_without_registration_code(auth_token, template_name, DEFAULT_ORGANISATION_ID)
+    device_id = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # start simulation
+    start_simulation_with_existing_device(device_id, os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+
+    # TEST - Start Command in Default Org-n
+    start_command_response = start_command_by_id(auth_token, device_id, command_template_id)
+    assert start_command_response.status_code == 201, f"{start_command_response.text}"
+    command_id = start_command_response.json()['_id']
+    get_command_response = get_command(auth_token, device_id, command_id)
+    command_state = get_command_response.json()['_state']
+    assert command_state == "IN_PROGRESS"
+
+    # TEST - Stop Command in Default Org-n
+    stop_command_response = stop_command(auth_token, device_id, command_id)
+    assert stop_command_response.status_code == 200, f"{start_command_response.text}"
+    get_command_response = get_command(auth_token, device_id, command_id)
+    command_state = get_command_response.json()['_state']
+    assert command_state == "ABORTED"
+
+    # TEST - Start another Command in Default Org-n and wait till it's Completed
+    start_command_response = start_command_by_id(auth_token, device_id, command_template_id)
+    assert start_command_response.status_code == 201, f"{start_command_response.text}"
+    command2_id = start_command_response.json()['_id']
+    get_command_response = get_command(auth_token, device_id, command2_id)
+    command2_state = get_command_response.json()['_state']
+    assert command2_state == "IN_PROGRESS"
+    time.sleep(10)
+    get_command_response = get_command(auth_token, device_id, command2_id)
+    command2_state = get_command_response.json()['_state']
+    assert command2_state == "COMPLETED"
+
+    # stop simulation
+    stop_simulation()
+    simulation_status_response = get_simulation_status()
+    simulation_status = simulation_status_response.json()["code"]
+    assert simulation_status == "NO_RUNNING_SIMULATION"
+
+    # Delete Device
+    delete_device_response = delete_device(auth_token, device_id)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+
+    # Delete Device template
+    delete_device_template_response = delete_template(auth_token, device_template_id)
+    assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
