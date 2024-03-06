@@ -214,62 +214,103 @@ def test_caregiver_organization_users_abac_rules():
     assert delete_template_response.status_code == 204
 
 
-def test_patient_patient_abac_rules():
+def test_caregiver_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create two patients, registration codes and devices
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    patient_id = patient_setup['patient_id']
-    patient_auth_token = patient_setup['patient_auth_token']
+    # create organization
+    get_self_org_response = get_self_organization(admin_auth_token)
+    assert get_self_org_response.status_code == 200
+    template_id = get_self_org_response.json()['_ownerOrganization']['templateId']
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create caregiver by admin in new organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 organization_id)
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
-    # Create and delete patient should fail
+    # Create patient should only succeed  in same organization
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    # create patient should fail
-    test_patient_create_response = create_patient(patient_auth_token, test_name, email, "Patient",
+    # create patient should fail in other org
+    test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
                                                   "00000000-0000-0000-0000-000000000000")
     assert test_patient_create_response.status_code == 403
-    # delete patient (use second patient created)
-    test_patient_delete_response = delete_patient(patient_auth_token, patient_id[1])
-    assert test_patient_delete_response.status_code == 403
+    # create patient should succeed in same org
+    test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
+                                                  organization_id)
+    assert test_patient_create_response.status_code == 201
+    new_org_patient_id = test_patient_create_response.json()['_id']
+
+    # first create a patient by admin in default org
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_patient_create_response = create_patient(admin_auth_token, test_name, email, "Patient",
+                                                  "00000000-0000-0000-0000-000000000000")
+    assert test_patient_create_response.status_code == 201
+    default_org_patient_id = test_patient_create_response.json()['_id']
 
     # update patient only for self
-    update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
+    update_patient_response = update_patient(caregiver_auth_token, new_org_patient_id, organization_id,
                                              "change string", None, None)
     assert update_patient_response.status_code == 200
-    # should fail for other patient
-    update_patient_response = update_patient(patient_auth_token, patient_id[1],
-                                             "00000000-0000-0000-0000-000000000000",
-                                             "change string", None, None)
+    # should fail for patient in other org
+    update_patient_response = update_patient(caregiver_auth_token, default_org_patient_id,
+                                             "00000000-0000-0000-0000-000000000000", "change string", None, None)
+
     assert update_patient_response.status_code == 403
 
-    # get patient only for self
-    get_patient_response = get_patient(patient_auth_token, patient_id[0])  # self
+    # get patient only in same organization
+    get_patient_response = get_patient(caregiver_auth_token, new_org_patient_id)   # same org
     assert get_patient_response.status_code == 200
-    get_patient_response = get_patient(patient_auth_token, patient_id[1])  # other patient
+    get_patient_response = get_patient(caregiver_auth_token, default_org_patient_id)  # other org patient
     assert get_patient_response.status_code == 403
 
-    # search patient only for self
-    # Positive - for self
-    get_patient_list_response = get_patient_list(patient_auth_token)
+    # search patient only in same organization
+
+    get_patient_list_response = get_patient_list(caregiver_auth_token)
     assert get_patient_list_response.status_code == 200
     assert get_patient_list_response.json()['metadata']['page']['totalResults'] == 1
-    # negative (system admin should get all defined patients)
-    get_patient_list_response = get_patient_list(admin_auth_token)
-    assert get_patient_list_response.status_code == 200
-    assert get_patient_list_response.json()['metadata']['page']['totalResults'] > 1
 
-    # enable/disable should fail
-    change_patient_state_response = change_patient_state(patient_auth_token, patient_id[0], "ENABLED")
+    # enable/disable only in same organization
+    change_patient_state_response = change_patient_state(caregiver_auth_token, default_org_patient_id, "ENABLED")
     assert change_patient_state_response.status_code == 403
+    change_patient_state_response = change_patient_state(caregiver_auth_token, new_org_patient_id, "ENABLED")
+    assert change_patient_state_response.status_code == 200
 
     # resend invitation fails
-    resend_invitation_response = resend_invitation(patient_auth_token, patient_id[0])
+    resend_invitation_response = resend_invitation(caregiver_auth_token, new_org_patient_id)
     assert resend_invitation_response.status_code == 403
 
+    # delete patient only in same organization
+    test_patient_delete_response = delete_patient(caregiver_auth_token, default_org_patient_id)
+    assert test_patient_delete_response.status_code == 403
+    test_patient_delete_response = delete_patient(caregiver_auth_token, new_org_patient_id)
+    assert test_patient_delete_response.status_code == 204
+
     # Teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
+
+    delete_patient_response = delete_patient(admin_auth_token, default_org_patient_id)
+    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
+    delete_org_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_org_response.status_code == 204
 
 
 def test_patient_caregiver_abac_rules():
