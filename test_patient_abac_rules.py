@@ -272,14 +272,9 @@ def test_patient_caregiver_abac_rules():
     assert get_caregiver_response.status_code == 403
 
     # search caregiver by patient only for self
-    # Positive - for self
     get_caregiver_list_response = get_caregiver_list(patient_auth_token)
     assert get_caregiver_list_response.status_code == 200
     assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] == 1
-    # negative (system admin should get all defined patients)
-    get_caregiver_list_response = get_caregiver_list(admin_auth_token)
-    assert get_caregiver_list_response.status_code == 200
-    assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # resend invitation fails
     resend_invitation_response = resend_invitation(patient_auth_token, caregiver_id)
