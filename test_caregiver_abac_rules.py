@@ -9,7 +9,8 @@ from API_drivers import (
     get_registration_code_list,
     create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
     delete_patient,
-    create_device, get_device, delete_device, update_device, get_device_list, get_device_credentials,
+    create_device, create_device_without_registration_code, get_device, delete_device, update_device, get_device_list,
+    get_device_credentials,
     create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
     get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
     get_usage_session_by_id,
@@ -400,49 +401,85 @@ def test_caregiver_caregiver_abac_rules():
     assert delete_org_response.status_code == 204
 
 
-@pytest.mark.skip
-def test_patient_devices_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_devices_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create two patients, registration codes and devices
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    device_id = patient_setup['device_id']
-    registration_code_id = patient_setup['registration_code_id']
-    patient_auth_token = patient_setup['patient_auth_token']
-    patient_email = patient_setup['email']
+    # create organization
+    get_self_org_response = get_self_organization(admin_auth_token)
+    assert get_self_org_response.status_code == 200
+    template_id = get_self_org_response.json()['_ownerOrganization']['templateId']
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create caregiver by admin in new organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 organization_id)
+    assert create_caregiver_response.status_code == 201
+    caregiver_new_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    # create a device by admin in new org
+    device_template_id, device_template_name, device_template_display_name = (
+        create_template_setup(admin_auth_token, organization_id, "device", None))
+    create_device_response = create_device_without_registration_code(admin_auth_token, device_template_name,
+                                                                     organization_id)
+    assert create_device_response.status_code == 201
+    device_new_id = create_device_response.json()['_id']
+    # create device by admin in default org
+    create_device_response = create_device_without_registration_code(admin_auth_token, "DeviceType1",
+                                                                     "00000000-0000-0000-0000-000000000000")
+    assert create_device_response.status_code == 201
+    device_default_id = create_device_response.json()['_id']
 
-    # create device by patient fails
-    create_device_response = create_device(patient_auth_token, 'DeviceType1', device_id[0],
-                                           registration_code_id[0], "00000000-0000-0000-0000-000000000000")
+    # create device by caregiver fails
+    create_device_response = create_device_without_registration_code(caregiver_auth_token, device_template_name,
+                                                                     organization_id)
     assert create_device_response.status_code == 403
 
-    # update device by patient fails
-    update_device_response = update_device(patient_auth_token, device_id[0], "change_string", None)
+    # update device by caregiver only in same org
+    update_device_response = update_device(caregiver_auth_token, device_new_id, "change_string", None)
+    assert update_device_response.status_code == 200
+    update_device_response = update_device(caregiver_auth_token, device_default_id, "change_string", None)
     assert update_device_response.status_code == 403
 
-    # delete device by patient fails
-    delete_device_response = delete_device(patient_auth_token, device_id[0])
+    # delete device by caregiver fails
+    delete_device_response = delete_device(caregiver_auth_token, device_new_id)
     assert delete_device_response.status_code == 403
 
-    # get device succeeds for self, fails for other (use patient[0] for self, patient[1] for other
-    get_device_response = get_device(patient_auth_token, device_id[0])
+    # get device succeeds for only in same organization
+    get_device_response = get_device(caregiver_auth_token, device_new_id)
     assert get_device_response.status_code == 200
-    patient2_auth_token = login_with_credentials(patient_email[1], "Q2207819w@")
-    get_device_response = get_device(patient2_auth_token, device_id[0])
+    get_device_response = get_device(caregiver_auth_token, device_default_id)
     assert get_device_response.status_code == 403
 
-    # search device by patient only for self
+    # search device by caregiver only in same org
     # Positive - for self
-    get_device_list_response = get_device_list(patient_auth_token)
+    get_device_list_response = get_device_list(caregiver_auth_token)
     assert get_device_list_response.status_code == 200
     assert get_device_list_response.json()['metadata']['page']['totalResults'] == 1
-    # negative (system admin should get all defined patients)
-    get_device_list_response = get_device_list(admin_auth_token)
-    assert get_device_list_response.status_code == 200
-    assert get_device_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # Teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    delete_device_response = delete_device(admin_auth_token, device_new_id)
+    assert delete_device_response.status_code == 204
+    delete_device_response = delete_device(admin_auth_token, device_default_id)
+    assert delete_device_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, device_template_id)
+    assert delete_template_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
+    delete_org_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_org_response.status_code == 204
 
 
 @pytest.mark.skip
@@ -788,6 +825,7 @@ def test_patient_usage_session_abac_rules():
 
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
+
 @pytest.mark.skip
 def test_patient_commands_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1079,6 +1117,7 @@ def test_patient_measurements_abac_rules():
 
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
+
 @pytest.mark.skip
 def test_patient_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1123,6 +1162,7 @@ def test_patient_ums_abac_rules():
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
 
+
 @pytest.mark.skip
 def test_patient_locales_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1149,6 +1189,7 @@ def test_patient_locales_abac_rules():
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
+
 
 @pytest.mark.skip
 def test_patient_plugins_abac_rules():
@@ -1179,6 +1220,7 @@ def test_patient_plugins_abac_rules():
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
 
+
 @pytest.mark.skip
 def test_patient_dms_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1208,6 +1250,7 @@ def test_patient_dms_abac_rules():
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
+
 
 @pytest.mark.skip
 def test_patient_templates_abac_rules():  # update is getting a 400
@@ -1251,6 +1294,7 @@ def test_patient_templates_abac_rules():  # update is getting a 400
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
 
+
 @pytest.mark.skip
 def test_patient_portal_builder_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1276,6 +1320,7 @@ def test_patient_portal_builder_abac_rules():
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
+
 
 @pytest.mark.skip
 def test_patient_adb_abac_rules():

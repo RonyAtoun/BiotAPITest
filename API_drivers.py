@@ -1028,12 +1028,15 @@ def create_device(auth_token, template_name, device_id, registration_code_id, or
 
 def update_device(auth_token, device_id, change_string, patient_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_description": change_string,
-        "_patient": {
-            "id": patient_id,
-        },
-    }
+    if patient_id is None:
+        payload = {"_description": change_string}
+    else:
+        payload = {
+             "_description": change_string,
+             "_patient": {
+              "id": patient_id,
+            },
+        }
     return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
                           headers=headers, data=json.dumps(payload))
 
@@ -1529,15 +1532,18 @@ def update_patient_alert(auth_token, patient_id, alert_id):
 
 def get_patient_alert_list(auth_token, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    search_request = {
-        "searchRequest": json.dumps({
-            "filter": {
-                "_id": {
-                    "like": alert_id
-                },
+    if alert_id is None:
+        search_request = {}
+    else:
+        search_request = {
+            "searchRequest": json.dumps({
+               "filter": {
+                  "_id": {
+                        "like": alert_id
+                      },
             }
-        })
-    }
+         })
+        }
     return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
 
 
@@ -1612,15 +1618,18 @@ def get_device_alert(auth_token, device_id, alert_id):
 
 def get_device_alert_list(auth_token, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    search_request = {
-        "searchRequest": json.dumps({
-            "filter": {
+    if alert_id is None:
+        search_request = {}
+    else:
+        search_request = {
+            "searchRequest": json.dumps({
+              "filter": {
                 "_id": {
                     "like": alert_id
-                },
-            }
-        })
-    }
+                 },
+                }
+            })
+      }
     return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
 
 
