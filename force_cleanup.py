@@ -3,9 +3,10 @@ import os
 from API_drivers import (
     login_with_credentials,
     get_patient_list, delete_patient,
-    delete_device, get_device_list, get_device_alert_list, get_open_device_alert_list, delete_device_alert,
+    delete_device, get_device_list, get_device_alert_list, get_patient_alert_list,
+    delete_device_alert, delete_patient_alert,
     delete_organization,
-    delete_generic_entity, get_generic_entity_list,
+    delete_generic_entity, get_generic_entity_list, get_caregiver_list, delete_caregiver,
     get_organization_list, get_all_templates, delete_template)
 
 
@@ -15,13 +16,29 @@ from API_drivers import (
 
 def force_cleanup():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # get_device_alert_list_response = get_device_alert_list(admin_auth_token, "any")
+    get_device_alert_list_response = get_device_alert_list(admin_auth_token, None)
+    assert get_device_alert_list_response.status_code == 200
+    for alert in get_device_alert_list_response.json()['data']:
+        if 'test' in alert['_name'] and alert['_device'] is not None:
+            print("deviceAlertId", alert['_id'])
+            device_id = alert['_device']['id']
+            delete_alert_response = delete_device_alert(admin_auth_token, device_id, alert['_id'])
+            assert delete_alert_response.status_code == 204
+
+    get_patient_alert_list_response = get_patient_alert_list(admin_auth_token, None)
+    assert get_patient_alert_list_response.status_code == 200
+    for alert in get_patient_alert_list_response.json()['data']:
+        if 'test' in alert['_name'] and alert['_patient'] is not None:
+            print("patientAlertId", alert['_id'])
+            patient_id = alert['_patient']['id']
+            delete_alert_response = delete_patient_alert(admin_auth_token, patient_id, alert['_id'])
+            assert delete_alert_response.status_code == 204
 
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
         print("deviceId", device['_id'])
-        if 'test' in device['_id']:
+        if 'test' in device['_id'] or 'device_by_manu_admin' in device['_id']:
             delete_device_response = delete_device(admin_auth_token, device['_id'])
             assert delete_device_response.status_code == 204
     get_patient_list_response = get_patient_list(admin_auth_token)
@@ -31,6 +48,13 @@ def force_cleanup():
             print("patient", patient['_name'])
             patient_delete_response = delete_patient(admin_auth_token, patient['_id'])
             assert patient_delete_response.status_code == 204
+    get_caregiver_list_response = get_caregiver_list(admin_auth_token)
+    assert get_caregiver_list_response.status_code == 200
+    for caregiver in get_caregiver_list_response.json()['data']:
+        if "test" in caregiver['_name']['firstName']:
+            print("caregiver", caregiver['_name'])
+            caregiver_delete_response = delete_caregiver(admin_auth_token, caregiver['_id'])
+            assert caregiver_delete_response.status_code == 204
 
     get_organization_list_response = get_organization_list(admin_auth_token)
     assert get_organization_list_response.status_code == 200
@@ -48,7 +72,7 @@ def force_cleanup():
     template_list_response = get_all_templates(admin_auth_token)
     assert template_list_response.status_code == 200
     for template in template_list_response.json()['data']:
-        if "rony_test" in template['name']:
+        if "test" in template['name']:
             delete_template_response = delete_template(admin_auth_token, template['id'])
             if delete_template_response.status_code == 204:
                 print("Template", template['name'])

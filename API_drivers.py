@@ -37,6 +37,145 @@ def get_self_user_email(auth_token):
     return response.json()["_email"]
 
 
+# Locales APIs  ######################################################
+def get_available_locales(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.get(ENDPOINT + '/settings/v1/locales/configuration', headers=headers)
+
+
+def add_locale(auth_token, code):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {
+        "code": code,
+        "hidden": False,
+        "translationFallbackTypes": None
+    }
+    return requests.post(ENDPOINT + '/settings/v1/locales', headers=headers, data=json.dumps(payload))
+
+
+def delete_locale(auth_token, locale_id):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.delete(ENDPOINT + '/settings/v1/locales/{id)'.replace('{id', locale_id), headers=headers)
+
+
+def update_locale(auth_token, code):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    payload = {
+        "availableLocales": [
+            {
+                "code": code,
+                "hidden": False,
+                "translationFallbackTypes": None
+            }
+        ],
+        "defaultLocaleCode": "en-us"
+    }
+    return requests.patch(ENDPOINT + '/settings/v1/locales/configuration', headers=headers, data=json.dumps(payload))
+
+
+# Portal builder APIs   ################################################################################
+def update_portal_views(auth_token, portal_type, view_id, payload):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.put(ENDPOINT + '/settings/v1/portal-builder/{portalType}/views/{viewId}'
+                        .replace('{portalType}', portal_type).replace('{viewId}', view_id), data=json.dumps(payload),
+                        headers=headers)
+
+
+def view_full_portal_information(auth_token, portal_type, view_type, template_id):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    if template_id is None:
+        return requests.get(ENDPOINT +
+                            '/settings/v1/portal-builder/{portalType}/views-full-info/{'
+                            'viewType}?entityTypeName=device'.replace('{portalType}', portal_type)
+                            .replace('{viewType}', view_type), headers=headers)
+    else:
+        return requests.get(ENDPOINT +
+                            '/settings/v1/portal-builder/{portalType}/views-full-info/{'
+                            'viewType}?entityTypeName=device&templateId='.replace('{portalType}', portal_type)
+                            .replace('{viewType}', view_type) + template_id, headers=headers)
+
+
+# Analytics DB APIs  ###################################################################################
+
+def deploy_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/deploy', headers=headers)
+
+
+def undeploy_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/undeploy', headers=headers)
+
+
+def start_init_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/initialization/start', headers=headers)
+
+
+def stop_init_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/initialization/stop', headers=headers)
+
+
+def stop_sync_adb(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.post(ENDPOINT + '/dms/v1/analytics/db/synchronization/stop', headers=headers)
+
+
+def get_adb_info(auth_token):
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": "Bearer " + auth_token
+    }
+    return requests.get(ENDPOINT + '/dms/v1/analytics/db/information', headers=headers)
+
+
+# Organization user APIS ###############################################################################
 def create_organization_user(auth_token, template_name, name, email, organization_id):
     headers = {
         "accept": "application/json",
@@ -391,6 +530,12 @@ def get_template(auth_token, template_id):
                         headers=headers)
 
 
+def get_template_overview(auth_token, template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v1/templates/{templateId}/overview'.replace('{templateId}', template_id),
+                        headers=headers)
+
+
 def get_all_templates(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
@@ -403,12 +548,10 @@ def delete_template(auth_token, template_id):
                            headers=headers)
 
 
-def update_template(auth_token, template_id, device_template_id):
+def update_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "parentTemplateId": template_id
-    }
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId})'.replace('{templateId}', device_template_id),
+
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
 
@@ -885,12 +1028,15 @@ def create_device(auth_token, template_name, device_id, registration_code_id, or
 
 def update_device(auth_token, device_id, change_string, patient_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "_description": change_string,
-        "_patient": {
-            "id": patient_id,
-        },
-    }
+    if patient_id is None:
+        payload = {"_description": change_string}
+    else:
+        payload = {
+             "_description": change_string,
+             "_patient": {
+              "id": patient_id,
+            },
+        }
     return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
                           headers=headers, data=json.dumps(payload))
 
@@ -1146,9 +1292,9 @@ def start_simulation_with_existing_device(device_id, username, password):
             observation_attribute
         ],
         "commandConfigurationRequest": {
-            "commandsLengthInSeconds": 10,
-            "shouldFailCommand": True,
-            "shouldFailStop": True,
+            "commandsLengthInSeconds": 5,
+            "shouldFailCommand": False,
+            "shouldFailStop": False,
             "sendStatusAttributes": True,
             "sendSummaryAttributes": True,
             "errorMessage": "string"
@@ -1386,6 +1532,23 @@ def update_patient_alert(auth_token, patient_id, alert_id):
 
 def get_patient_alert_list(auth_token, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    if alert_id is None:
+        search_request = {}
+    else:
+        search_request = {
+            "searchRequest": json.dumps({
+               "filter": {
+                  "_id": {
+                        "like": alert_id
+                      },
+            }
+         })
+        }
+    return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
+
+
+def get_current_patient_alert_list(auth_token, alert_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
             "filter": {
@@ -1395,7 +1558,8 @@ def get_patient_alert_list(auth_token, alert_id):
             }
         })
     }
-    return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
+    return requests.get(ENDPOINT + '/organization/v1/users/patients/current/alerts?', params=search_request,
+                        headers=headers)
 
 
 def create_device_alert_by_id(auth_token, device_id, template_id):
@@ -1454,19 +1618,22 @@ def get_device_alert(auth_token, device_id, alert_id):
 
 def get_device_alert_list(auth_token, alert_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    search_request = {
-        "searchRequest": json.dumps({
-            "filter": {
+    if alert_id is None:
+        search_request = {}
+    else:
+        search_request = {
+            "searchRequest": json.dumps({
+              "filter": {
                 "_id": {
                     "like": alert_id
-                },
-            }
-        })
-    }
+                 },
+                }
+            })
+      }
     return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
 
 
-def get_open_device_alert_list(auth_token, organization_id):
+def get_current_device_alert_list(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
@@ -1477,7 +1644,7 @@ def get_open_device_alert_list(auth_token, organization_id):
             }
         })
     }
-    return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
+    return requests.get(ENDPOINT + '/device/v1/devices/current/alerts?', params=search_request, headers=headers)
 
 
 # File APIs ################################################################################################
@@ -1501,6 +1668,152 @@ def get_entities(auth_token):
     return requests.get(ENDPOINT + '/settings/v2/entity-types', headers=headers)
 
 
+# plugin APIs   ##############################################################################################
+def create_plugin(auth_token, name):
+    headers = {
+        "Authorization": "Bearer " + auth_token
+    }
+    config_payload = {
+        "name": name,
+        "displayName": name,
+        "version": 1,
+        "runtime": "python3.10",
+        "handler": "index.handler",
+        "timeout": 900,
+        "memorySize": 128,
+        "environmentVariables": {
+            "key": 'value'
+        },
+        "subscriptions": {
+            "interceptionOrder": 1,
+            "interceptions": [
+                {
+                    "type": "PRE_REQUEST",
+                    "apiId": "string",
+                    "entityTypeName": "generic-entity",
+                    "order": 0
+                }
+            ],
+            "notifications": [
+                {
+                    "entityTypeName": "generic-entity",
+                    "actionName": "_create"
+                }
+            ]
+        },
+        "enabledState": "DISABLED",
+        "endpointUrl": "string",
+        "linkToConsole": "string",
+        "lastModifiedTime": "2007-12-20T10:15:30Z",
+        "creationTime": "2007-12-20T10:15:30Z"
+    }
+    deploy_payload = {
+        'code': None,
+        'configuration': json.dumps(config_payload)
+    }
+    return requests.post(ENDPOINT + '/settings/v2/plugins', files=deploy_payload, headers=headers)
+
+
+def get_plugin(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name), headers=headers)
+
+
+def get_plugin_list(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    search_request = {
+        "searchRequest": json.dumps({
+            "filter": {
+                "_ownerOrganization.id": {
+                    "like": name
+                },
+            }
+        })
+    }
+    return requests.get(ENDPOINT + '/settings/v2/plugins?', params=search_request, headers=headers)
+
+
+def update_plugin(auth_token, name):
+    headers = {
+        "Authorization": "Bearer " + auth_token
+    }
+    config_payload = {
+        "name": name,
+        "displayName": name,
+        "version": 1,
+        "runtime": "python3.10",
+        "handler": "index.handler",
+        "timeout": 900,
+        "memorySize": 128,
+        "environmentVariables": {
+            "key": 'value'
+        },
+        "subscriptions": {
+            "interceptionOrder": 1,
+            "interceptions": [
+                {
+                    "type": "PRE_REQUEST",
+                    "apiId": "string",
+                    "entityTypeName": "generic-entity",
+                    "order": 0
+                }
+            ],
+            "notifications": [
+                {
+                    "entityTypeName": "generic-entity",
+                    "actionName": "_create"
+                }
+            ]
+        },
+        "enabledState": "DISABLED",
+        "endpointUrl": "string",
+        "linkToConsole": "string",
+        "lastModifiedTime": "2007-12-20T10:15:30Z",
+        "creationTime": "2007-12-20T10:15:30Z"
+    }
+    deploy_payload = {
+        'code': None,
+        'configuration': json.dumps(config_payload)
+    }
+    return requests.patch(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name),
+                          files=deploy_payload, headers=headers)
+
+
+def delete_plugin(auth_token, name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name), headers=headers)
+
+
+# DMS APIs  ##########################################################################################
+def create_report(auth_token, output_metadata, queries):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+        "queries": queries,
+        "outputMetadata": output_metadata,
+        "name": "BioT Devices Export"
+    }
+    return requests.post(ENDPOINT + '/dms/v1/data/reports/export', headers=headers, data=json.dumps(payload))
+
+
+def delete_report(auth_token, report_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.delete(ENDPOINT + '/dms/v1/data/reports/{id}'.replace('{id}', report_id), headers=headers)
+
+
+def get_report(auth_token, report_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    return requests.get(ENDPOINT + '/dms/v1/data/reports/{id}'.replace('{id}', report_id), headers=headers)
+
+
+def get_report_list(auth_token):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {
+
+    }
+    return requests.get(ENDPOINT + '/dms/v1/data/reports', headers=headers, data=json.dumps(payload))
+
+
+# self signup APIs ##################################################################################
 def identified_self_signup_with_registration_code(auth_token, test_name, email, registration_code, organization_id):
     headers = {"content-type": "application/json"}
     payload = {
@@ -2413,7 +2726,7 @@ def get_command_template_payload(test_display_name, test_name, test_referenced_a
 
 def create_caregiver_template(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    name = f"caregiver{uuid.uuid4().hex}"[0:35]
+    name = f"test_caregiver{uuid.uuid4().hex}"[0:35]
     payload = json.dumps({
         "name": name,
         "displayName": name,

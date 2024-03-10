@@ -3,11 +3,12 @@ from API_drivers import (
     login_with_credentials,
     create_registration_code, delete_registration_code,
     identified_self_signup_with_registration_code,
-    get_patient, delete_patient,
+    create_patient, get_patient, delete_patient,
     create_device, delete_device,
     create_generic_entity_template, create_device_template, create_alert_template,
     create_usage_session_template, create_command_template, get_template,
-    update_patient_template)
+    update_patient_template, get_all_templates)
+from email_interface import accept_invitation
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id, device_template_name):
@@ -188,3 +189,31 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     assert update_template_response.status_code == 200
 
     return template_id, patient_payload
+
+
+def create_single_patient(auth_token):
+    # create a patient
+    # get the Patient template name
+    template_list_response = get_all_templates(auth_token)
+    assert template_list_response.status_code == 200
+    patient_template_name = None
+    for template in template_list_response.json()['data']:
+        if "Patient" == template['name']:
+            patient_template_name = template['name']
+            break
+
+    # create a patient user
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+
+    create_patient_response = create_patient(auth_token, test_name, email, patient_template_name,
+                                             "00000000-0000-0000-0000-000000000000")
+    assert create_patient_response.status_code == 201
+    patient_id = create_patient_response.json()['_id']
+
+    response_text, accept_invitation_response = accept_invitation(email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    patient_auth_token = login_with_credentials(email, password)
+    return patient_auth_token, patient_id
