@@ -6,7 +6,7 @@ import time
 
 ENDPOINT = os.getenv('ENDPOINT')
 slack_token = os.getenv('SLACK_TOKEN')
-MAX_RETRIES = 7
+MAX_RETRIES = 10
 
 
 def accept_invitation(user_email):
@@ -27,7 +27,7 @@ def accept_invitation(user_email):
             messages = data.get("messages", [])[0:5]
             for message in messages:
                 user_email_in_letter = (((message.get("files")[0])["to"])[0])["address"]
-                time.sleep(5)
+                time.sleep(7)
                 if user_email_in_letter == user_email:
                     html_content = (message.get("files")[0])["preview"]
                     soup = BeautifulSoup(html_content, 'html.parser')
