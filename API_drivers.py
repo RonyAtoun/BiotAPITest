@@ -2157,7 +2157,7 @@ def update_patient_alert(auth_token, patient_id, alert_id):
         "_state": "ACTIVE",
         "_severity": "MAJOR",
         "_clearNotes": None,
-        "_name": "test patient alert",
+        "_name": "test patient alert updated",
     }
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
                                                                                                        patient_id).replace(
@@ -2181,13 +2181,13 @@ def get_patient_alert_list(auth_token, alert_id):
     return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
 
 
-def get_current_patient_alert_list(auth_token, alert_id):
+def get_current_patient_alert_list(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
             "filter": {
-                "_id": {
-                    "like": alert_id
+                "_ownerOrganization.id": {
+                    "eq": organization_id
                 },
             }
         })
@@ -2236,7 +2236,7 @@ def update_device_alert(auth_token, device_id, alert_id):
         "_state": "ACTIVE",
         "_severity": "MAJOR",
         "_clearNotes": None,
-        "_name": "test patient alert",
+        "_name": "test device alert updated",
     }
     return requests.patch(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
                                                                                          device_id).replace('{id}',
@@ -2273,7 +2273,7 @@ def get_current_device_alert_list(auth_token, organization_id):
         "searchRequest": json.dumps({
             "filter": {
                 "_ownerOrganization.id": {
-                    "like": organization_id
+                    "eq": organization_id
                 },
             }
         })

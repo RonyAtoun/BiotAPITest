@@ -718,3 +718,188 @@ def test_manu_admin_command_abac_rules():
     # Delete Device template
     delete_device_template_response = delete_template(auth_token, device_template_id)
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
+
+
+def test_manu_admin_device_alerts_abac_rules():
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+
+    # Create Device template
+    device_template_response = create_device_template_with_session(auth_token)
+    assert device_template_response.status_code == 201, f"{device_template_response.text}"
+    device_template_name = device_template_response.json()["name"]
+    device_template_id = device_template_response.json()["id"]
+
+    # Create Device Alert template
+    name = f'alert_templ{uuid.uuid4().hex}'[0:32]
+    create_device_alert_template_response = create_device_alert_template(auth_token, device_template_id, name)
+    assert create_device_alert_template_response.status_code == 201, f'{create_device_alert_template_response.text}'
+    device_alert_template_id = create_device_alert_template_response.json()["id"]
+
+    # Create a Custom Organisation
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # Create Device in Custom organisation
+    create_device_response = create_device_without_registration_code(auth_token, device_template_name, organization_id)
+    device_id = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # TEST - Create Device Alert by ID in Custom organisation
+    create_device_alert_response = create_device_alert_by_id(auth_token, device_id, device_alert_template_id)
+    assert create_device_alert_response.status_code == 201, f'{create_device_alert_response.text}'
+    device_alert_id = create_device_alert_response.json()["_id"]
+
+    # TEST - Update Device Alert created by ID in Custom organisation
+    update_device_alert_response = update_device_alert(auth_token, device_id, device_alert_id)
+    assert update_device_alert_response.status_code == 200, f'{update_device_alert_response.text}'
+
+    # TEST - Get By ID Device Alert created by ID in Custom organisation
+    get_device_alert_by_id_response = get_device_alert(auth_token, device_id, device_alert_id)
+    assert get_device_alert_by_id_response.status_code == 200, f'{get_device_alert_by_id_response.text}'
+
+    # TEST - Search Device Alerts
+    search_device_alerts_response = get_device_alert_list(auth_token, device_alert_id)
+    assert search_device_alerts_response.status_code == 200, f'{search_device_alerts_response.text}'
+
+    # TEST - Get current Alerts
+    get_current_alerts_response = get_current_device_alert_list(auth_token, organization_id)
+    assert get_current_alerts_response.status_code == 200, f"{get_current_alerts_response.text}"
+
+    # TEST - Delete Alert created by ID in Custom organisation
+    delete_device_alert_response = delete_device_alert(auth_token, device_id, device_alert_id)
+    assert delete_device_alert_response.status_code == 204, f"{delete_device_alert_response.text}"
+
+    # Delete Device
+    delete_device_response = delete_device(auth_token, device_id)
+    assert delete_device_response.status_code == 204, f"{delete_device_alert_response.text}"
+
+    # Delete Organisation
+    delete_organisation_response = delete_organization(auth_token, organization_id)
+    assert delete_organisation_response.status_code == 204, f"{delete_organisation_response.text}"
+
+    # Delete Device template
+    delete_device_template_response = delete_template(auth_token, device_template_id)
+    assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
+
+
+def test_manu_admin_patient_alert_abac_rules():
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+
+    # create a Custom Organisation
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # accept invitation as an admin of custom Org-n
+    get_organisation_response = get_organization(auth_token, organization_id)
+    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
+    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
+    primary_admin_email = get_organisation_user_response.json()["_email"]
+    accept_invitation(primary_admin_email)
+    auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    get_self_user_email_response = get_self_user_email(auth_token)
+    assert get_self_user_email_response == primary_admin_email, \
+        f"Actual email '{get_self_user_email_response}' does not match the expected"
+
+    # create Patient in custom Org-n
+    auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    patient_email = f'patient_alert{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
+    name = {"firstName": f'Patient',
+            "lastName": f'Usage'}
+    create_patient_default_response = create_patient(auth_token, name, patient_email, PATIENT_TEMPLATE_NAME,
+                                                     organization_id)
+    assert create_patient_default_response.status_code == 201, f"{create_patient_default_response.text}"
+    patient_id = create_patient_default_response.json()["_id"]
+
+    # create a Patient Alert Template
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    name = f'alert_templ{uuid.uuid4().hex}'[0:32]
+    create_patient_alert_template_response = create_patient_alert_template(auth_token, PATIENT_TEMPLATE_ID, name)
+    assert create_patient_alert_template_response.status_code == 201, f'{create_patient_alert_template_response.text}'
+    patient_alert_template_name = create_patient_alert_template_response.json()["name"]
+    patient_alert_template_id = create_patient_alert_template_response.json()["id"]
+
+    # TEST - Create Patient Alert by Name in Custom Organisation
+    create_patient_alert_response = create_patient_alert_by_name(auth_token, patient_id, patient_alert_template_name)
+    assert create_patient_alert_response.status_code == 201, f'{create_patient_alert_response.text}'
+    patient_alert_id = create_patient_alert_response.json()["_id"]
+
+    # TEST - Update Patient Alert created by Name in Custom Organisation
+    update_patient_alert_response = update_patient_alert(auth_token, patient_id, patient_alert_id)
+    assert update_patient_alert_response.status_code == 200, f'{update_patient_alert_response.text}'
+
+    # TEST - Get By ID Patient Alert created by ID in Custom organisation
+    get_patient_alert_by_id_response = get_patient_alert(auth_token, patient_id, patient_alert_id)
+    assert get_patient_alert_by_id_response.status_code == 200, f'{get_patient_alert_by_id_response.text}'
+
+    # TEST - Search Patient Alerts
+    search_patient_alerts_response = get_patient_alert_list(auth_token, organization_id)
+    assert search_patient_alerts_response.status_code == 200, f'{search_patient_alerts_response.text}'
+
+    # TEST - Get current Alerts
+    get_current_alerts_response = get_current_patient_alert_list(auth_token, organization_id)
+    assert get_current_alerts_response.status_code == 200, f"{get_current_alerts_response.text}"
+
+    # TEST - Delete Patient Alert created by Name in Custom organisation
+    delete_patient_alert_response = delete_patient_alert(auth_token, patient_id, patient_alert_id)
+    assert delete_patient_alert_response.status_code == 204, f"{delete_patient_alert_response.text}"
+
+    # delete Organisation
+    delete_organisation_response = delete_organization(auth_token, organization_id)
+    assert delete_organisation_response.status_code == 204, f"{delete_organisation_response.text}"
+
+    # delete Patient Alert template
+    delete_patient_alert_template_response = delete_template(auth_token, patient_alert_template_id)
+    assert delete_patient_alert_template_response.status_code == 204, f"{ delete_patient_alert_template_response.text}"
+
+
+def test_manu_admin_locales_abac_rules():
+    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+
+    # TEST - Get available Locales
+    get_locales_response = get_available_locales(auth_token)
+    assert get_locales_response.status_code == 200, f'{get_locales_response.text}'
+    available_locales = get_locales_response.json()['availableLocales']
+    codes = [locale['code'] for locale in available_locales]
+    locale_to_update = None
+    for code in codes:
+        if code != "en-us":
+            locale_to_update = code
+            break
+
+    # TEST - Delete Locale
+    delete_locale_response = delete_locale(auth_token, locale_to_update)
+    assert delete_locale_response.status_code == 200, f"{delete_locale_response.text}"
+    get_locales_response = get_available_locales(auth_token)
+    available_locales = get_locales_response.json()['availableLocales']
+    codes = [locale['code'] for locale in available_locales]
+    for code in codes:
+        if locale_to_update == code:
+            raise ValueError(f"The code {locale_to_update} is present though is supposed to be deleted.")
+
+    # TEST - Add Locale
+    add_locale_response = add_locale(auth_token, locale_to_update)
+    assert add_locale_response.status_code == 200, f"{add_locale_response.text}"
+    get_locales_response = get_available_locales(auth_token)
+    available_locales = get_locales_response.json()['availableLocales']
+    codes = [locale['code'] for locale in available_locales]
+    i = 0
+    for code in codes:
+        if locale_to_update == code:
+            i = i + 1
+    assert i == 1, f"The code {locale_to_update} is absent though is supposed to be added."
+
+    # TEST - Update default Locale to es-es and back to en-us
+    update_default_locale_response = update_locale(auth_token, locale_to_update)
+    assert update_default_locale_response.status_code == 200, f"{update_default_locale_response.text}"
+    get_locales_response = get_available_locales(auth_token)
+    default_locale = get_locales_response.json()['defaultLocaleCode']
+    assert default_locale == locale_to_update
+    update_default_locale_response = update_locale(auth_token, 'en-us')
+    assert update_default_locale_response.status_code == 200, f"{update_default_locale_response.text}"
+    get_locales_response = get_available_locales(auth_token)
+    default_locale = get_locales_response.json()['defaultLocaleCode']
+    assert default_locale == 'en-us'
