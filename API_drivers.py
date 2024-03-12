@@ -1926,7 +1926,7 @@ def start_simulation_with_existing_device(device_id, username, password):
             observation_attribute
         ],
         "commandConfigurationRequest": {
-            "commandsLengthInSeconds": 5,
+            "commandsLengthInSeconds": 10,
             "shouldFailCommand": False,
             "shouldFailStop": False,
             "sendStatusAttributes": True,

@@ -682,6 +682,7 @@ def test_manu_admin_command_abac_rules():
     start_command_response = start_command_by_id(auth_token, device_id, command_template_id)
     assert start_command_response.status_code == 201, f"{start_command_response.text}"
     command_id = start_command_response.json()['_id']
+    time.sleep(5)
     get_command_response = get_command(auth_token, device_id, command_id)
     command_state = get_command_response.json()['_state']
     assert command_state == "IN_PROGRESS"
@@ -689,6 +690,7 @@ def test_manu_admin_command_abac_rules():
     # TEST - Stop Command in Default Org-n
     stop_command_response = stop_command(auth_token, device_id, command_id)
     assert stop_command_response.status_code == 200, f"{start_command_response.text}"
+    time.sleep(5)
     get_command_response = get_command(auth_token, device_id, command_id)
     command_state = get_command_response.json()['_state']
     assert command_state == "ABORTED"
