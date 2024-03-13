@@ -504,6 +504,458 @@ def create_alert_template(auth_token, test_display_name, test_name, test_referen
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
 
 
+def create_device_alert_template(auth_token, device_template_id, alert_template_name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "name": alert_template_name,
+        "displayName": alert_template_name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_clearDateTime",
+                "basePath": None,
+                "displayName": "Clear Date Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearNotes",
+                "basePath": None,
+                "displayName": "Clear Notes",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearTrigger",
+                "basePath": None,
+                "displayName": "Clear Trigger",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearedBy",
+                "basePath": None,
+                "displayName": "Cleared By",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Cleared By To Alert",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Cleared By To Alert",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization-user"
+                }
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Device to Alert",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Device to Alert",
+                    "validTemplatesToReference": [
+                        device_template_id
+                    ],
+                    "entityType": "device"
+                }
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Device Alert to Organization",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Device Alert to Organization",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_setDateTime",
+                "basePath": None,
+                "displayName": "Set Date Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_severity",
+                "basePath": None,
+                "displayName": "Severity",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [
+            {
+                "name": "_allowMultipleOpenAlerts",
+                "basePath": None,
+                "displayName": "Allow Multiple Open Alerts",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": False,
+                "organizationSelectionConfiguration": None
+            }
+        ],
+        "entityType": "device-alert",
+        "ownerOrganizationId": "",
+        "parentTemplateId": device_template_id
+    })
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_patient_alert_template(auth_token, patient_template_id, alert_template_name):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "name": alert_template_name,
+        "displayName": alert_template_name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_clearDateTime",
+                "basePath": None,
+                "displayName": "Clear Date Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearNotes",
+                "basePath": None,
+                "displayName": "Clear Notes",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearTrigger",
+                "basePath": None,
+                "displayName": "Clear Trigger",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_clearedBy",
+                "basePath": None,
+                "displayName": "Cleared By",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Cleared By To Alert",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Cleared By To Alert",
+                    "validTemplatesToReference": [],
+                    "entityType": "caregiver"
+                }
+            },
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_patient",
+                "basePath": None,
+                "displayName": "Patient",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Device to Alert",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Device to Alert",
+                    "validTemplatesToReference": [
+                        patient_template_id
+                    ],
+                    "entityType": "patient"
+                }
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{alert_template_name} Device Alert to Organization",
+                    "referencedSideAttributeDisplayName": f"{alert_template_name} Device Alert to Organization",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_setDateTime",
+                "basePath": None,
+                "displayName": "Set Date Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_severity",
+                "basePath": None,
+                "displayName": "Severity",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [
+            {
+                "name": "_allowMultipleOpenAlerts",
+                "basePath": None,
+                "displayName": "Allow Multiple Open Alerts",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": False,
+                "organizationSelectionConfiguration": None
+            }
+        ],
+        "entityType": "patient-alert",
+        "ownerOrganizationId": "",
+        "parentTemplateId": patient_template_id
+    })
+    return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
 def create_usage_session_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
                                   test_reference_attrib_display_name, organization_id, entity_type, parent_template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
@@ -522,6 +974,191 @@ def create_command_template(auth_token, test_display_name, test_name, test_refer
                                            test_reference_attrib_display_name, organization_id, entity_type,
                                            parent_template_id)
     return requests.post(ENDPOINT + '/settings/v1/templates', headers=headers, data=json.dumps(payload))
+
+
+def create_command_template_with_support_stop_true(auth_token, command_template_name, device_template_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = json.dumps({
+        "name": command_template_name,
+        "displayName": command_template_name,
+        "customAttributes": [],
+        "builtInAttributes": [
+            {
+                "name": "_creationTime",
+                "basePath": None,
+                "displayName": "Creation Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_device",
+                "basePath": None,
+                "displayName": "Device",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{command_template_name} Commands to Device",
+                    "referencedSideAttributeDisplayName": f"{command_template_name} Commands to Device",
+                    "validTemplatesToReference": [
+                        device_template_id
+                    ],
+                    "entityType": "device"
+                }
+            },
+            {
+                "name": "_endTime",
+                "basePath": None,
+                "displayName": "End Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_errorMessage",
+                "basePath": None,
+                "displayName": "Error Message",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_lastModifiedTime",
+                "basePath": None,
+                "displayName": "Last Modified Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_name",
+                "basePath": None,
+                "displayName": "Name",
+                "phi": False,
+                "validation": {
+                    "mandatory": False,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_ownerOrganization",
+                "basePath": None,
+                "displayName": "Owner Organization",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": {
+                    "uniquely": False,
+                    "referencedSideAttributeName": f"{command_template_name} Commands to Organization",
+                    "referencedSideAttributeDisplayName": f"{command_template_name} Commands to Organization",
+                    "validTemplatesToReference": [],
+                    "entityType": "organization"
+                }
+            },
+            {
+                "name": "_startTime",
+                "basePath": None,
+                "displayName": "Start Time",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            },
+            {
+                "name": "_state",
+                "basePath": None,
+                "displayName": "State",
+                "phi": False,
+                "validation": {
+                    "mandatory": True,
+                    "min": None,
+                    "max": None,
+                    "regex": None,
+                    "defaultValue": None
+                },
+                "numericMetaData": None,
+                "referenceConfiguration": None
+            }
+        ],
+        "templateAttributes": [
+            {
+                "name": "_supportStop",
+                "basePath": None,
+                "displayName": "Support Stop",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": True,
+                "organizationSelectionConfiguration": None
+            },
+            {
+                "name": "_timeoutInSeconds",
+                "basePath": None,
+                "displayName": "Timeout In Seconds",
+                "phi": False,
+                "referenceConfiguration": None,
+                "value": 10,
+                "organizationSelectionConfiguration": None
+            }
+        ],
+        "entityType": "command",
+        "ownerOrganizationId": "",
+        "parentTemplateId": device_template_id
+    })
+    response = requests.request("POST", ENDPOINT + '/settings/v1/templates', headers=headers, data=payload)
+    return response
 
 
 def get_template(auth_token, template_id):
@@ -1292,7 +1929,7 @@ def start_simulation_with_existing_device(device_id, username, password):
             observation_attribute
         ],
         "commandConfigurationRequest": {
-            "commandsLengthInSeconds": 5,
+            "commandsLengthInSeconds": 10,
             "shouldFailCommand": False,
             "shouldFailStop": False,
             "sendStatusAttributes": True,
@@ -1523,7 +2160,7 @@ def update_patient_alert(auth_token, patient_id, alert_id):
         "_state": "ACTIVE",
         "_severity": "MAJOR",
         "_clearNotes": None,
-        "_name": "test patient alert",
+        "_name": "test patient alert updated",
     }
     return requests.patch(ENDPOINT + '/organization/v1/users/patients/{patientId}/alerts/{id}'.replace('{patientId}',
                                                                                                        patient_id).replace(
@@ -1547,13 +2184,13 @@ def get_patient_alert_list(auth_token, alert_id):
     return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
 
 
-def get_current_patient_alert_list(auth_token, alert_id):
+def get_current_patient_alert_list(auth_token, organization_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
             "filter": {
-                "_id": {
-                    "like": alert_id
+                "_ownerOrganization.id": {
+                    "eq": organization_id
                 },
             }
         })
@@ -1602,7 +2239,7 @@ def update_device_alert(auth_token, device_id, alert_id):
         "_state": "ACTIVE",
         "_severity": "MAJOR",
         "_clearNotes": None,
-        "_name": "test patient alert",
+        "_name": "test device alert updated",
     }
     return requests.patch(ENDPOINT + '/device/v1/devices/{deviceId}/alerts/{id}'.replace('{deviceId}',
                                                                                          device_id).replace('{id}',
@@ -1623,10 +2260,10 @@ def get_device_alert_list(auth_token, alert_id):
     else:
         search_request = {
             "searchRequest": json.dumps({
-                "filter": {
-                    "_id": {
-                        "like": alert_id
-                    },
+              "filter": {
+                "_id": {
+                    "like": alert_id
+                 },
                 }
             })
         }
@@ -1639,7 +2276,7 @@ def get_current_device_alert_list(auth_token, organization_id):
         "searchRequest": json.dumps({
             "filter": {
                 "_ownerOrganization.id": {
-                    "like": organization_id
+                    "eq": organization_id
                 },
             }
         })
