@@ -1218,62 +1218,98 @@ def test_caregiver_ums_abac_rules():
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
-def test_patient_locales_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_locales_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
     # get available locales should succeed
-    get_locales_response = get_available_locales(patient_auth_token)
+    get_locales_response = get_available_locales(caregiver_auth_token)
     assert get_locales_response.status_code == 200
 
     # add locale should fail
     code = 'en-us'
-    add_locale_response = add_locale(patient_auth_token, code)
+    add_locale_response = add_locale(caregiver_auth_token, code)
     assert add_locale_response.status_code == 403
 
     # delete locale should fail
     locale_id = 'any'
-    delete_locale_response = delete_locale(patient_auth_token, locale_id)
+    delete_locale_response = delete_locale(caregiver_auth_token, locale_id)
     assert delete_locale_response.status_code == 403
 
     # update locale should fail
-    update_locale_response = update_locale(patient_auth_token, code)
+    update_locale_response = update_locale(caregiver_auth_token, code)
     assert update_locale_response.status_code == 403
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
-def test_patient_plugins_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_plugins_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
     # create plugin should fail
-    create_plugin_response = create_plugin(patient_auth_token, 'test_plugin')
+    create_plugin_response = create_plugin(caregiver_auth_token, 'test_plugin')
     assert create_plugin_response.status_code == 403
 
     # delete plugin should fail
-    delete_plugin_response = delete_plugin(patient_auth_token, 'test_plugin')
+    delete_plugin_response = delete_plugin(caregiver_auth_token, 'test_plugin')
     assert delete_plugin_response.status_code == 403
 
     # update plugin should fail
-    update_plugin_response = update_plugin(patient_auth_token, 'test_plugin')
+    update_plugin_response = update_plugin(caregiver_auth_token, 'test_plugin')
     assert update_plugin_response.status_code == 403
 
     # get plugin should fail
-    get_plugin_response = get_plugin(patient_auth_token, 'test_plugin')
+    get_plugin_response = get_plugin(caregiver_auth_token, 'test_plugin')
     assert get_plugin_response.status_code == 403
 
     # search plugin should fail
-    search_plugin_response = get_plugin_list(patient_auth_token, 'test_plugin')
+    search_plugin_response = get_plugin_list(caregiver_auth_token, 'test_plugin')
     assert search_plugin_response.status_code == 403
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
 
 
 @pytest.mark.skip
@@ -1307,15 +1343,31 @@ def test_patient_dms_abac_rules():
     assert delete_patient_response.status_code == 204
 
 
-@pytest.mark.skip
-def test_patient_templates_abac_rules():  # update is getting a 400
+# @pytest.mark.skip
+def test_caregiver_templates_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
     # view templates should succeed
-    view_template_response = get_templates_list(patient_auth_token)
+    view_template_response = get_templates_list(caregiver_auth_token)
     assert view_template_response.status_code == 200
-    get_minimized_response = get_all_templates(patient_auth_token)
+    get_minimized_response = get_all_templates(caregiver_auth_token)
     assert get_minimized_response.status_code == 200
 
     # extract valid id and parentId
@@ -1324,88 +1376,126 @@ def test_patient_templates_abac_rules():  # update is getting a 400
 
     # get by id should succeed
 
-    get_template_response = get_template_by_id(patient_auth_token, template_id)
+    get_template_response = get_template_by_id(caregiver_auth_token, template_id)
     assert get_template_response.status_code == 200
 
     # get overview should fail
-    get_overview_response = get_template_overview(patient_auth_token, template_id)
+    get_overview_response = get_template_overview(caregiver_auth_token, template_id)
     assert get_overview_response.status_code == 403
 
     # delete should fail
-    delete_template_response = delete_template(patient_auth_token, template_id)
+    delete_template_response = delete_template(caregiver_auth_token, template_id)
     assert delete_template_response.status_code == 403
 
     # create should fail
-    create_template_response = create_generic_template(patient_auth_token)
+    create_template_response = create_generic_template(caregiver_auth_token)
     assert create_template_response.status_code == 403
 
     # update should fail
     payload = get_template_response.json()
-    update_template_response = update_template(patient_auth_token, template_id, payload)
+    update_template_response = update_template(caregiver_auth_token, template_id, payload)
 
     assert update_template_response.status_code == 403
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
-def test_patient_portal_builder_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_portal_builder_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
     # view full info should succeed
-    view_template_response = get_templates_list(patient_auth_token)
+    view_template_response = get_templates_list(caregiver_auth_token)
     assert view_template_response.status_code == 200
-    get_minimized_response = get_all_templates(patient_auth_token)
+    get_minimized_response = get_all_templates(caregiver_auth_token)
     assert get_minimized_response.status_code == 200
 
     # extract valid id and parentId
     template_id = get_minimized_response.json()['data'][0]['id']
-    view_portal_response = view_full_portal_information(patient_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
+    view_portal_response = view_full_portal_information(caregiver_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
                                                         None)
     assert view_portal_response.status_code == 200
     payload = view_portal_response.json()
     view_id = payload['id']
     # update views should fail
-    update_portal_view_response = update_portal_views(patient_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
+    update_portal_view_response = update_portal_views(caregiver_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
     assert update_portal_view_response.status_code == 403
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
 
 
 @pytest.mark.skip
-def test_patient_adb_abac_rules():
+def test_caregiver_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token)
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
 
     # deploy adb should fail
-    deploy_response = deploy_adb(patient_auth_token)
+    deploy_response = deploy_adb(caregiver_auth_token)
     assert deploy_response.status_code == 403
 
     # undeploy should fail
-    undeploy_response = undeploy_adb(patient_auth_token)
+    undeploy_response = undeploy_adb(caregiver_auth_token)
     assert undeploy_response.status_code == 403
 
     # start init should fail
-    start_init_response = start_init_adb(patient_auth_token)
+    start_init_response = start_init_adb(caregiver_auth_token)
     assert start_init_response.status_code == 403
 
     # stop init should fail
-    stop_init_response = stop_init_adb(patient_auth_token)
+    stop_init_response = stop_init_adb(caregiver_auth_token)
     assert stop_init_response.status_code == 403
 
     # stop sync should fail
-    stop_sync_response = stop_sync_adb(patient_auth_token)
+    stop_sync_response = stop_sync_adb(caregiver_auth_token)
     assert stop_sync_response.status_code == 403
 
     # get adb info should succeed
-    get_adb_response = get_adb_info(patient_auth_token)
+    get_adb_response = get_adb_info(caregiver_auth_token)
     assert get_adb_response.status_code == 200
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
