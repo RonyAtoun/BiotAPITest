@@ -1,13 +1,5 @@
 import uuid
-from API_drivers import (
-    login_with_credentials,
-    create_registration_code, delete_registration_code,
-    identified_self_signup_with_registration_code,
-    create_patient, get_patient, delete_patient,
-    create_device, delete_device,
-    create_generic_entity_template, create_device_template, create_alert_template,
-    create_usage_session_template, create_command_template, get_template,
-    update_patient_template, get_all_templates)
+from API_drivers import *
 from email_interface import accept_invitation
 
 
