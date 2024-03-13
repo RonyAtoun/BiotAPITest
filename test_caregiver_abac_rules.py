@@ -1,47 +1,7 @@
+import time
+
 import pytest
-import requests
-import uuid
-import os
-
-from API_drivers import (
-    login_with_credentials, set_password, forgot_password,
-    create_registration_code, update_registration_code, delete_registration_code, get_registration_code,
-    get_registration_code_list,
-    create_patient, update_patient, get_patient, get_patient_list, change_patient_state,
-    delete_patient,
-    create_device, create_device_without_registration_code, get_device, delete_device, update_device, get_device_list,
-    get_device_credentials,
-    create_usage_session_by_usage_type, delete_usage_session, update_usage_session, get_usage_session,
-    get_usage_session_list, start_usage_session, stop_usage_session, pause_usage_session, resume_usage_session,
-    get_usage_session_by_id,
-    start_command_by_id, start_command_by_template, stop_command, search_commands, get_command,
-    start_simulation_with_existing_device, stop_simulation, get_simulation_status,
-    create_measurement, create_bulk_measurement, get_raw_measurements, get_aggregated_measurements,
-    get_v2_aggregated_measurements, get_v2_raw_measurements,
-    delete_template, get_all_templates, create_generic_template, get_template_by_id, get_template_overview,
-    update_template, get_templates_list, create_caregiver_template,
-    create_organization, delete_organization,
-    create_organization_user, delete_organization_user, update_organization_user, get_self_organization,
-    change_organization_user_state, get_organization_user, get_organization_user_list,
-    create_generic_entity, delete_generic_entity, update_generic_entity, get_generic_entity,
-    get_generic_entity_list,
-    update_organization, get_organization, get_organization_list,
-    create_caregiver, update_caregiver, delete_caregiver, change_caregiver_state, get_caregiver,
-    get_caregiver_list, resend_invitation,
-    create_file, get_file,
-    create_device_alert_by_id, create_device_alert_by_name, create_patient_alert_by_id,
-    create_patient_alert_by_name, delete_patient_alert, delete_device_alert, update_patient_alert, update_device_alert,
-    get_device_alert, get_device_alert_list, get_current_device_alert_list, get_patient_alert, get_patient_alert_list,
-    get_current_patient_alert_list,
-    get_available_locales, delete_locale, update_locale, add_locale,
-    create_plugin, update_plugin, get_plugin, get_plugin_list, delete_plugin,
-    create_report, delete_report, get_report, get_report_list,
-    update_portal_views, view_full_portal_information, deploy_adb, undeploy_adb, start_init_adb, stop_init_adb,
-    get_adb_info, stop_sync_adb)
-
-from api_test_helpers import (
-    self_signup_patient_setup, self_signup_patient_teardown, single_self_signup_patient_teardown,
-    create_single_patient_self_signup, create_template_setup, create_single_patient)
+from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
 
@@ -366,17 +326,17 @@ def test_caregiver_caregiver_abac_rules():
     delete_caregiver_response = delete_caregiver(caregiver_auth_token, caregiver_new_id)
     assert delete_caregiver_response.status_code == 403
 
-    # change caregiver state by patient should fail
+    # change caregiver state by caregiver should fail
     change_caregiver_state_response = change_caregiver_state(caregiver_auth_token, caregiver_new_id, "ENABLED")
     assert change_caregiver_state_response.status_code == 403
 
-    # get caregiver by patient only in same organization
+    # get caregiver by caregiver only in same organization
     get_caregiver_response = get_caregiver(caregiver_auth_token, caregiver_new_id)
     assert get_caregiver_response.status_code == 200
     get_caregiver_response = get_caregiver(caregiver_auth_token, caregiver_default_id)
     assert get_caregiver_response.status_code == 403
 
-    # search caregiver by patient only in same org
+    # search caregiver by caregiver only in same org
     # Positive - for self
     get_caregiver_list_response = get_caregiver_list(caregiver_auth_token)
     assert get_caregiver_list_response.status_code == 200
@@ -712,16 +672,6 @@ def test_caregiver_files_abac_rules():
     # login
     caregiver1_auth_token = login_with_credentials(caregiver_email, password)
 
-#    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-#    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, "Clinician",
-#                                                 "00000000-0000-0000-0000-000000000000")
-#    assert create_caregiver_response.status_code == 201
-#    caregiver2_id = create_caregiver_response.json()['_id']
-#    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-#    password = accept_invitation_response.json()['operationData']['password']
-#    # login
-#    caregiver2_auth_token = login_with_credentials(caregiver_email, password)
-#
     # create files in new organization and default
     name = f'test_file{uuid.uuid4().hex}'[0:16]
     mime_type = 'text/plain'
@@ -758,8 +708,6 @@ def test_caregiver_files_abac_rules():
     single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver1_id)
     assert delete_caregiver_response.status_code == 204
-    #delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver2_id)
-    #assert delete_caregiver_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
     assert delete_template_response.status_code == 204
     # delete second organization
@@ -892,7 +840,7 @@ def test_patient_usage_session_abac_rules():
 
 
 @pytest.mark.skip
-def test_patient_commands_abac_rules():
+def test_caregiver_commands_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create second organization
@@ -902,60 +850,94 @@ def test_patient_commands_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create patient in new org
-    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
-        admin_auth_token, organization_id, 'DeviceType1')
-    # create patient in default org
-    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
 
-    # get the device templateId
-    get_device_response = get_device(admin_auth_token, device2_id)
-    device_template_id = get_device_response.json()['_template']['id']
+    # create device template without patient
+    device_template_id, device_template_name, device_template_display_name = (
+        create_template_setup(admin_auth_token, organization_id, 'device', None))
+
+    # create a device in new org
+    create_device_response = create_device_without_registration_code(admin_auth_token, device_template_name, organization_id)
+    assert create_device_response.status_code == 201
+    device_new_id = create_device_response.json()['_id']
+
     # create command template
-    command_template_data = create_template_setup(admin_auth_token, None, "command", device_template_id)
-    command_template_name = command_template_data[1]
-    command_template_id = command_template_data[0]
+    #command_template_data = create_template_setup(admin_auth_token, None, "command", device_template_id)
+    #command_template_name = command_template_data[1]
+    #command_template_id = command_template_data[0]
+    command_template_name = f'command_{uuid.uuid4().hex}'[0:16]
+    command_template_response = create_command_template_with_support_stop_true(admin_auth_token, command_template_name,
+                                                                               device_template_id)
+    command_template_id = command_template_response.json()['id']
+
+    # create caregiver template
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    # create caregiver by admin in new organization
+    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email, caregiver_template_name,
+                                                 organization_id)
+    assert create_caregiver_response.status_code == 201
+    caregiver_new_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
+    password_new = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
+
+    # create caregiver by admin in default organization
+    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_default_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
+    password_default = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
 
     # start simulator with device2
-    start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # start/stop command only for self organization (use device2)
+    start_simulation_with_existing_device(device_template_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # start/stop command only for self organization
     # self org
-    start_command_response = start_command_by_template(patient2_auth_token, device2_id, command_template_name)
+    start_command_response = start_command_by_template(caregiver_new_auth_token, device_new_id, command_template_name)
     assert start_command_response.status_code == 201
     command2_id = start_command_response.json()['_id']
     # self
-    get_command_response = get_command(patient2_auth_token, device2_id, command2_id)
+    get_command_response = get_command(caregiver_new_auth_token, device_new_id, command2_id)
     assert get_command_response.status_code == 200
     # other
-    get_command_response = get_command(patient1_auth_token, device2_id, command2_id)
+    get_command_response = get_command(caregiver_default_auth_token, device_new_id, command2_id)
     assert get_command_response.status_code == 403
-    stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
+    stop_command_response = stop_command(caregiver_new_auth_token, device_new_id, command2_id)
     if stop_command_response.status_code == 200:
         assert stop_command_response.status_code == 200
     else:
         print("     Note: stop command failed - simulator timeout")
     # other org
-    start_command_response = start_command_by_template(patient1_auth_token, device2_id, command_template_name)
+    start_command_response = start_command_by_template(caregiver_default_auth_token, device_new_id, command_template_name)
     assert start_command_response.status_code == 403
-    stop_command_response = stop_command(patient1_auth_token, device2_id, command2_id)
+    stop_command_response = stop_command(caregiver_default_auth_token, device_new_id, command2_id)
     assert stop_command_response.status_code == 403
-    # self org
-    start_command_response = start_command_by_id(patient2_auth_token, device2_id, command_template_id)
+    # self org start by id
+    start_command_response = start_command_by_id(caregiver_new_auth_token, device_new_id, command_template_id)
     assert start_command_response.status_code == 201
-    # command2_id = start_command_response.json()['_id']
-    # stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
-    # assert stop_command_response.status_code == 200
+
     # other org
-    start_command_response = start_command_by_id(patient1_auth_token, device2_id, command_template_id)
+    start_command_response = start_command_by_id(caregiver_default_auth_token, device_new_id, command_template_id)
     assert start_command_response.status_code == 403
 
     # self
-    search_command_response = search_commands(patient2_auth_token, command2_id)
+    search_command_response = search_commands(caregiver_new_auth_token, command2_id)
     assert search_command_response.status_code == 200
     assert search_command_response.json()['metadata']['page']['totalResults'] == 1
     # other
-    search_command_response = search_commands(patient1_auth_token, command2_id)
+    search_command_response = search_commands(caregiver_default_auth_token, command2_id)
     assert search_command_response.status_code == 200
     assert search_command_response.json()['metadata']['page']['totalResults'] == 0
 
@@ -966,10 +948,22 @@ def test_patient_commands_abac_rules():
     simulation_status = simulation_status_response.json()["code"]
     assert simulation_status == "NO_RUNNING_SIMULATION"
 
-    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
-    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
+    assert delete_caregiver_response.status_code == 204
+
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
+    assert delete_caregiver_response.status_code == 204
+
+    delete_device_response = delete_device(admin_auth_token, device_new_id)
+    assert delete_device_response.status_code == 204
 
     delete_template_response = delete_template(admin_auth_token, command_template_id)
+    assert delete_template_response.status_code == 204
+
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
+
+    delete_template_response = delete_template(admin_auth_token, device_template_id)
     assert delete_template_response.status_code == 204
 
     # delete second organization
@@ -1183,49 +1177,45 @@ def test_patient_measurements_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
-@pytest.mark.skip
-def test_patient_ums_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # get the Patient template name
-    template_list_response = get_all_templates(admin_auth_token)
-    assert template_list_response.status_code == 200
-    patient_template_name = None
-    for template in template_list_response.json()['data']:
-        if "Patient" == template['name']:
-            patient_template_name = template['name']
-            break
+    # create caregiver by admin in default organization
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
 
-    # create a patient user
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-
-    create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
-    assert create_patient_response.status_code == 201
-    patient_id = create_patient_response.json()['_id']
-
-    response_text, accept_invitation_response = accept_invitation(email)
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
     password = accept_invitation_response.json()['operationData']['password']
     # login
-    patient_auth_token = login_with_credentials(email, password)
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
     # set password by patient
     new_password = "Bb234567NewPass"
-    set_password_response = set_password(patient_auth_token, password, new_password)
+    set_password_response = set_password(caregiver_auth_token, password, new_password)
     assert set_password_response.status_code == 200
     # check login with new password
-    patient_auth_token = login_with_credentials(email, new_password)
+    caregiver_auth_token = login_with_credentials(caregiver_email, new_password)
 
     # forgot password flow
-    forgot_password_response = forgot_password(email)
+    forgot_password_response = forgot_password(caregiver_email)
     new_password = "Cc345678NewPass2"
-    reset_password_open_email_and_set_new_password(email, new_password)
+    reset_password_open_email_and_set_new_password(caregiver_email, new_password)
     # check login with new password
-    patient_auth_token = login_with_credentials(email, new_password)
+    caregiver_auth_token = login_with_credentials(caregiver_email, new_password)
 
     # teardown
-    delete_patient_response = delete_patient(admin_auth_token, patient_id)
-    assert delete_patient_response.status_code == 204
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
+    assert delete_caregiver_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204
 
 
 @pytest.mark.skip
