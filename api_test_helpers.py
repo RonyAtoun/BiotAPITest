@@ -209,3 +209,8 @@ def create_single_patient(auth_token):
     # login
     patient_auth_token = login_with_credentials(email, password)
     return patient_auth_token, patient_id
+
+
+def check_simulator_status():
+    simulation_status_response = get_simulation_status()
+    return simulation_status_response.json()["code"]
