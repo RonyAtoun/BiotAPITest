@@ -11,14 +11,14 @@ def test_caregiver_organization_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
-    assert get_self_org_response.status_code == 200
+    assert get_self_org_response.status_code == 200, f"{get_self_org_response.text}"
     template_id = get_self_org_response.json()['_ownerOrganization']['templateId']
     create_organization_response = create_organization(admin_auth_token, template_id)
-    assert create_organization_response.status_code == 201
+    assert create_organization_response.status_code == 201, f"{create_organization_response.text}"
     organization_id = create_organization_response.json()['_id']
 
     create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
     # create caregiver by admin
@@ -27,7 +27,7 @@ def test_caregiver_organization_abac_rules():
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
                                                  organization_id)
-    assert create_caregiver_response.status_code == 201
+    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
     caregiver_id = create_caregiver_response.json()['_id']
     response_text, accept_invitation_response = accept_invitation(caregiver_email)
     password = accept_invitation_response.json()['operationData']['password']
@@ -36,35 +36,36 @@ def test_caregiver_organization_abac_rules():
 
     # create, update  and delete organization must fail
     create_organization_response = create_organization(caregiver_auth_token, template_id)
-    assert create_organization_response.status_code == 403
+    assert create_organization_response.status_code == 403, f"{create_organization_response.text}"
     delete_organization_response = delete_organization(caregiver_auth_token, organization_id)
-    assert delete_organization_response.status_code == 403
+    assert delete_organization_response.status_code == 403, f"{delete_organization_response.text}"
     update_organization_response = update_organization(caregiver_auth_token, organization_id, "changed test text")
-    assert update_organization_response.status_code == 403
+    assert update_organization_response.status_code == 403, f"{update_organization_response.text}"
 
     # Get organization by list or by id -- only for own organization
     get_organization_response = get_organization(caregiver_auth_token, organization_id)
     # positive (own organization)
-    assert get_organization_response.status_code == 200
+    assert get_organization_response.status_code == 200, f"{get_organization_response.text}"
     # negative
     get_organization_response = get_organization(caregiver_auth_token, "00000000-0000-0000-0000-000000000000")
-    assert get_organization_response.status_code == 403
+    assert get_organization_response.status_code == 403, f"{get_organization_response.text}"
     # positive (own organization should return one result)
     get_organization_list_response = get_organization_list(caregiver_auth_token)
-    assert get_organization_list_response.status_code == 200
+    assert get_organization_list_response.status_code == 200, f"{get_organization_list_response.text}"
     assert get_organization_list_response.json()['metadata']['page']['totalResults'] == 1
     # negative (system admin should get all defined organizations)
     get_organization_list_response = get_organization_list(admin_auth_token)
-    assert get_organization_list_response.status_code == 200
-    assert get_organization_list_response.json()['metadata']['page']['totalResults'] > 1
+    assert get_organization_list_response.status_code == 200, f"{get_organization_list_response.text}"
+    assert get_organization_list_response.json()['metadata']['page']['totalResults'] > 1, \
+        f"Total Results={get_organization_list_response.json()['metadata']['page']['totalResults']}"
 
     # Teardown
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
+    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
-    assert delete_organization_response.status_code == 204
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
-    assert delete_template_response.status_code == 204
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
 
 def test_caregiver_organization_users_abac_rules():
@@ -847,16 +848,16 @@ def test_caregiver_commands_abac_rules():
     # Setup
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
-    assert get_self_org_response.status_code == 200
+    assert get_self_org_response.status_code == 200, f"{get_self_org_response.text}"
     template_id = get_self_org_response.json()['_ownerOrganization']['templateId']  # default org template
     create_organization_response = create_organization(admin_auth_token, template_id)
-    assert create_organization_response.status_code == 201
+    assert create_organization_response.status_code == 201, f"{create_organization_response.text}"
     organization_id = create_organization_response.json()['_id']
 
     # create a device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
                                                                      "00000000-0000-0000-0000-000000000000")
-    assert create_device_response.status_code == 201
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
     device_default_id = create_device_response.json()['_id']
     device_template_id = create_device_response.json()['_template']['id']
 
@@ -865,12 +866,12 @@ def test_caregiver_commands_abac_rules():
     command_template_name = f'command_{uuid.uuid4().hex}'[0:16]
     command_template_response = create_command_template_with_support_stop_true(admin_auth_token, command_template_name,
                                                                                device_template_id)
-    assert command_template_response.status_code == 201
+    assert command_template_response.status_code == 201, f"{command_template_response.text}"
     command_template_id = command_template_response.json()['id']
 
     # create caregiver template
     create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
@@ -880,7 +881,7 @@ def test_caregiver_commands_abac_rules():
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email, caregiver_template_name,
                                                  organization_id)
-    assert create_caregiver_response.status_code == 201
+    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
     caregiver_new_id = create_caregiver_response.json()['_id']
     response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
     password_new = accept_invitation_response.json()['operationData']['password']
@@ -893,7 +894,7 @@ def test_caregiver_commands_abac_rules():
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email, caregiver_template_name,
                                                  "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
+    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
     caregiver_default_id = create_caregiver_response.json()['_id']
     response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
     password_default = accept_invitation_response.json()['operationData']['password']
@@ -908,40 +909,39 @@ def test_caregiver_commands_abac_rules():
     # start/stop command only for self organization
     # self org
     start_command_response = start_command_by_template(caregiver_default_auth_token, device_default_id, command_template_name)
-    assert start_command_response.status_code == 201
+    assert start_command_response.status_code == 201, f"{start_command_response.text}"
     command2_id = start_command_response.json()['_id']
     # self
     get_command_response = get_command(caregiver_default_auth_token, device_default_id, command2_id)
-    assert get_command_response.status_code == 200
+    assert get_command_response.status_code == 200, f"{get_command_response.text}"
     # other
     get_command_response = get_command(caregiver_new_auth_token, device_default_id, command2_id)
-    assert get_command_response.status_code == 403
+    assert get_command_response.status_code == 403, f"{get_command_response.text}"
     stop_command_response = stop_command(caregiver_default_auth_token, device_default_id, command2_id)
-    if stop_command_response.status_code == 200:
-        assert stop_command_response.status_code == 200
-    else:
-        print("     Note: stop command failed - simulator timeout")
+    assert stop_command_response.status_code == 200, f"{stop_command_response.text}"
     # other org
     start_command_response = start_command_by_template(caregiver_new_auth_token, device_default_id, command_template_name)
-    assert start_command_response.status_code == 403
+    assert start_command_response.status_code == 403, f"{start_command_response.text}"
     stop_command_response = stop_command(caregiver_new_auth_token, device_default_id, command2_id)
-    assert stop_command_response.status_code == 403
+    assert stop_command_response.status_code == 403, f"{stop_command_response.text}"
     # self org start by id
     start_command_response = start_command_by_id(caregiver_default_auth_token, device_default_id, command_template_id)
-    assert start_command_response.status_code == 201
+    assert start_command_response.status_code == 201, f"{start_command_response.text}"
 
     # other org
     start_command_response = start_command_by_id(caregiver_new_auth_token, device_default_id, command_template_id)
-    assert start_command_response.status_code == 403
+    assert start_command_response.status_code == 403, f"{start_command_response.text}"
 
     # self
     search_command_response = search_commands(caregiver_default_auth_token, command2_id)
-    assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 1
+    assert search_command_response.status_code == 200, f"{search_command_response.text}"
+    assert search_command_response.json()['metadata']['page']['totalResults'] == 1, \
+        f"totalResult={search_command_response.json()['metadata']['page']['totalResults']}"
     # other
     search_command_response = search_commands(caregiver_new_auth_token, command2_id)
-    assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 0
+    assert search_command_response.status_code == 200, f"{search_command_response.text}"
+    assert search_command_response.json()['metadata']['page']['totalResults'] == 0, \
+        f"totalResults={search_command_response.json()['metadata']['page']['totalResults']}"
 
     # teardown
     # stop simulation
@@ -951,23 +951,23 @@ def test_caregiver_commands_abac_rules():
         sim_status = check_simulator_status()
 
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
-    assert delete_caregiver_response.status_code == 204
+    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
 
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204
+    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
 
     delete_device_response = delete_device(admin_auth_token, device_default_id)
-    assert delete_device_response.status_code == 204
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
 
     delete_template_response = delete_template(admin_auth_token, command_template_id)
-    assert delete_template_response.status_code == 204
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
-    assert delete_template_response.status_code == 204
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
-    assert delete_organization_response.status_code == 204
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
 
 
 @pytest.mark.skip
