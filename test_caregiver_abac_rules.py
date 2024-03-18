@@ -1,5 +1,3 @@
-import time
-
 import pytest
 from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
@@ -839,7 +837,7 @@ def test_patient_usage_session_abac_rules():
     self_signup_patient_teardown(admin_auth_token, patient_setup)
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_caregiver_commands_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
@@ -852,21 +850,22 @@ def test_caregiver_commands_abac_rules():
     organization_id = create_organization_response.json()['_id']
 
     # create device template without patient
-    device_template_id, device_template_name, device_template_display_name = (
-        create_template_setup(admin_auth_token, organization_id, 'device', None))
+   # device_template_id, device_template_name, device_template_display_name = (
+   #     create_template_setup(admin_auth_token, organization_id, 'device', None))
 
-    # create a device in new org
-    create_device_response = create_device_without_registration_code(admin_auth_token, device_template_name, organization_id)
+    # create a device in default org
+    create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
+                                                                     "00000000-0000-0000-0000-000000000000")
     assert create_device_response.status_code == 201
-    device_new_id = create_device_response.json()['_id']
+    device_default_id = create_device_response.json()['_id']
+    device_template_id = create_device_response.json()['_template']['id']
 
     # create command template
-    #command_template_data = create_template_setup(admin_auth_token, None, "command", device_template_id)
-    #command_template_name = command_template_data[1]
-    #command_template_id = command_template_data[0]
+
     command_template_name = f'command_{uuid.uuid4().hex}'[0:16]
     command_template_response = create_command_template_with_support_stop_true(admin_auth_token, command_template_name,
                                                                                device_template_id)
+    assert command_template_response.status_code == 201
     command_template_id = command_template_response.json()['id']
 
     # create caregiver template
@@ -901,43 +900,43 @@ def test_caregiver_commands_abac_rules():
     # login
     caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
 
-    # start simulator with device2
-    start_simulation_with_existing_device(device_template_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # start simulator with device
+    start_simulation_with_existing_device(device_default_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start/stop command only for self organization
     # self org
-    start_command_response = start_command_by_template(caregiver_new_auth_token, device_new_id, command_template_name)
+    start_command_response = start_command_by_template(caregiver_default_auth_token, device_default_id, command_template_name)
     assert start_command_response.status_code == 201
     command2_id = start_command_response.json()['_id']
     # self
-    get_command_response = get_command(caregiver_new_auth_token, device_new_id, command2_id)
+    get_command_response = get_command(caregiver_default_auth_token, device_default_id, command2_id)
     assert get_command_response.status_code == 200
     # other
-    get_command_response = get_command(caregiver_default_auth_token, device_new_id, command2_id)
+    get_command_response = get_command(caregiver_new_auth_token, device_default_id, command2_id)
     assert get_command_response.status_code == 403
-    stop_command_response = stop_command(caregiver_new_auth_token, device_new_id, command2_id)
+    stop_command_response = stop_command(caregiver_default_auth_token, device_default_id, command2_id)
     if stop_command_response.status_code == 200:
         assert stop_command_response.status_code == 200
     else:
         print("     Note: stop command failed - simulator timeout")
     # other org
-    start_command_response = start_command_by_template(caregiver_default_auth_token, device_new_id, command_template_name)
+    start_command_response = start_command_by_template(caregiver_new_auth_token, device_default_id, command_template_name)
     assert start_command_response.status_code == 403
-    stop_command_response = stop_command(caregiver_default_auth_token, device_new_id, command2_id)
+    stop_command_response = stop_command(caregiver_new_auth_token, device_default_id, command2_id)
     assert stop_command_response.status_code == 403
     # self org start by id
-    start_command_response = start_command_by_id(caregiver_new_auth_token, device_new_id, command_template_id)
+    start_command_response = start_command_by_id(caregiver_default_auth_token, device_default_id, command_template_id)
     assert start_command_response.status_code == 201
 
     # other org
-    start_command_response = start_command_by_id(caregiver_default_auth_token, device_new_id, command_template_id)
+    start_command_response = start_command_by_id(caregiver_new_auth_token, device_default_id, command_template_id)
     assert start_command_response.status_code == 403
 
     # self
-    search_command_response = search_commands(caregiver_new_auth_token, command2_id)
+    search_command_response = search_commands(caregiver_default_auth_token, command2_id)
     assert search_command_response.status_code == 200
     assert search_command_response.json()['metadata']['page']['totalResults'] == 1
     # other
-    search_command_response = search_commands(caregiver_default_auth_token, command2_id)
+    search_command_response = search_commands(caregiver_new_auth_token, command2_id)
     assert search_command_response.status_code == 200
     assert search_command_response.json()['metadata']['page']['totalResults'] == 0
 
@@ -954,7 +953,7 @@ def test_caregiver_commands_abac_rules():
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
     assert delete_caregiver_response.status_code == 204
 
-    delete_device_response = delete_device(admin_auth_token, device_new_id)
+    delete_device_response = delete_device(admin_auth_token, device_default_id)
     assert delete_device_response.status_code == 204
 
     delete_template_response = delete_template(admin_auth_token, command_template_id)
@@ -963,8 +962,8 @@ def test_caregiver_commands_abac_rules():
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
     assert delete_template_response.status_code == 204
 
-    delete_template_response = delete_template(admin_auth_token, device_template_id)
-    assert delete_template_response.status_code == 204
+   # delete_template_response = delete_template(admin_auth_token, device_template_id)
+   # assert delete_template_response.status_code == 204
 
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
@@ -1103,7 +1102,7 @@ def test_patient_alerts_abac_rules():
 
 
 @pytest.mark.skip
-def test_patient_measurements_abac_rules():
+def test_caregiver_measurements_abac_rules():  ### Not started
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
     patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -1449,7 +1448,7 @@ def test_caregiver_portal_builder_abac_rules():
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_caregiver_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create caregiver by admin in default organization
