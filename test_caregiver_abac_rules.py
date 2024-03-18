@@ -776,9 +776,13 @@ def test_patient_usage_session_abac_rules():
     delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
     assert delete_session_response.status_code == 403
 
-    # start simulator with device2
     patient_template_id = get_patient(admin_auth_token, patient_id).json()['_template']['id']
     patient_template = get_template_by_id(admin_auth_token, patient_template_id)
+
+    # start simulator with device2
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
     start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start session only for self device (use device2)
     start_session_response = start_usage_session(patient2_auth_token, device2_id, usage_session_template_id, patient_id)
@@ -827,9 +831,9 @@ def test_patient_usage_session_abac_rules():
     assert delete_usage_session_response.status_code == 204
     # stop simulation
     stop_simulation()
-    simulation_status_response = get_simulation_status()
-    simulation_status = simulation_status_response.json()["code"]
-    assert simulation_status == "NO_RUNNING_SIMULATION"
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
 
     delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
     assert delete_template_response.status_code == 204
@@ -848,10 +852,6 @@ def test_caregiver_commands_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-
-    # create device template without patient
-   # device_template_id, device_template_name, device_template_display_name = (
-   #     create_template_setup(admin_auth_token, organization_id, 'device', None))
 
     # create a device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
@@ -901,6 +901,9 @@ def test_caregiver_commands_abac_rules():
     caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
 
     # start simulator with device
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
     start_simulation_with_existing_device(device_default_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start/stop command only for self organization
     # self org
@@ -943,9 +946,9 @@ def test_caregiver_commands_abac_rules():
     # teardown
     # stop simulation
     stop_simulation()
-    simulation_status_response = get_simulation_status()
-    simulation_status = simulation_status_response.json()["code"]
-    assert simulation_status == "NO_RUNNING_SIMULATION"
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
 
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
     assert delete_caregiver_response.status_code == 204
@@ -961,9 +964,6 @@ def test_caregiver_commands_abac_rules():
 
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
     assert delete_template_response.status_code == 204
-
-   # delete_template_response = delete_template(admin_auth_token, device_template_id)
-   # assert delete_template_response.status_code == 204
 
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
