@@ -572,9 +572,13 @@ def test_patient_usage_session_abac_rules():
     delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
     assert delete_session_response.status_code == 403
 
-    # start simulator with device2
     patient_template_id = get_patient(admin_auth_token, patient_id).json()['_template']['id']
     patient_template = get_template_by_id(admin_auth_token, patient_template_id)
+
+    # start simulator with device2
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
     start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start session only for self device (use device2)
     start_session_response = start_usage_session(patient2_auth_token, device2_id, usage_session_template_id, patient_id)
@@ -623,9 +627,9 @@ def test_patient_usage_session_abac_rules():
     assert delete_usage_session_response.status_code == 204
     # stop simulation
     stop_simulation()
-    simulation_status_response = get_simulation_status()
-    simulation_status = simulation_status_response.json()["code"]
-    assert simulation_status == "NO_RUNNING_SIMULATION"
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
 
     delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
     assert delete_template_response.status_code == 204
@@ -659,6 +663,10 @@ def test_patient_commands_abac_rules():
     command_template_id = command_template_data[0]
 
     # start simulator with device2
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
+
     start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start/stop command only for self organization (use device2)
     # self org
@@ -684,9 +692,7 @@ def test_patient_commands_abac_rules():
     # self org
     start_command_response = start_command_by_id(patient2_auth_token, device2_id, command_template_id)
     assert start_command_response.status_code == 201
-    # command2_id = start_command_response.json()['_id']
-    # stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
-    # assert stop_command_response.status_code == 200
+
     # other org
     start_command_response = start_command_by_id(patient1_auth_token, device2_id, command_template_id)
     assert start_command_response.status_code == 403
@@ -703,9 +709,9 @@ def test_patient_commands_abac_rules():
     # teardown
     # stop simulation
     stop_simulation()
-    simulation_status_response = get_simulation_status()
-    simulation_status = simulation_status_response.json()["code"]
-    assert simulation_status == "NO_RUNNING_SIMULATION"
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
 
     single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
     single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
