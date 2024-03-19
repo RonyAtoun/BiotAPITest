@@ -213,4 +213,6 @@ def create_single_patient(auth_token):
 
 def check_simulator_status():
     simulation_status_response = get_simulation_status()
+    while 'code' not in simulation_status_response.json():
+        simulation_status_response = get_simulation_status()
     return simulation_status_response.json()["code"]
