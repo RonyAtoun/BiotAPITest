@@ -2422,13 +2422,9 @@ def delete_plugin(auth_token, name):
 
 
 # DMS APIs  ##########################################################################################
-def create_report(auth_token, output_metadata, queries):
+def create_report(auth_token, data):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    payload = {
-        "queries": queries,
-        "outputMetadata": output_metadata,
-        "name": "BioT Devices Export"
-    }
+    payload = data
     return requests.post(ENDPOINT + '/dms/v1/data/reports/export', headers=headers, data=json.dumps(payload))
 
 
