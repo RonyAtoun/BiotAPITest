@@ -91,8 +91,8 @@ def single_self_signup_patient_teardown(admin_auth_token, patient_id, registrati
 
 def create_template_setup(auth_token, organization_id, entity_type, parent_template_id):
     test_display_name = f'test_templ_{uuid.uuid4().hex}'[0:35]
-    test_name = f'rony_test_{uuid.uuid4().hex}'[0:35]
-    test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
+    test_name = f'test_name_{uuid.uuid4().hex}'[0:35]
+    test_referenced_attrib_name = f'test_attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
     if entity_type == "generic-entity":
         create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
@@ -209,6 +209,21 @@ def create_single_patient(auth_token):
     # login
     patient_auth_token = login_with_credentials(email, password)
     return patient_auth_token, patient_id
+
+
+def create_single_caregiver(auth_token, caregiver_template_name):
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(auth_token, test_name, caregiver_email, caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201
+    caregiver_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    return caregiver_auth_token, caregiver_id
 
 
 def check_simulator_status():
