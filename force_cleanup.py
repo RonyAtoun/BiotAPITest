@@ -12,22 +12,22 @@ def force_cleanup():
     get_device_alert_list_response = get_device_alert_list(admin_auth_token, None)
     assert get_device_alert_list_response.status_code == 200
     for alert in get_device_alert_list_response.json()['data']:
-        if 'test' in alert['_name'] and alert['_device'] is not None:
+        if 'test' in alert['_name'] and 'device' in alert:
             print("deviceAlertId", alert['_id'])
             device_id = alert['_device']['id']
             delete_alert_response = delete_device_alert(admin_auth_token, device_id, alert['_id'])
             assert delete_alert_response.status_code == 204
 
-#   get_patient_alert_list_response = get_patient_alert_list(admin_auth_token, None)
-#   assert get_patient_alert_list_response.status_code == 200
-#   if get_patient_alert_list_response.json()['data'] is not None:
-#       for alert in get_patient_alert_list_response.json()['data']:
-#           if 'test' in alert['_name'] and alert['_patient'] is not None:
-#               print("patientAlertId", alert['_id'])
-#               patient_id = alert['_patient']['id']
-#               delete_alert_response = delete_patient_alert(admin_auth_token, patient_id, alert['_id'])
-#               assert delete_alert_response.status_code == 204
-#
+    get_patient_alert_list_response = get_patient_alert_list(admin_auth_token, None)
+    assert get_patient_alert_list_response.status_code == 200
+    if get_patient_alert_list_response.json()['data'] is not None:
+        for alert in get_patient_alert_list_response.json()['data']:
+            if alert['_name'] is not None and 'test' in alert['_name'] and 'patient' in alert:
+                print("patientAlertId", alert['_id'])
+                patient_id = alert['_patient']['id']
+                delete_alert_response = delete_patient_alert(admin_auth_token, patient_id, alert['_id'])
+                assert delete_alert_response.status_code == 204
+
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
