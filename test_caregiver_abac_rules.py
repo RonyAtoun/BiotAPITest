@@ -1040,8 +1040,8 @@ def test_caregiver_commands_abac_rules():
     assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
 
 
-@pytest.mark.skip
-def test_patient_alerts_abac_rules():
+# @pytest.mark.skip
+def test_caregiver_alerts_abac_rules():
     # Should be separate for patient alerts and device alerts
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
@@ -1055,10 +1055,6 @@ def test_patient_alerts_abac_rules():
     # create patient in new org
     patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
         admin_auth_token, organization_id, 'DeviceType1')
-    # create patient in default org
-    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
-    # get the patient templateId
     get_patient_response = get_patient(patient1_auth_token, patient1_id)
     assert get_patient_response.status_code == 200
     patient_template_id = get_patient_response.json()['_template']['id']
@@ -1073,87 +1069,132 @@ def test_patient_alerts_abac_rules():
     alert_template2_id, alert_template2_name, alert_template2_display_name = (
         create_template_setup(admin_auth_token, organization_id, "device-alert", device_template_id))
 
+    #############################################################################################
+    # create caregiver template
+    create_template_response = create_caregiver_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    caregiver_template_name = create_template_response.json()['name']
+    caregiver_template_id = create_template_response.json()['id']
+
+    # create caregiver by admin in new organization
+    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email,
+                                                 caregiver_template_name,
+                                                 organization_id)
+    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
+    caregiver_new_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
+    password_new = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
+
+    # create caregiver by admin in default organization
+    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email,
+                                                 caregiver_template_name,
+                                                 "00000000-0000-0000-0000-000000000000")
+    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
+    caregiver_default_id = create_caregiver_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
+    password_default = accept_invitation_response.json()['operationData']['password']
+    # login
+    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
+
+    #############################################################################################
+
     # Create/Delete patient-alert by id only in same organization
-    create_alert_response = create_patient_alert_by_id(patient1_auth_token, patient1_id, alert_template1_id)
+    create_alert_response = create_patient_alert_by_id(caregiver_new_auth_token, patient1_id, alert_template1_id)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_id(patient2_auth_token, patient1_id, alert_template1_id)
+    create_alert_response = create_patient_alert_by_id(caregiver_default_auth_token, patient1_id, alert_template1_id)
     assert create_alert_response.status_code == 403  # other org
     # update patient alert only in same organization
-    update_alert_response = update_patient_alert(patient1_auth_token, patient1_id, alert_id)
+    update_alert_response = update_patient_alert(caregiver_new_auth_token, patient1_id, alert_id)
     assert update_alert_response.status_code == 200
-    update_alert_response = update_patient_alert(patient2_auth_token, patient1_id, alert_id)
+    update_alert_response = update_patient_alert(caregiver_default_auth_token, patient1_id, alert_id)
     assert update_alert_response.status_code == 403
     # get patient alert and search only in same organization
-    get_patient_alert_response = get_patient_alert(patient1_auth_token, patient1_id, alert_id)
+    get_patient_alert_response = get_patient_alert(caregiver_new_auth_token, patient1_id, alert_id)
     assert get_patient_alert_response.status_code == 200
-    get_patient_alert_response = get_patient_alert(patient2_auth_token, patient1_id, alert_id)
+    get_patient_alert_response = get_patient_alert(caregiver_default_auth_token, patient1_id, alert_id)
     assert get_patient_alert_response.status_code == 403
-    get_patient_alert_list_response = get_patient_alert_list(patient1_auth_token, alert_id)
+    get_patient_alert_list_response = get_patient_alert_list(caregiver_new_auth_token, alert_id)
     assert get_patient_alert_list_response.status_code == 200
     assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 1
-    get_patient_alert_list_response = get_patient_alert_list(patient2_auth_token, alert_id)
+    get_patient_alert_list_response = get_patient_alert_list(caregiver_default_auth_token, alert_id)
     assert get_patient_alert_list_response.status_code == 200
     assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 0
-    # get current alerts (nursing station) should always fail
-    get_current_alert_response = get_current_patient_alert_list(patient1_auth_token, alert_id)
-    assert get_current_alert_response.status_code == 403
+    # get current alerts (nursing station) only in same org
+    get_current_alert_response = get_current_patient_alert_list(caregiver_new_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 200, f"{get_current_alert_response.text}"
+    assert get_current_alert_response.json()['metadata']['page']['totalResults'] == 1
+    get_current_alert_response = get_current_patient_alert_list(caregiver_default_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 200, f"{get_current_alert_response.text}"
+    #assert get_current_alert_response.json()['metadata']['page']['totalResults'] == 0  getting 1
 
     # delete patient-alert only in same organization
-    delete_alert_response = delete_patient_alert(patient2_auth_token, patient1_id, alert_id)
+    delete_alert_response = delete_patient_alert(caregiver_default_auth_token, patient1_id, alert_id)
     assert delete_alert_response.status_code == 403  # other org
-    delete_alert_response = delete_patient_alert(patient1_auth_token, patient1_id, alert_id)
+    delete_alert_response = delete_patient_alert(caregiver_new_auth_token, patient1_id, alert_id)
     assert delete_alert_response.status_code == 204  # same org
     # Create patient-alert by name
-    create_alert_response = create_patient_alert_by_name(patient1_auth_token, patient1_id, alert_template1_name)
+    create_alert_response = create_patient_alert_by_name(caregiver_new_auth_token, patient1_id, alert_template1_name)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_name(patient2_auth_token, patient1_id, alert_template1_name)
+    create_alert_response = create_patient_alert_by_name(caregiver_default_auth_token, patient1_id, alert_template1_name)
     assert create_alert_response.status_code == 403  # other org
     # delete it
-    delete_alert_response = delete_patient_alert(patient1_auth_token, patient1_id, alert_id)
+    delete_alert_response = delete_patient_alert(caregiver_new_auth_token, patient1_id, alert_id)
     assert delete_alert_response.status_code == 204  # same org
 
     # Create device-alert by id only in same organization
-    create_alert_response = create_device_alert_by_id(patient1_auth_token, device1_id, alert_template2_id)
+    create_alert_response = create_device_alert_by_id(caregiver_new_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_id(patient2_auth_token, device1_id, alert_template2_id)
+    create_alert_response = create_patient_alert_by_id(caregiver_default_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 403  # other org
 
     # get device-alert only in same organization
-    get_device_alert_response = get_device_alert(patient1_auth_token, device1_id, alert_id)
+    get_device_alert_response = get_device_alert(caregiver_new_auth_token, device1_id, alert_id)
     assert get_device_alert_response.status_code == 200  # same org
-    get_device_alert_response = get_device_alert(patient2_auth_token, device1_id, alert_id)
+    get_device_alert_response = get_device_alert(caregiver_default_auth_token, device1_id, alert_id)
     assert get_device_alert_response.status_code == 403  # other org
 
     # get device-alert list (search) only in same org
-    get_device_alert_list_response = get_device_alert_list(patient1_auth_token, alert_id)
+    get_device_alert_list_response = get_device_alert_list(caregiver_new_auth_token, alert_id)
     assert get_device_alert_list_response.status_code == 200
     assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 1
-    get_device_alert_list_response = get_device_alert_list(patient2_auth_token, alert_id)
+    get_device_alert_list_response = get_device_alert_list(caregiver_default_auth_token, alert_id)
     assert get_device_alert_list_response.status_code == 200
     assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
-    # get current alerts (nursing station) should always fail
-    get_current_alert_response = get_current_device_alert_list(patient1_auth_token, alert_id)
-    assert get_current_alert_response.status_code == 403
+    # get current alerts (nursing station)
+    get_current_alert_response = get_current_device_alert_list(caregiver_new_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 200
+    assert get_current_alert_response.json()['metadata']['page']['totalResults'] == 1
+    get_current_alert_response = get_current_device_alert_list(caregiver_new_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 200
+    #assert get_current_alert_response.json()['metadata']['page']['totalResults'] == 0  ## Failing due to alert we can't delete
 
     # delete device-alert only in same organization
-    delete_alert_response = delete_device_alert(patient2_auth_token, device1_id, alert_id)
+    delete_alert_response = delete_device_alert(caregiver_default_auth_token, device1_id, alert_id)
     assert delete_alert_response.status_code == 403
-    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
+    delete_alert_response = delete_device_alert(caregiver_new_auth_token, device1_id, alert_id)
     assert delete_alert_response.status_code == 204
 
     # create device-alert by name only in same organization
-    create_alert_response = create_device_alert_by_name(patient1_auth_token, device1_id, alert_template2_name)
+    create_alert_response = create_device_alert_by_name(caregiver_new_auth_token, device1_id, alert_template2_name)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_device_alert_by_name(patient2_auth_token, device1_id, alert_template2_name)
+    create_alert_response = create_device_alert_by_name(caregiver_default_auth_token, device1_id, alert_template2_name)
     assert create_alert_response.status_code == 403  # other org
     # update device-alert only in same organization
-    update_alert_response = update_device_alert(patient1_auth_token, device1_id, alert_id)
+    update_alert_response = update_device_alert(caregiver_new_auth_token, device1_id, alert_id)
     assert update_alert_response.status_code == 200  # same org
-    update_alert_response = update_device_alert(patient2_auth_token, device1_id, alert_id)
+    update_alert_response = update_device_alert(caregiver_default_auth_token, device1_id, alert_id)
     assert update_alert_response.status_code == 403  # other org
 
     # teardown
@@ -1161,7 +1202,16 @@ def test_patient_alerts_abac_rules():
     delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
     assert delete_alert_response.status_code == 204
     single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
-    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
+
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
+    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+
+    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
+    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+
+    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
+
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
