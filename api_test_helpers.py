@@ -212,7 +212,12 @@ def create_single_patient(auth_token):
 
 
 def check_simulator_status():
+    count = 0
     simulation_status_response = get_simulation_status()
     while 'code' not in simulation_status_response.json():
         simulation_status_response = get_simulation_status()
+        count = count + 1
+        if count == 10:
+            return -1
+
     return simulation_status_response.json()["code"]
