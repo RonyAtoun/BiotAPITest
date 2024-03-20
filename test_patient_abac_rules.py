@@ -492,8 +492,7 @@ def test_patient_files_abac_rules():
                                              {"uploadFile": {"id": file1_id}})
     assert update_patient_response.status_code == 200
     update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
-                                             None, None,
-                                             {"uploadFile": {"id": file2_id}})
+                                             None, None, {"uploadFile": {"id": file2_id}})
     assert update_patient_response.status_code == 200
     # get should succeed only in self organization
     get_file_response = get_file(patient1_auth_token, file1_id)  # should succeed
@@ -1035,11 +1034,29 @@ def test_patient_dms_abac_rules():
     patient_auth_token, patient_id = create_single_patient(admin_auth_token)
 
     # create_report should fail
-    output_metadata = {
-        "maxFileSizeInBytes": 500000,
-        "exportFormat": "JSON"
+    payload = {
+        "name": "ttt",
+        "queries": [
+            {
+                "dataType": "device-alert",
+                "filter": {
+                    "_templateId": {
+                        "in": [
+                            "52657d88-4944-498e-9b4d-dfa010192276"
+                        ]
+                    },
+                    "_creationTime": {
+                        "from": "2024-03-12T14:29:27.000Z",
+                        "to": "2024-03-20T14:29:53.000Z"
+                    }
+                }
+            }
+        ],
+        "outputMetadata": {
+            "exportFormat": "JSON"
+        }
     }
-    create_report_response = create_report(patient_auth_token, output_metadata, None)
+    create_report_response = create_report(patient_auth_token, payload)
     assert create_report_response.status_code == 403
 
     # delete report should fail
