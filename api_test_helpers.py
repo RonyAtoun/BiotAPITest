@@ -211,12 +211,12 @@ def create_single_patient(auth_token):
     return patient_auth_token, patient_id
 
 
-def create_single_caregiver(auth_token, caregiver_template_name):
+def create_single_caregiver(auth_token, caregiver_template_name, organization_id):
     caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
+                                                 organization_id)
     assert create_caregiver_response.status_code == 201
     caregiver_id = create_caregiver_response.json()['_id']
     response_text, accept_invitation_response = accept_invitation(caregiver_email)
