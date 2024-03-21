@@ -751,10 +751,19 @@ def test_patient_alerts_abac_rules():
     device_template_id = get_device_response.json()['_template']['id']
 
     # create alert template based on patient parent (template1) and device parent (template2)
-    alert_template1_id, alert_template1_name, alert_template1_display_name = (
-        create_template_setup(admin_auth_token, organization_id, "patient-alert", patient_template_id))
-    alert_template2_id, alert_template2_name, alert_template2_display_name = (
-        create_template_setup(admin_auth_token, organization_id, "device-alert", device_template_id))
+    alert_template_name = f'test_patient_alert{uuid.uuid4().hex}'[0:35]
+    create_patient_alert_template_response = create_patient_alert_template(admin_auth_token, patient_template_id,
+                                                                           alert_template_name)
+    assert create_patient_alert_template_response.status_code == 201, f"{create_patient_alert_template_response.text}"
+    alert_template1_id = create_patient_alert_template_response.json()['id']
+    alert_template1_name = create_patient_alert_template_response.json()['name']
+
+    alert_template_name = f'test_device_alert{uuid.uuid4().hex}'[0:35]
+    create_device_alert_template_response = create_device_alert_template(admin_auth_token, device_template_id,
+                                                                         alert_template_name)
+    assert create_device_alert_template_response.status_code == 201, f"{create_device_alert_template_response.text}"
+    alert_template2_id = create_device_alert_template_response.json()['id']
+    alert_template2_name = create_device_alert_template_response.json()['name']
 
     # Create/Delete patient-alert by id only in same organization
     create_alert_response = create_patient_alert_by_id(patient1_auth_token, patient1_id, alert_template1_id)
