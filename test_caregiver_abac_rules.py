@@ -22,18 +22,8 @@ def test_caregiver_organization_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
     # create caregiver by admin
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
-
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 organization_id)
     # create, update  and delete organization must fail
     create_organization_response = create_organization(caregiver_auth_token, template_id)
     assert create_organization_response.status_code == 403, f"{create_organization_response.text}"
@@ -106,17 +96,9 @@ def test_caregiver_organization_users_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    # create caregiver by admin
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 organization_id)
 
     # create organization user by caregiver should fail
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -188,17 +170,9 @@ def test_caregiver_patient_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    # create caregiver by admin
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 organization_id)
 
     # Create patient should only succeed  in same organization
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -287,26 +261,13 @@ def test_caregiver_caregiver_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    # create caregiver by admin
+    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                     organization_id)
 
     # create caregiver by admin in default org
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, "Clinician",
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_default_id = create_caregiver_response.json()['_id']
+    caregiver_def_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                             "00000000-0000-0000-0000-000000000000")
 
     # create caregiver by caregiver should fail
     caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
@@ -375,17 +336,8 @@ def test_caregiver_devices_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                     organization_id)
     # create a device by admin in new org
     device_template_id, device_template_name, device_template_display_name = (
         create_template_setup(admin_auth_token, organization_id, "device", None))
@@ -456,17 +408,8 @@ def test_caregiver_generic_entity_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                     organization_id)
 
     # create generic entity template in both organizations
     generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -557,17 +500,8 @@ def test_caregiver_registration_codes_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                     organization_id)
 
     # create registration code by caregiver in new organization should succeed
     registration_code1 = str(uuid.uuid4())
@@ -659,17 +593,8 @@ def test_caregiver_files_abac_rules():
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201
-    caregiver1_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver1_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                   organization_id)
 
     # create files in new organization and default
     name = f'test_file{uuid.uuid4().hex}'[0:16]
@@ -744,32 +669,12 @@ def test_caregiver_usage_session_abac_rules():  # IP
     caregiver_template_id = create_template_response.json()['id']
 
     # create caregiver by admin in default organization
-    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email,
-                                                 caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_default_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
-    password_default = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
+    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
+                                                        caregiver_template_name, "00000000-0000-0000-0000-000000000000")
 
     # create caregiver by admin in new organization
-    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email,
-                                                 caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
-    password_new = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
+    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                         organization_id)
 
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
@@ -942,33 +847,12 @@ def test_caregiver_commands_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     # create caregiver by admin in new organization
-    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email,
-                                                 caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
-    password_new = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
-
+    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                         organization_id)
     # create caregiver by admin in default organization
-    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email,
-                                                 caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_default_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
-    password_default = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
-
+    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
+                                                                                 caregiver_template_name,
+                                                                                 "00000000-0000-0000-0000-000000000000")
     # start simulator with device
     sim_status = ' '
     while sim_status != "NO_RUNNING_SIMULATION":
@@ -1085,34 +969,13 @@ def test_caregiver_alerts_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     # create caregiver by admin in new organization
-    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email,
-                                                 caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
-    password_new = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
+    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                         organization_id)
 
     # create caregiver by admin in default organization
-    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email,
-                                                 caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_default_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
-    password_default = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
-
-    #############################################################################################
+    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
+                                                                                 caregiver_template_name,
+                                                                                 "00000000-0000-0000-0000-000000000000")
 
     # Create/Delete patient-alert by id only in same organization
     create_alert_response = create_patient_alert_by_id(caregiver_new_auth_token, patient1_id, alert_template1_id)
@@ -1258,36 +1121,15 @@ def test_caregiver_measurements_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    # create caregiver by admin in default organization
-    caregiver_default_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_default_email,
-                                                 caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_default_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_default_email)
-    password_default = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_default_auth_token = login_with_credentials(caregiver_default_email, password_default)
-
     # create caregiver by admin in new organization
-    caregiver_new_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_new_email,
-                                                 caregiver_template_name,
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 201, f"{create_caregiver_response.text}"
-    caregiver_new_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_new_email)
-    password_new = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_new_auth_token = login_with_credentials(caregiver_new_email, password_new)
+    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                         organization_id)
 
+    # create caregiver by admin in default organization
+    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
+                                                                                 caregiver_template_name,
+                                                                                 "00000000-0000-0000-0000-000000000000")
     # create usage session template and usage session; associate to patient
-
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
     device_template_id = get_device_response.json()['_template']['id']
@@ -1415,17 +1257,8 @@ def test_caregiver_locales_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 "00000000-0000-0000-0000-000000000000")
 
     # get available locales should succeed
     get_locales_response = get_available_locales(caregiver_auth_token)
@@ -1461,17 +1294,8 @@ def test_caregiver_plugins_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 "00000000-0000-0000-0000-000000000000")
 
     # create plugin should fail
     create_plugin_response = create_plugin(caregiver_auth_token, 'test_plugin')
@@ -1509,8 +1333,10 @@ def test_caregiver_dms_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
     # create 2 caregivers
-    caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name)
-    caregiver2_auth_token, caregiver2_id = create_single_caregiver(admin_auth_token, caregiver_template_name)
+    caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                   "00000000-0000-0000-0000-000000000000")
+    caregiver2_auth_token, caregiver2_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                   "00000000-0000-0000-0000-000000000000")
 
     # create_report should succeed
     payload = {
@@ -1571,17 +1397,8 @@ def test_caregiver_templates_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 "00000000-0000-0000-0000-000000000000")
 
     # view templates should succeed
     view_template_response = get_templates_list(caregiver_auth_token)
@@ -1632,17 +1449,8 @@ def test_caregiver_portal_builder_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 "00000000-0000-0000-0000-000000000000")
 
     # view full info should succeed
     view_template_response = get_templates_list(caregiver_auth_token)
@@ -1677,17 +1485,8 @@ def test_caregiver_adb_abac_rules():
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
+    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
+                                                                 "00000000-0000-0000-0000-000000000000")
 
     # deploy adb should fail
     deploy_response = deploy_adb(caregiver_auth_token)
