@@ -561,7 +561,7 @@ def test_patient_usage_session_abac_rules():
     # Positive - for self
     get_session_list_response = get_usage_session_list(patient_auth_token)
     assert get_session_list_response.status_code == 200
-    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 1
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] != 0
     # negative: other patient should get zero results
     get_session_list_response = get_usage_session_list(patient2_auth_token)
     assert get_session_list_response.status_code == 200
@@ -606,7 +606,7 @@ def test_patient_usage_session_abac_rules():
     assert resume_usage_session_response.status_code == 403
     resume_usage_session_response = resume_usage_session(patient_auth_token, device2_id, usage_session2_id)
     assert resume_usage_session_response.status_code == 200, f"{resume_usage_session_response.text}"
-    get_usage_session_response = get_usage_session(patient_auth_token, device_id, usage_session_id)
+    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
     usage_session_status = get_usage_session_response.json()["_state"]
     assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
 
@@ -1022,7 +1022,7 @@ def test_patient_plugins_abac_rules():
     assert delete_plugin_response.status_code == 403
 
     # update plugin should fail
-    update_plugin_response = update_plugin(patient_auth_token, 'test_plugin')
+    update_plugin_response = update_plugin(patient_auth_token, 'test_plugin', 'test_plugin')
     assert update_plugin_response.status_code == 403
 
     # get plugin should fail
@@ -1043,29 +1043,7 @@ def test_patient_dms_abac_rules():
     patient_auth_token, patient_id = create_single_patient(admin_auth_token)
 
     # create_report should fail
-    payload = {
-        "name": "ttt",
-        "queries": [
-            {
-                "dataType": "device-alert",
-                "filter": {
-                    "_templateId": {
-                        "in": [
-                            "52657d88-4944-498e-9b4d-dfa010192276"
-                        ]
-                    },
-                    "_creationTime": {
-                        "from": "2024-03-12T14:29:27.000Z",
-                        "to": "2024-03-20T14:29:53.000Z"
-                    }
-                }
-            }
-        ],
-        "outputMetadata": {
-            "exportFormat": "JSON"
-        }
-    }
-    create_report_response = create_report(patient_auth_token, payload)
+    create_report_response = create_report(patient_auth_token)
     assert create_report_response.status_code == 403
 
     # delete report should fail

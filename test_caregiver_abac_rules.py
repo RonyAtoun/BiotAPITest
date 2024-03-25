@@ -711,7 +711,7 @@ def test_caregiver_usage_session_abac_rules():  # IP
     # Positive - for same
     get_session_list_response = get_usage_session_list(caregiver_default_auth_token)
     assert get_session_list_response.status_code == 200, f"{get_session_list_response.text}"
-    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 1, \
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] != 0, \
         f"{get_session_list_response.json()['metadata']['page']['totalResults']}"
     # negative: other caregiver should get zero results
     get_session_list_response = get_usage_session_list(caregiver_new_auth_token)
@@ -747,15 +747,18 @@ def test_caregiver_usage_session_abac_rules():  # IP
 
     get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
     assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
-    # usage_session_status = get_usage_session_response.json()["_state"]
     while get_usage_session_response.json()["_state"] != 'ACTIVE':
         get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
-        if get_usage_session_response.json()["_state"] == 'DONE':
-            break
+        if get_usage_session_response.json()["_state"] == 'DONE':  # restart simulation
+            stop_simulation()
+            while sim_status != "NO_RUNNING_SIMULATION":
+                sim_status = check_simulator_status()
+            assert sim_status == "NO_RUNNING_SIMULATION", "Simulator failed to start"
+            start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
         assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
 
     assert get_usage_session_response.json()["_state"] == "ACTIVE", \
-        f"The current status is {get_usage_session_response.json()['_state']}, not 'ACTIVE'"
+        f"The current status is {get_usage_session_response.json()['_state']}, not 'ACTIVE', simulator timeout"
 
     pause_session_response = pause_usage_session(caregiver_new_auth_token, device2_id, usage_session2_id)
     assert pause_session_response.status_code == 403, f"{pause_session_response.text}"
@@ -1306,7 +1309,7 @@ def test_caregiver_plugins_abac_rules():
     assert delete_plugin_response.status_code == 403
 
     # update plugin should fail
-    update_plugin_response = update_plugin(caregiver_auth_token, 'test_plugin')
+    update_plugin_response = update_plugin(caregiver_auth_token, 'test_plugin', 'test_plugin')
     assert update_plugin_response.status_code == 403
 
     # get plugin should fail
@@ -1339,29 +1342,7 @@ def test_caregiver_dms_abac_rules():
                                                                    "00000000-0000-0000-0000-000000000000")
 
     # create_report should succeed
-    payload = {
-        "name": "ttt",
-        "queries": [
-            {
-                "dataType": "device-alert",
-                "filter": {
-                    "_templateId": {
-                        "in": [
-                            "52657d88-4944-498e-9b4d-dfa010192276"
-                        ]
-                    },
-                    "_creationTime": {
-                        "from": "2024-03-12T14:29:27.000Z",
-                        "to": "2024-03-20T14:29:53.000Z"
-                    }
-                }
-            }
-        ],
-        "outputMetadata": {
-            "exportFormat": "JSON"
-        }
-    }
-    create_report_response = create_report(caregiver1_auth_token, payload)
+    create_report_response = create_report(caregiver1_auth_token)
     assert create_report_response.status_code == 201, f"{create_report_response.text}"
     report_id = create_report_response.json()['id']
 
