@@ -7,6 +7,94 @@ from email_interface import accept_invitation, reset_password_open_email_and_set
 # Username and password have to be set in the environment in advance for each individual test
 #############################################################################################
 
+
+def test_patient_commands_abac_rules():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # Setup
+    # create second organization
+    get_self_org_response = get_self_organization(admin_auth_token)
+    assert get_self_org_response.status_code == 200
+    template_id = get_self_org_response.json()['_ownerOrganization']['templateId']  # default org template
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create patient in new org
+    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
+        admin_auth_token, organization_id, 'DeviceType1')
+    # create patient in default org
+    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
+        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
+
+    # get the device templateId
+    get_device_response = get_device(admin_auth_token, device2_id)
+    device_template_id = get_device_response.json()['_template']['id']
+    # create command template
+    command_template_data = create_template_setup(admin_auth_token, None, "command", device_template_id)
+    command_template_name = command_template_data[1]
+    command_template_id = command_template_data[0]
+
+    # start simulator with device2
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
+
+    start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # start/stop command only for self organization (use device2)
+    # self org
+    start_command_response = start_command_by_template(patient2_auth_token, device2_id, command_template_name)
+    assert start_command_response.status_code == 201
+    command2_id = start_command_response.json()['_id']
+    # self
+    get_command_response = get_command(patient2_auth_token, device2_id, command2_id)
+    assert get_command_response.status_code == 200
+    # other
+    get_command_response = get_command(patient1_auth_token, device2_id, command2_id)
+    assert get_command_response.status_code == 403
+    stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
+    if stop_command_response.status_code == 200:
+        assert stop_command_response.status_code == 200
+    else:
+        print("     Note: stop command failed - simulator timeout")
+    # other org
+    start_command_response = start_command_by_template(patient1_auth_token, device2_id, command_template_name)
+    assert start_command_response.status_code == 403
+    stop_command_response = stop_command(patient1_auth_token, device2_id, command2_id)
+    assert stop_command_response.status_code == 403
+    # self org
+    start_command_response = start_command_by_id(patient2_auth_token, device2_id, command_template_id)
+    assert start_command_response.status_code == 201
+
+    # other org
+    start_command_response = start_command_by_id(patient1_auth_token, device2_id, command_template_id)
+    assert start_command_response.status_code == 403
+
+    # self
+    search_command_response = search_commands(patient2_auth_token, command2_id)
+    assert search_command_response.status_code == 200
+    assert search_command_response.json()['metadata']['page']['totalResults'] == 1
+    # other
+    search_command_response = search_commands(patient1_auth_token, command2_id)
+    assert search_command_response.status_code == 200
+    assert search_command_response.json()['metadata']['page']['totalResults'] == 0
+
+    # teardown
+    # stop simulation
+    stop_simulation()
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
+
+    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
+    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
+
+    delete_template_response = delete_template(admin_auth_token, command_template_id)
+    assert delete_template_response.status_code == 204
+
+    # delete second organization
+    delete_organization_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_organization_response.status_code == 204
+
+
 def test_patient_organization_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -509,221 +597,6 @@ def test_patient_files_abac_rules():
 
 
 # @pytest.mark.skip
-def test_patient_usage_session_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # Setup
-    # create patients, registration codes and devices in default organization
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    email = patient_setup['email']
-    patient_id = patient_setup['patient_id'][0]
-    patient_auth_token = patient_setup['patient_auth_token']
-    patient2_auth_token = login_with_credentials(email[1], "Q2207819w@")
-    device_id = patient_setup['device_id'][0]
-    device2_id = patient_setup['device_id'][1]
-    # associate patient with both devices
-    update_device_response = update_device(admin_auth_token, device_id, "change_string", patient_id)
-    assert update_device_response.status_code == 200
-    update_device_response = update_device(admin_auth_token, device2_id, "change_string", patient_id)
-    assert update_device_response.status_code == 200
-    # get the device templateId
-    get_device_response = get_device(admin_auth_token, device_id)
-    device_template_id = get_device_response.json()['_template']['id']
-    # create usage_session template
-    usage_template_data = create_template_setup(admin_auth_token, None,
-                                                "usage-session", device_template_id)
-    usage_session_template_name = usage_template_data[1]
-    usage_session_template_id = usage_template_data[0]
-
-    # create session should succeed for self
-    create_session_response = create_usage_session_by_usage_type(patient_auth_token, device_id,
-                                                                 usage_session_template_name)
-    assert create_session_response.status_code == 201
-    usage_session_id = create_session_response.json()['_id']
-    # create session should fail for other user
-    create_session_response = create_usage_session_by_usage_type(patient2_auth_token, device_id,
-                                                                 usage_session_template_name)
-    assert create_session_response.status_code == 403
-
-    # update session should succeed for self and fail for other
-    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id)
-    assert update_session_response.status_code == 200
-    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id)
-    assert update_session_response.status_code == 403
-
-    # get session should succeed only for self
-    get_session_response = get_usage_session(patient_auth_token, device_id, usage_session_id)
-    assert get_session_response.status_code == 200
-    get_session_response = get_usage_session(patient2_auth_token, device_id, usage_session_id)
-    assert get_session_response.status_code == 403
-
-    # search usage session by patient only for self
-    # Positive - for self
-    get_session_list_response = get_usage_session_list(patient_auth_token)
-    assert get_session_list_response.status_code == 200
-    assert get_session_list_response.json()['metadata']['page']['totalResults'] != 0
-    # negative: other patient should get zero results
-    get_session_list_response = get_usage_session_list(patient2_auth_token)
-    assert get_session_list_response.status_code == 200
-    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 0
-
-    # delete session by patient should always fail
-    delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
-    assert delete_session_response.status_code == 403
-
-    patient_template_id = get_patient(admin_auth_token, patient_id).json()['_template']['id']
-    patient_template = get_template_by_id(admin_auth_token, patient_template_id)
-
-    # start simulator with device2
-    sim_status = ' '
-    while sim_status != "NO_RUNNING_SIMULATION":
-        sim_status = check_simulator_status()
-    start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # start session only for self device (use device2)
-    start_session_response = start_usage_session(patient2_auth_token, device2_id, usage_session_template_id, patient_id)
-    assert start_session_response.status_code == 403
-    start_session_response = start_usage_session(patient_auth_token, device2_id, usage_session_template_id, patient_id)
-    assert start_session_response.status_code == 201
-    usage_session2_id = start_session_response.json()['_id']
-
-    # pause only for self; first make sure it's active
-    # get_usage_session_response = get_usage_session_by_id(patient_auth_token, device2_id, usage_session_id)
-    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
-    usage_session_status = get_usage_session_response.json()["_state"]
-    assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
-
-    pause_session_response = pause_usage_session(patient2_auth_token, device2_id, usage_session2_id)
-    assert pause_session_response.status_code == 403
-    pause_session_response = pause_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    assert pause_session_response.status_code == 200
-    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    usage_session_status = get_usage_session_response.json()["_state"]
-    assert usage_session_status == "PAUSED", f"The current status is {usage_session_status}, not 'PAUSED'"
-
-    # resume session (should succeed only for self)
-    resume_usage_session_response = resume_usage_session(patient2_auth_token, device2_id, usage_session2_id)
-    assert resume_usage_session_response.status_code == 403
-    resume_usage_session_response = resume_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    assert resume_usage_session_response.status_code == 200, f"{resume_usage_session_response.text}"
-    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    usage_session_status = get_usage_session_response.json()["_state"]
-    assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
-
-    # Stop a Remote usage session - succeed for self
-    # stop_session_response = stop_usage_session(patient2_auth_token, device2_id, usage_session2_id)
-    # assert stop_session_response.status_code == 403
-    stop_usage_session_response = stop_usage_session(patient_auth_token, device2_id, usage_session2_id)
-    assert stop_usage_session_response.status_code == 200, f"{stop_usage_session_response.text}"
-    get_usage_session_response = get_usage_session_by_id(patient_auth_token, device2_id, usage_session2_id)
-    usage_session_status = get_usage_session_response.json()["_state"]
-    assert usage_session_status == "DONE", f"The current status is {usage_session_status}, not 'DONE'"
-
-    # Teardown
-    delete_usage_session_response = delete_usage_session(admin_auth_token, device_id, usage_session_id)
-    assert delete_usage_session_response.status_code == 204
-    delete_usage_session_response = delete_usage_session(admin_auth_token, device2_id, usage_session2_id)
-    assert delete_usage_session_response.status_code == 204
-    # stop simulation
-    stop_simulation()
-    sim_status = ' '
-    while sim_status != "NO_RUNNING_SIMULATION":
-        sim_status = check_simulator_status()
-
-    delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
-    assert delete_template_response.status_code == 204
-
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
-
-
-def test_patient_commands_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # Setup
-    # create second organization
-    get_self_org_response = get_self_organization(admin_auth_token)
-    assert get_self_org_response.status_code == 200
-    template_id = get_self_org_response.json()['_ownerOrganization']['templateId']  # default org template
-    create_organization_response = create_organization(admin_auth_token, template_id)
-    assert create_organization_response.status_code == 201
-    organization_id = create_organization_response.json()['_id']
-    # create patient in new org
-    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
-        admin_auth_token, organization_id, 'DeviceType1')
-    # create patient in default org
-    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
-
-    # get the device templateId
-    get_device_response = get_device(admin_auth_token, device2_id)
-    device_template_id = get_device_response.json()['_template']['id']
-    # create command template
-    command_template_data = create_template_setup(admin_auth_token, None, "command", device_template_id)
-    command_template_name = command_template_data[1]
-    command_template_id = command_template_data[0]
-
-    # start simulator with device2
-    sim_status = ' '
-    while sim_status != "NO_RUNNING_SIMULATION":
-        sim_status = check_simulator_status()
-
-    start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # start/stop command only for self organization (use device2)
-    # self org
-    start_command_response = start_command_by_template(patient2_auth_token, device2_id, command_template_name)
-    assert start_command_response.status_code == 201
-    command2_id = start_command_response.json()['_id']
-    # self
-    get_command_response = get_command(patient2_auth_token, device2_id, command2_id)
-    assert get_command_response.status_code == 200
-    # other
-    get_command_response = get_command(patient1_auth_token, device2_id, command2_id)
-    assert get_command_response.status_code == 403
-    stop_command_response = stop_command(patient2_auth_token, device2_id, command2_id)
-    if stop_command_response.status_code == 200:
-        assert stop_command_response.status_code == 200
-    else:
-        print("     Note: stop command failed - simulator timeout")
-    # other org
-    start_command_response = start_command_by_template(patient1_auth_token, device2_id, command_template_name)
-    assert start_command_response.status_code == 403
-    stop_command_response = stop_command(patient1_auth_token, device2_id, command2_id)
-    assert stop_command_response.status_code == 403
-    # self org
-    start_command_response = start_command_by_id(patient2_auth_token, device2_id, command_template_id)
-    assert start_command_response.status_code == 201
-
-    # other org
-    start_command_response = start_command_by_id(patient1_auth_token, device2_id, command_template_id)
-    assert start_command_response.status_code == 403
-
-    # self
-    search_command_response = search_commands(patient2_auth_token, command2_id)
-    assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 1
-    # other
-    search_command_response = search_commands(patient1_auth_token, command2_id)
-    assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 0
-
-    # teardown
-    # stop simulation
-    stop_simulation()
-    sim_status = ' '
-    while sim_status != "NO_RUNNING_SIMULATION":
-        sim_status = check_simulator_status()
-
-    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
-    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
-
-    delete_template_response = delete_template(admin_auth_token, command_template_id)
-    assert delete_template_response.status_code == 204
-
-    # delete second organization
-    delete_organization_response = delete_organization(admin_auth_token, organization_id)
-    assert delete_organization_response.status_code == 204
-
-
-# @pytest.mark.skip
 def test_patient_alerts_abac_rules():
     # Should be separate for patient alerts and device alerts
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1163,3 +1036,132 @@ def test_patient_adb_abac_rules():
     # teardown
     delete_patient_response = delete_patient(admin_auth_token, patient_id)
     assert delete_patient_response.status_code == 204
+
+
+# @pytest.mark.skip
+def test_patient_usage_session_abac_rules():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # Setup
+    # create patients, registration codes and devices in default organization
+    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+                                              'DeviceType1')
+    email = patient_setup['email']
+    patient_id = patient_setup['patient_id'][0]
+    patient_auth_token = patient_setup['patient_auth_token']
+    patient2_auth_token = login_with_credentials(email[1], "Q2207819w@")
+    device_id = patient_setup['device_id'][0]
+    device2_id = patient_setup['device_id'][1]
+    # associate patient with both devices
+    update_device_response = update_device(admin_auth_token, device_id, "change_string", patient_id)
+    assert update_device_response.status_code == 200
+    update_device_response = update_device(admin_auth_token, device2_id, "change_string", patient_id)
+    assert update_device_response.status_code == 200
+    # get the device templateId
+    get_device_response = get_device(admin_auth_token, device_id)
+    device_template_id = get_device_response.json()['_template']['id']
+    # create usage_session template
+    usage_template_data = create_template_setup(admin_auth_token, None,
+                                                "usage-session", device_template_id)
+    usage_session_template_name = usage_template_data[1]
+    usage_session_template_id = usage_template_data[0]
+
+    # create session should succeed for self
+    create_session_response = create_usage_session_by_usage_type(patient_auth_token, device_id,
+                                                                 usage_session_template_name)
+    assert create_session_response.status_code == 201
+    usage_session_id = create_session_response.json()['_id']
+    # create session should fail for other user
+    create_session_response = create_usage_session_by_usage_type(patient2_auth_token, device_id,
+                                                                 usage_session_template_name)
+    assert create_session_response.status_code == 403
+
+    # update session should succeed for self and fail for other
+    update_session_response = update_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert update_session_response.status_code == 200
+    update_session_response = update_usage_session(patient2_auth_token, device_id, usage_session_id)
+    assert update_session_response.status_code == 403
+
+    # get session should succeed only for self
+    get_session_response = get_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert get_session_response.status_code == 200
+    get_session_response = get_usage_session(patient2_auth_token, device_id, usage_session_id)
+    assert get_session_response.status_code == 403
+
+    # search usage session by patient only for self
+    # Positive - for self
+    get_session_list_response = get_usage_session_list(patient_auth_token)
+    assert get_session_list_response.status_code == 200
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] != 0
+    # negative: other patient should get zero results
+    get_session_list_response = get_usage_session_list(patient2_auth_token)
+    assert get_session_list_response.status_code == 200
+    assert get_session_list_response.json()['metadata']['page']['totalResults'] == 0
+
+    # delete session by patient should always fail
+    delete_session_response = delete_usage_session(patient_auth_token, device_id, usage_session_id)
+    assert delete_session_response.status_code == 403
+
+    patient_template_id = get_patient(admin_auth_token, patient_id).json()['_template']['id']
+    patient_template = get_template_by_id(admin_auth_token, patient_template_id)
+
+    # start simulator with device2
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
+    start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # start session only for self device (use device2)
+    start_session_response = start_usage_session(patient2_auth_token, device2_id, usage_session_template_id, patient_id)
+    assert start_session_response.status_code == 403
+    start_session_response = start_usage_session(patient_auth_token, device2_id, usage_session_template_id, patient_id)
+    assert start_session_response.status_code == 201
+    usage_session2_id = start_session_response.json()['_id']
+
+    # pause only for self; first make sure it's active
+    # get_usage_session_response = get_usage_session_by_id(patient_auth_token, device2_id, usage_session_id)
+    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
+    usage_session_status = get_usage_session_response.json()["_state"]
+    assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
+
+    pause_session_response = pause_usage_session(patient2_auth_token, device2_id, usage_session2_id)
+    assert pause_session_response.status_code == 403
+    pause_session_response = pause_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    assert pause_session_response.status_code == 200
+    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    usage_session_status = get_usage_session_response.json()["_state"]
+    assert usage_session_status == "PAUSED", f"The current status is {usage_session_status}, not 'PAUSED'"
+
+    # resume session (should succeed only for self)
+    resume_usage_session_response = resume_usage_session(patient2_auth_token, device2_id, usage_session2_id)
+    assert resume_usage_session_response.status_code == 403
+    resume_usage_session_response = resume_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    assert resume_usage_session_response.status_code == 200, f"{resume_usage_session_response.text}"
+    get_usage_session_response = get_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    usage_session_status = get_usage_session_response.json()["_state"]
+    assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
+
+    # Stop a Remote usage session - succeed for self
+    # stop_session_response = stop_usage_session(patient2_auth_token, device2_id, usage_session2_id)
+    # assert stop_session_response.status_code == 403
+    stop_usage_session_response = stop_usage_session(patient_auth_token, device2_id, usage_session2_id)
+    assert stop_usage_session_response.status_code == 200, f"{stop_usage_session_response.text}"
+    get_usage_session_response = get_usage_session_by_id(patient_auth_token, device2_id, usage_session2_id)
+    usage_session_status = get_usage_session_response.json()["_state"]
+    assert usage_session_status == "DONE", f"The current status is {usage_session_status}, not 'DONE'"
+
+    # Teardown
+    delete_usage_session_response = delete_usage_session(admin_auth_token, device_id, usage_session_id)
+    assert delete_usage_session_response.status_code == 204
+    delete_usage_session_response = delete_usage_session(admin_auth_token, device2_id, usage_session2_id)
+    assert delete_usage_session_response.status_code == 204
+    # stop simulation
+    stop_simulation()
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
+
+    delete_template_response = delete_template(admin_auth_token, usage_session_template_id)
+    assert delete_template_response.status_code == 204
+
+    self_signup_patient_teardown(admin_auth_token, patient_setup)
+
