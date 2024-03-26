@@ -670,7 +670,8 @@ def test_caregiver_usage_session_abac_rules():  # IP
 
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
-                                                        caregiver_template_name, "00000000-0000-0000-0000-000000000000")
+                                                                                 caregiver_template_name,
+                                                                                 "00000000-0000-0000-0000-000000000000")
 
     # create caregiver by admin in new organization
     caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
@@ -750,11 +751,7 @@ def test_caregiver_usage_session_abac_rules():  # IP
     while get_usage_session_response.json()["_state"] != 'ACTIVE':
         get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
         if get_usage_session_response.json()["_state"] == 'DONE':  # restart simulation
-            stop_simulation()
-            while sim_status != "NO_RUNNING_SIMULATION":
-                sim_status = check_simulator_status()
-            assert sim_status == "NO_RUNNING_SIMULATION", "Simulator failed to start"
-            start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
+            break
         assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
 
     assert get_usage_session_response.json()["_state"] == "ACTIVE", \
