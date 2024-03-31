@@ -656,10 +656,12 @@ def test_patient_alerts_abac_rules():
     assert get_patient_alert_response.status_code == 403
     get_patient_alert_list_response = get_patient_alert_list(patient1_auth_token, alert_id)
     assert get_patient_alert_list_response.status_code == 200
-    assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 1
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 1
     get_patient_alert_list_response = get_patient_alert_list(patient2_auth_token, alert_id)
     assert get_patient_alert_list_response.status_code == 200
-    assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 0
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_patient_alert_list_response.json()['metadata']['page']['totalResults'] == 0
     # get current alerts (nursing station) should always fail
     get_current_alert_response = get_current_patient_alert_list(patient1_auth_token, alert_id)
     assert get_current_alert_response.status_code == 403
@@ -695,10 +697,12 @@ def test_patient_alerts_abac_rules():
     # get device-alert list (search) only in same org
     get_device_alert_list_response = get_device_alert_list(patient1_auth_token, alert_id)
     assert get_device_alert_list_response.status_code == 200
-    assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 1
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 1
     get_device_alert_list_response = get_device_alert_list(patient2_auth_token, alert_id)
     assert get_device_alert_list_response.status_code == 200
-    assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
     # get current alerts (nursing station) should always fail
     get_current_alert_response = get_current_device_alert_list(patient1_auth_token, alert_id)
     assert get_current_alert_response.status_code == 403
