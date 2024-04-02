@@ -2188,12 +2188,12 @@ def get_patient_alert_list(auth_token, alert_id):
     else:
         search_request = {
             "searchRequest": json.dumps({
-               "filter": {
-                  "_id": {
+                "filter": {
+                    "_id": {
                         "like": alert_id
-                      },
-            }
-         })
+                    },
+                }
+            })
         }
     return requests.get(ENDPOINT + '/organization/v1/users/patients/alerts?', params=search_request, headers=headers)
 
@@ -2280,7 +2280,7 @@ def get_device_alert_list(auth_token, alert_id):
                  },
                 }
             })
-      }
+        }
     return requests.get(ENDPOINT + '/device/v1/devices/alerts?', params=search_request, headers=headers)
 
 

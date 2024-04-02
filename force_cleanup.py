@@ -1,13 +1,6 @@
 import os
 
-from API_drivers import (
-    login_with_credentials,
-    get_patient_list, delete_patient,
-    delete_device, get_device_list, get_device_alert_list, get_patient_alert_list,
-    delete_device_alert, delete_patient_alert,
-    delete_organization,
-    delete_generic_entity, get_generic_entity_list, get_caregiver_list, delete_caregiver,
-    get_organization_list, get_all_templates, delete_template)
+from API_drivers import *
 
 
 #############################################################################################
@@ -17,28 +10,30 @@ from API_drivers import (
 def force_cleanup():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_device_alert_list_response = get_device_alert_list(admin_auth_token, None)
-    assert get_device_alert_list_response.status_code == 200
-    for alert in get_device_alert_list_response.json()['data']:
-        if 'test' in alert['_name'] and alert['_device'] is not None:
-            print("deviceAlertId", alert['_id'])
-            device_id = alert['_device']['id']
-            delete_alert_response = delete_device_alert(admin_auth_token, device_id, alert['_id'])
-            assert delete_alert_response.status_code == 204
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_device_alert_list_response.status_code == 200
+        for alert in get_device_alert_list_response.json()['data']:
+            if 'test' in alert['_name'] and 'device' in alert:
+                print("deviceAlertId", alert['_id'])
+                device_id = alert['_device']['id']
+                delete_alert_response = delete_device_alert(admin_auth_token, device_id, alert['_id'])
+                assert delete_alert_response.status_code == 204
 
-    get_patient_alert_list_response = get_patient_alert_list(admin_auth_token, None)
-    assert get_patient_alert_list_response.status_code == 200
-    for alert in get_patient_alert_list_response.json()['data']:
-        if 'test' in alert['_name'] and alert['_patient'] is not None:
-            print("patientAlertId", alert['_id'])
-            patient_id = alert['_patient']['id']
-            delete_alert_response = delete_patient_alert(admin_auth_token, patient_id, alert['_id'])
-            assert delete_alert_response.status_code == 204
+        get_patient_alert_list_response = get_patient_alert_list(admin_auth_token, None)
+        assert get_patient_alert_list_response.status_code == 200
+        if get_patient_alert_list_response.json()['data'] is not None:
+            for alert in get_patient_alert_list_response.json()['data']:
+                if alert['_name'] is not None and 'test' in alert['_name'] and 'patient' in alert:
+                    print("patientAlertId", alert['_id'])
+                    patient_id = alert['_patient']['id']
+                    delete_alert_response = delete_patient_alert(admin_auth_token, patient_id, alert['_id'])
+                    assert delete_alert_response.status_code == 204
 
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
         print("deviceId", device['_id'])
-        if 'test' in device['_id'] or 'device_by_manu_admin' in device['_id']:
+        if 'test' in device['_id'] or 'device_by_manu_admin' in device['_id'] or '343' in device['_id']:
             delete_device_response = delete_device(admin_auth_token, device['_id'])
             assert delete_device_response.status_code == 204
     get_patient_list_response = get_patient_list(admin_auth_token)
@@ -79,6 +74,7 @@ def force_cleanup():
             else:
                 print("Failed to delete template in use", template['name'])
 
+    stop_simulation()
 
 if __name__ == "__main__":
     force_cleanup()
