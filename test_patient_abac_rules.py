@@ -205,6 +205,89 @@ def test_patient_organization_users_abac_rules():
     delete_user_response = delete_organization_user(admin_auth_token, organization_user_id)
     assert delete_user_response.status_code == 204
 
+def test_patient_device_alerts_abac_rules():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    # create second organization
+    get_self_org_response = get_self_organization(admin_auth_token)
+    assert get_self_org_response.status_code == 200
+    template_id = get_self_org_response.json()['_ownerOrganization']['templateId']  # default org template
+
+    create_organization_response = create_organization(admin_auth_token, template_id)
+    assert create_organization_response.status_code == 201
+    organization_id = create_organization_response.json()['_id']
+    # create patient in new org
+    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
+        admin_auth_token, organization_id, 'DeviceType1')
+    # create patient in default org
+    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
+        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
+    # get the device template
+    get_device_response = get_device(patient1_auth_token, device1_id)
+    assert get_device_response.status_code == 200
+    device_template_id = get_device_response.json()['_template']['id']
+    alert_template_name = f'test_device_alert{uuid.uuid4().hex}'[0:35]
+    create_device_alert_template_response = create_device_alert_template(admin_auth_token, device_template_id,
+                                                                         alert_template_name)
+    assert create_device_alert_template_response.status_code == 201, f"{create_device_alert_template_response.text}"
+    alert_template2_id = create_device_alert_template_response.json()['id']
+    alert_template2_name = create_device_alert_template_response.json()['name']
+
+# Create device-alert by id only in same organization
+    create_alert_response = create_device_alert_by_id(patient1_auth_token, device1_id, alert_template2_id)
+    assert create_alert_response.status_code == 201  # same org
+    alert_id = create_alert_response.json()['_id']
+    create_alert_response = create_patient_alert_by_id(patient2_auth_token, device1_id, alert_template2_id)
+    assert create_alert_response.status_code == 403  # other org
+
+    # get device-alert only in same organization
+    get_device_alert_response = get_device_alert(patient1_auth_token, device1_id, alert_id)
+    assert get_device_alert_response.status_code == 200  # same org
+    get_device_alert_response = get_device_alert(patient2_auth_token, device1_id, alert_id)
+    assert get_device_alert_response.status_code == 403  # other org
+
+    # get device-alert list (search) only in same org
+    get_device_alert_list_response = get_device_alert_list(patient1_auth_token, alert_id)
+    assert get_device_alert_list_response.status_code == 200
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 1
+    get_device_alert_list_response = get_device_alert_list(patient2_auth_token, alert_id)
+    assert get_device_alert_list_response.status_code == 200
+    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
+        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
+    # get current alerts (nursing station) should always fail
+    get_current_alert_response = get_current_device_alert_list(patient1_auth_token, alert_id)
+    assert get_current_alert_response.status_code == 403
+
+    # delete device-alert only in same organization
+    delete_alert_response = delete_device_alert(patient2_auth_token, device1_id, alert_id)
+    assert delete_alert_response.status_code == 403
+    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
+    assert delete_alert_response.status_code == 204
+
+    # create device-alert by name only in same organization
+    create_alert_response = create_device_alert_by_name(patient1_auth_token, device1_id, alert_template2_name)
+    assert create_alert_response.status_code == 201  # same org
+    alert_id = create_alert_response.json()['_id']
+    create_alert_response = create_device_alert_by_name(patient2_auth_token, device1_id, alert_template2_name)
+    assert create_alert_response.status_code == 403  # other org
+    # update device-alert only in same organization
+    update_alert_response = update_device_alert(patient1_auth_token, device1_id, alert_id)
+    assert update_alert_response.status_code == 200  # same org
+    update_alert_response = update_device_alert(patient2_auth_token, device1_id, alert_id)
+    assert update_alert_response.status_code == 403  # other org
+
+# teardown
+    # clean up the last device alert
+    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
+    assert delete_alert_response.status_code == 204
+    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
+    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
+    # delete second organization
+    delete_organization_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_organization_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, alert_template2_id)
+    assert delete_template_response.status_code == 204
+
 
 def test_patient_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -597,8 +680,7 @@ def test_patient_files_abac_rules():
 
 
 # @pytest.mark.skip
-def test_patient_alerts_abac_rules():
-    # Should be separate for patient alerts and device alerts
+def test_patient_patient_alerts_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -618,10 +700,6 @@ def test_patient_alerts_abac_rules():
     get_patient_response = get_patient(patient1_auth_token, patient1_id)
     assert get_patient_response.status_code == 200
     patient_template_id = get_patient_response.json()['_template']['id']
-    # get the device template
-    get_device_response = get_device(patient1_auth_token, device1_id)
-    assert get_device_response.status_code == 200
-    device_template_id = get_device_response.json()['_template']['id']
 
     # create alert template based on patient parent (template1) and device parent (template2)
     alert_template_name = f'test_patient_alert{uuid.uuid4().hex}'[0:35]
@@ -630,13 +708,6 @@ def test_patient_alerts_abac_rules():
     assert create_patient_alert_template_response.status_code == 201, f"{create_patient_alert_template_response.text}"
     alert_template1_id = create_patient_alert_template_response.json()['id']
     alert_template1_name = create_patient_alert_template_response.json()['name']
-
-    alert_template_name = f'test_device_alert{uuid.uuid4().hex}'[0:35]
-    create_device_alert_template_response = create_device_alert_template(admin_auth_token, device_template_id,
-                                                                         alert_template_name)
-    assert create_device_alert_template_response.status_code == 201, f"{create_device_alert_template_response.text}"
-    alert_template2_id = create_device_alert_template_response.json()['id']
-    alert_template2_name = create_device_alert_template_response.json()['name']
 
     # Create/Delete patient-alert by id only in same organization
     create_alert_response = create_patient_alert_by_id(patient1_auth_token, patient1_id, alert_template1_id)
@@ -681,62 +752,13 @@ def test_patient_alerts_abac_rules():
     delete_alert_response = delete_patient_alert(patient1_auth_token, patient1_id, alert_id)
     assert delete_alert_response.status_code == 204  # same org
 
-    # Create device-alert by id only in same organization
-    create_alert_response = create_device_alert_by_id(patient1_auth_token, device1_id, alert_template2_id)
-    assert create_alert_response.status_code == 201  # same org
-    alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_id(patient2_auth_token, device1_id, alert_template2_id)
-    assert create_alert_response.status_code == 403  # other org
-
-    # get device-alert only in same organization
-    get_device_alert_response = get_device_alert(patient1_auth_token, device1_id, alert_id)
-    assert get_device_alert_response.status_code == 200  # same org
-    get_device_alert_response = get_device_alert(patient2_auth_token, device1_id, alert_id)
-    assert get_device_alert_response.status_code == 403  # other org
-
-    # get device-alert list (search) only in same org
-    get_device_alert_list_response = get_device_alert_list(patient1_auth_token, alert_id)
-    assert get_device_alert_list_response.status_code == 200
-    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
-        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 1
-    get_device_alert_list_response = get_device_alert_list(patient2_auth_token, alert_id)
-    assert get_device_alert_list_response.status_code == 200
-    if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
-        assert get_device_alert_list_response.json()['metadata']['page']['totalResults'] == 0
-    # get current alerts (nursing station) should always fail
-    get_current_alert_response = get_current_device_alert_list(patient1_auth_token, alert_id)
-    assert get_current_alert_response.status_code == 403
-
-    # delete device-alert only in same organization
-    delete_alert_response = delete_device_alert(patient2_auth_token, device1_id, alert_id)
-    assert delete_alert_response.status_code == 403
-    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
-    assert delete_alert_response.status_code == 204
-
-    # create device-alert by name only in same organization
-    create_alert_response = create_device_alert_by_name(patient1_auth_token, device1_id, alert_template2_name)
-    assert create_alert_response.status_code == 201  # same org
-    alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_device_alert_by_name(patient2_auth_token, device1_id, alert_template2_name)
-    assert create_alert_response.status_code == 403  # other org
-    # update device-alert only in same organization
-    update_alert_response = update_device_alert(patient1_auth_token, device1_id, alert_id)
-    assert update_alert_response.status_code == 200  # same org
-    update_alert_response = update_device_alert(patient2_auth_token, device1_id, alert_id)
-    assert update_alert_response.status_code == 403  # other org
-
     # teardown
-    # clean up the last device alert
-    delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
-    assert delete_alert_response.status_code == 204
     single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
     single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, alert_template1_id)
-    assert delete_template_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, alert_template2_id)
     assert delete_template_response.status_code == 204
 
 
@@ -1168,4 +1190,3 @@ def test_patient_usage_session_abac_rules():
     assert delete_template_response.status_code == 204
 
     self_signup_patient_teardown(admin_auth_token, patient_setup)
-
