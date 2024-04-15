@@ -183,6 +183,20 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     return template_id, patient_payload
 
 
+def get_manu_admin_credentials(auth_token, organization_id):
+    # accept invitation as an admin of custom Org-n
+    get_organisation_response = get_organization(auth_token, organization_id)
+    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
+    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
+    primary_admin_email = get_organisation_user_response.json()["_email"]
+    accept_invitation(primary_admin_email)
+    primary_admin_auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    get_self_user_email_response = get_self_user_email(primary_admin_auth_token)
+    assert get_self_user_email_response == primary_admin_email, \
+        f"Actual email '{get_self_user_email_response}' does not match the expected"
+    return primary_admin_auth_token, primary_admin_id
+
+
 def create_single_patient(auth_token, organization_id="00000000-0000-0000-0000-000000000000"):
     # create a patient
     # get the Patient template name
