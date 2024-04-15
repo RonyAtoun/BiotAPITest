@@ -796,12 +796,11 @@ def test_caregiver_files_abac_rules():
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
 
-    # create patient in new org  (Needed for file association with patients)
-    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
-        admin_auth_token, organization_id, 'DeviceType1')
+    primary_admin_auth_token, primary_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
+    # create patient in new org
+    patient1_auth_token, patient1_id = create_single_patient(primary_admin_auth_token, organization_id)
     # create patient in default org
-    patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
+    patient2_auth_token, patient2_id = create_single_patient(admin_auth_token)
 
     # create caregiver in new org
     create_template_response = create_caregiver_template(admin_auth_token)
@@ -843,8 +842,10 @@ def test_caregiver_files_abac_rules():
     assert get_file_response.status_code == 403
 
     # teardown
-    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
-    single_self_signup_patient_teardown(admin_auth_token, patient2_id, registration_code2_id, device2_id)
+    delete_patient_response = delete_patient(admin_auth_token, patient1_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
+    delete_patient_response = delete_patient(admin_auth_token, patient2_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver1_id)
     assert delete_caregiver_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
@@ -865,9 +866,10 @@ def test_caregiver_patient_alerts_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201, f"{create_organization_response.text}"
     organization_id = create_organization_response.json()['_id']
+    primary_admin_auth_token, primary_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
+
     # create patient in new org
-    patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
-        admin_auth_token, organization_id, 'DeviceType1')
+    patient1_auth_token, patient1_id = create_single_patient(primary_admin_auth_token, organization_id)
     get_patient_response = get_patient(patient1_auth_token, patient1_id)
     assert get_patient_response.status_code == 200, f"{get_patient_response.text}"
     patient_template_id = get_patient_response.json()['_template']['id']
@@ -946,7 +948,8 @@ def test_caregiver_patient_alerts_abac_rules():
     assert delete_alert_response.status_code == 204, f"{delete_alert_response.text}"  # same org
 
     # teardown
-    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
+    delete_patient_response = delete_patient(admin_auth_token, patient1_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
 
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
     assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
