@@ -356,6 +356,7 @@ def test_caregiver_patient_abac_rules():
     delete_org_response = delete_organization(admin_auth_token, organization_id)
     assert delete_org_response.status_code == 204
 
+
 def test_caregiver_device_alerts_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
