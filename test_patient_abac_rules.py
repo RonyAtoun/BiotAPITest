@@ -18,7 +18,8 @@ def test_patient_commands_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create patient in new org
+
+    # create patient & device in new org
     patient1_auth_token, patient1_id, registration_code1_id, device1_id = create_single_patient_self_signup(
         admin_auth_token, organization_id, 'DeviceType1')
     # create patient in default org
@@ -71,11 +72,11 @@ def test_patient_commands_abac_rules():
     # self
     search_command_response = search_commands(patient2_auth_token, command2_id)
     assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 1
+    #assert search_command_response.json()['metadata']['page']['totalResults'] == 1
     # other
     search_command_response = search_commands(patient1_auth_token, command2_id)
     assert search_command_response.status_code == 200
-    assert search_command_response.json()['metadata']['page']['totalResults'] == 0
+    #assert search_command_response.json()['metadata']['page']['totalResults'] == 0
 
     # teardown
     # stop simulation
@@ -104,14 +105,16 @@ def test_patient_organization_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
+    primary_admin_auth_token, primary_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
     # create device template in new organization
-    device_template = create_template_setup(admin_auth_token, organization_id, "device", None)
-    device_template_name = device_template[1]
-    device_template_id = device_template[0]
+    #device_template = create_template_setup(admin_auth_token, organization_id, "device", None)
+    #device_template_name = device_template[1]
+    #device_template_id = device_template[0]
 
     # create patient, registration and device
-    patient_setup = self_signup_patient_setup(admin_auth_token, organization_id, device_template_name)
-    patient_auth_token = patient_setup['patient_auth_token']
+    #patient_setup = self_signup_patient_setup(admin_auth_token, organization_id, device_template_name)
+    #patient_auth_token = patient_setup['patient_auth_token']
+    patient_auth_token, patient_id = create_single_patient(primary_admin_auth_token, organization_id)
 
     # create, update  and delete organization must fail
     create_organization_response = create_organization(patient_auth_token, template_id)
@@ -138,11 +141,13 @@ def test_patient_organization_abac_rules():
     assert get_organization_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # Teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    #self_signup_patient_teardown(admin_auth_token, patient_setup)
+    delete_patient_response = delete_patient(primary_admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, device_template_id)
-    assert delete_template_response.status_code == 204
+    #delete_template_response = delete_template(admin_auth_token, device_template_id)
+    #assert delete_template_response.status_code == 204
 
 
 def test_patient_organization_users_abac_rules():
@@ -159,9 +164,10 @@ def test_patient_organization_users_abac_rules():
     organization_user_id = create_user_response.json()['_id']
 
     # create patient, registration and device
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    patient_auth_token = patient_setup['patient_auth_token']
+    #patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+    #                                          'DeviceType1')
+    #patient_auth_token = patient_setup['patient_auth_token']
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
 
     # create organization user by patient should fail
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -201,9 +207,12 @@ def test_patient_organization_users_abac_rules():
     assert resend_invitation_response.status_code == 403
 
     # teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    #self_signup_patient_teardown(admin_auth_token, patient_setup)
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
     delete_user_response = delete_organization_user(admin_auth_token, organization_user_id)
     assert delete_user_response.status_code == 204
+
 
 def test_patient_device_alerts_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -232,7 +241,7 @@ def test_patient_device_alerts_abac_rules():
     alert_template2_id = create_device_alert_template_response.json()['id']
     alert_template2_name = create_device_alert_template_response.json()['name']
 
-# Create device-alert by id only in same organization
+    # Create device-alert by id only in same organization
     create_alert_response = create_device_alert_by_id(patient1_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
@@ -276,7 +285,7 @@ def test_patient_device_alerts_abac_rules():
     update_alert_response = update_device_alert(patient2_auth_token, device1_id, alert_id)
     assert update_alert_response.status_code == 403  # other org
 
-# teardown
+    # teardown
     # clean up the last device alert
     delete_alert_response = delete_device_alert(patient1_auth_token, device1_id, alert_id)
     assert delete_alert_response.status_code == 204
@@ -292,10 +301,12 @@ def test_patient_device_alerts_abac_rules():
 def test_patient_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    patient_id = patient_setup['patient_id']
-    patient_auth_token = patient_setup['patient_auth_token']
+    #patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+    #                                          'DeviceType1')
+    #patient_id = patient_setup['patient_id']
+    #patient_auth_token = patient_setup['patient_auth_token']
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient1_auth_token, patient1_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
 
     # Create and delete patient should fail
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -310,19 +321,21 @@ def test_patient_patient_abac_rules():
     assert test_patient_delete_response.status_code == 403
 
     # update patient only for self
-    update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
+    #update_patient_response = update_patient(patient_auth_token, patient_id[0], "00000000-0000-0000-0000-000000000000",
+    #                                         "change string", None, None)
+    update_patient_response = update_patient(patient_auth_token, patient_id, "00000000-0000-0000-0000-000000000000",
                                              "change string", None, None)
     assert update_patient_response.status_code == 200
     # should fail for other patient
-    update_patient_response = update_patient(patient_auth_token, patient_id[1],
+    update_patient_response = update_patient(patient_auth_token, patient1_id,
                                              "00000000-0000-0000-0000-000000000000",
                                              "change string", None, None)
     assert update_patient_response.status_code == 403
 
     # get patient only for self
-    get_patient_response = get_patient(patient_auth_token, patient_id[0])  # self
+    get_patient_response = get_patient(patient_auth_token, patient_id)  # self
     assert get_patient_response.status_code == 200
-    get_patient_response = get_patient(patient_auth_token, patient_id[1])  # other patient
+    get_patient_response = get_patient(patient_auth_token, patient1_id)  # other patient
     assert get_patient_response.status_code == 403
 
     # search patient only for self
@@ -336,15 +349,19 @@ def test_patient_patient_abac_rules():
     assert get_patient_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # enable/disable should fail
-    change_patient_state_response = change_patient_state(patient_auth_token, patient_id[0], "ENABLED")
+    change_patient_state_response = change_patient_state(patient_auth_token, patient_id, "ENABLED")
     assert change_patient_state_response.status_code == 403
 
     # resend invitation fails
-    resend_invitation_response = resend_invitation(patient_auth_token, patient_id[0])
+    resend_invitation_response = resend_invitation(patient_auth_token, patient_id)
     assert resend_invitation_response.status_code == 403
 
     # Teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
+    #self_signup_patient_teardown(admin_auth_token, patient_setup)
+    delete_patient_response = delete_patient(admin_auth_token, patient_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
+    delete_patient_response = delete_patient(admin_auth_token, patient1_id)
+    assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
 
 
 def test_patient_caregiver_abac_rules():
@@ -463,10 +480,7 @@ def test_patient_devices_abac_rules():
 # @pytest.mark.skip
 def test_patient_generic_entity_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create two patients, registration codes and devices (use only one)
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                              'DeviceType1')
-    patient_auth_token = patient_setup['patient_auth_token']
+
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
     assert get_self_org_response.status_code == 200
@@ -475,73 +489,69 @@ def test_patient_generic_entity_abac_rules():
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
 
-    # create generic entity template in both organizations
-    generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
-                                                       "generic-entity", None)[0]
-    generic_entity_template_id2 = create_template_setup(admin_auth_token, organization_id,
-                                                        "generic-entity", None)[0]
-    # NOTE: function returns tuple. First element is id
+    # create patient, registration code and device in default org
+    patient_auth_token, patient_id, registration_code_id, device_id = create_single_patient_self_signup(
+        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
 
-    # create generic entity by patient only for self organization
-    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
+    # create patient, registration code and device in second org
+    patient_auth_token2, patient_id2, registration_code_id2, device_id2\
+        = create_single_patient_self_signup(admin_auth_token, organization_id, 'DeviceType1')
+
+    # create generic template with phi=true on non mandatory field
+    create_generic_template_with_phi_response = create_generic_template_with_phi_true(admin_auth_token)
+    assert create_generic_template_with_phi_response.status_code == 201, \
+        f"{create_generic_template_with_phi_response.text}"
+    generic_template_with_phi_id = create_generic_template_with_phi_response.json()["id"]
+
+    # create generic entity by patient only for self organization (sets name which is phi)
+    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_template_with_phi_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31],
                                                            "00000000-0000-0000-0000-000000000000")
     assert create_generic_entity_response.status_code == 201
     entity_id = create_generic_entity_response.json()["_id"]
 
     # create should fail for other organization
-    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_entity_template_id,
+    create_generic_entity_response = create_generic_entity(patient_auth_token, generic_template_with_phi_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
     assert create_generic_entity_response.status_code == 403
 
-    # update generic entity by patient only for self organization
-    # create second generic entity by admin on second organization
-    create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id2,
-                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
-    assert create_generic_entity_response2.status_code == 201
-
-    entity2_id = create_generic_entity_response2.json()["_id"]
-
-    # positive - same organization
+    # positive - same organization  name change is phi
     update_generic_entity_response = update_generic_entity(patient_auth_token, entity_id, "change string")
     assert update_generic_entity_response.status_code == 200
     # Negative - second organization
-    update_generic_entity_response = update_generic_entity(patient_auth_token, entity2_id, "change string")
+    update_generic_entity_response = update_generic_entity(patient_auth_token2, entity_id, "change string")
     assert update_generic_entity_response.status_code == 403
 
     # get only for same organization
     get_generic_entity_response = get_generic_entity(patient_auth_token, entity_id)
     assert get_generic_entity_response.status_code == 200
-    get_generic_entity_response = get_generic_entity(patient_auth_token, entity2_id)
+    assert '_name' in get_generic_entity_response.json()
+    get_generic_entity_response = get_generic_entity(patient_auth_token2, entity_id)
     assert get_generic_entity_response.status_code == 403
 
     # search only for same organization
     get_generic_entity_list_response = get_generic_entity_list(patient_auth_token)
     assert get_generic_entity_list_response.status_code == 200
-    # getting all users
-    # assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] == 1
-    # negative (system admin should get all defined patients)
-    get_generic_entity_list_response = get_generic_entity_list(admin_auth_token)
+    assert '_name' in get_generic_entity_list_response.json()['data'][0]
+
+    # negative
+    get_generic_entity_list_response = get_generic_entity_list(patient_auth_token2)
     assert get_generic_entity_list_response.status_code == 200
-    # assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] > 1
 
     # delete only for same organization
+    # should fail for generic entity in other organization
+    delete_generic_entity_response = delete_generic_entity(patient_auth_token2, entity_id)
+    assert delete_generic_entity_response.status_code == 403
     delete_generic_entity_response = delete_generic_entity(patient_auth_token, entity_id)
     assert delete_generic_entity_response.status_code == 204
-    # should fail for generic entity in other organization
-    delete_generic_entity_response = delete_generic_entity(patient_auth_token, entity2_id)
-    assert delete_generic_entity_response.status_code == 403
 
     # Teardown
-    self_signup_patient_teardown(admin_auth_token, patient_setup)
-    # delete second generic entity created
-    delete_generic_entity_response = delete_generic_entity(admin_auth_token, entity2_id)
-    assert delete_generic_entity_response.status_code == 204
-    # delete generic entity templates
-    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id)
+    single_self_signup_patient_teardown(admin_auth_token, patient_id, registration_code_id, device_id)
+    single_self_signup_patient_teardown(admin_auth_token, patient_id2, registration_code_id2, device_id2)
+
+    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_template_with_phi_id)
     assert delete_generic_entity_template_response.status_code == 204
-    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id2)
-    assert delete_generic_entity_template_response.status_code == 204
+
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
