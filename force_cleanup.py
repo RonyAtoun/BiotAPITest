@@ -32,14 +32,14 @@ def force_cleanup():
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
-        print("deviceId", device['_id'])
         if 'test' in device['_id'] or 'device_by_manu_admin' in device['_id'] or '343' in device['_id']:
             delete_device_response = delete_device(admin_auth_token, device['_id'])
             assert delete_device_response.status_code == 204
+            print("deviceId", device['_id'])
     get_patient_list_response = get_patient_list(admin_auth_token)
     assert get_patient_list_response.status_code == 200
     for patient in get_patient_list_response.json()['data']:
-        if "test" in patient['_name']['firstName']:
+        if '_name' in patient and "test" in patient['_name']['firstName']:
             print("patient", patient['_name'])
             patient_delete_response = delete_patient(admin_auth_token, patient['_id'])
             assert patient_delete_response.status_code == 204
@@ -59,7 +59,7 @@ def force_cleanup():
             get_generic_entity_list_response = get_generic_entity_list(admin_auth_token)
             assert get_generic_entity_list_response.status_code == 200
             for generic_entity in get_generic_entity_list_response.json()['data']:
-                print('generic entity', generic_entity['_name'])
+                print('generic entity', generic_entity['_id'])
                 delete_generic_entity_response = delete_generic_entity(admin_auth_token, generic_entity['_id'])
                 assert delete_generic_entity_response.status_code == 204
             delete_organization_response = delete_organization(admin_auth_token, org['_id'])
@@ -75,6 +75,7 @@ def force_cleanup():
                 print("Failed to delete template in use", template['name'])
 
     stop_simulation()
+
 
 if __name__ == "__main__":
     force_cleanup()
