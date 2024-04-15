@@ -183,7 +183,7 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     return template_id, patient_payload
 
 
-def create_single_patient(auth_token):
+def create_single_patient(auth_token, organization_id="00000000-0000-0000-0000-000000000000"):
     # create a patient
     # get the Patient template name
     template_list_response = get_all_templates(auth_token)
@@ -200,7 +200,7 @@ def create_single_patient(auth_token):
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
 
     create_patient_response = create_patient(auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
+                                             organization_id)
     assert create_patient_response.status_code == 201, f"{create_patient_response.text}"
     patient_id = create_patient_response.json()['_id']
 
