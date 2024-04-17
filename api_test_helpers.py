@@ -183,6 +183,22 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     return template_id, patient_payload
 
 
+def map_template(template):
+    custom_attributes = template['customAttributes']
+    for attribute in custom_attributes:
+        attribute['category'] = attribute['category']['name']
+
+    template_attributes = template['templateAttributes']
+    for attribute in template_attributes:
+        value = attribute['organizationSelection']['configuration']
+        attribute['organizationSelectionConfiguration'] = value
+        del attribute['organizationSelection']
+
+    return template
+
+
+
+
 def get_manu_admin_credentials(auth_token, organization_id):
     # accept invitation as an admin of custom Org-n
     get_organisation_response = get_organization(auth_token, organization_id)
