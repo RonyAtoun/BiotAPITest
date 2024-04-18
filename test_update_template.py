@@ -56,6 +56,9 @@ def main():
     get_template_response = get_template(admin_auth_token, template_id)
     assert get_template_response.status_code == 200, f"{get_template_response.text}"
 
+    # teardown
+    single_self_signup_patient_teardown(admin_auth_token, patient1_id, registration_code1_id, device1_id)
+
 
 if __name__ == "__main__":
     main()
