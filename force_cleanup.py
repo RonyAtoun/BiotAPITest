@@ -9,6 +9,20 @@ from API_drivers import *
 
 def force_cleanup():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    get_registration_code_list_response = get_registration_code_list(admin_auth_token)
+    assert get_registration_code_list_response.status_code == 200
+    for reg_code in get_registration_code_list_response.json()['data']:
+        print(f"reg_code_id: {reg_code['_id']}")
+        delete_reg_response = delete_registration_code(admin_auth_token, reg_code['_id'])
+        assert delete_reg_response.status_code == 204
+    get_org_users_list_response = get_organization_user_list(admin_auth_token)
+    assert get_org_users_list_response.status_code == 200
+    for user in get_org_users_list_response.json()['data']:
+        if 'test' in user['_name']['firstName']:
+            print(f"org user name: {user['_name']}")
+            delete_org_user_response = delete_organization_user(admin_auth_token, user['_id'])
+            assert delete_org_user_response.status_code == 204
+
     get_device_alert_list_response = get_device_alert_list(admin_auth_token, None)
     if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
         assert get_device_alert_list_response.status_code == 200
