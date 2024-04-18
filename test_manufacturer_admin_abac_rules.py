@@ -35,7 +35,7 @@ def test_manu_admin_command_abac_rules():
     # start simulation
     simulator_status_response = check_simulator_status()
     assert simulator_status_response == "NO_RUNNING_SIMULATION"
-    start_simulation_with_existing_device(device_id, os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    start_simulation_with_existing_device(device_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Start Command in Default Org-n
     start_command_response = start_command_by_id(auth_token, device_id, command_template_id)
@@ -176,7 +176,7 @@ def test_manu_admin_patient_abac_rules():
     # TEST - Edit Patient in Custom Organisation - must be allowed
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
-    assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
+    assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     change_string = "Updated description"
     update_patient_response = update_patient_without_caregiver(auth_token, patient_id, organization_id, change_string)
@@ -235,7 +235,7 @@ def test_manu_admin_patient_abac_rules():
     # TEST - Delete Custom Organisation
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
-    assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
+    assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     delete_organisation_response = delete_organization(auth_token, organization_id)
     assert delete_organisation_response.status_code == 204, f"Status code {delete_organisation_response.status_code}" \
@@ -244,7 +244,7 @@ def test_manu_admin_patient_abac_rules():
     # TEST - Create Patient in Default Organisation - without phi attributes
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
-    assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
+    assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     organization_id = DEFAULT_ORGANISATION_ID
     email = f'integ_test_no_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
@@ -257,7 +257,7 @@ def test_manu_admin_patient_abac_rules():
     # TEST - Create Patient in Default Organisation - with phi attributes - must be forbidden
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
-    assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
+    assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     organization_id = DEFAULT_ORGANISATION_ID
     email = f'integ_test_patient_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
@@ -928,6 +928,7 @@ def test_manu_admin_portal_builder_abac_rules():
     update_portal_view_response = update_portal_views(admin_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
     assert update_portal_view_response.status_code == 200, f"{update_portal_view_response.text}"
 
+
 @pytest.mark.skip
 def test_manu_admin_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -1036,7 +1037,7 @@ def test_manu_admin_usage_session_abac_rules():
     # Start a session with device in simulator
     simulator_status_response = check_simulator_status()
     assert simulator_status_response == "NO_RUNNING_SIMULATION"
-    start_simulation_with_existing_device(device_id, os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    start_simulation_with_existing_device(device_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     simulation_status_response = get_simulation_status()
     device_id_in_simulation_status = simulation_status_response.json()['devicesStatus'][0]['deviceStatistics'][
         'deviceId']
