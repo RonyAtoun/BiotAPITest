@@ -5,7 +5,7 @@ import pytest
 
 
 def test_manu_admin_command_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create device template
     device_template_response = create_device_template_with_session(auth_token)
@@ -93,7 +93,7 @@ def test_manu_admin_command_abac_rules():
 def test_manu_admin_organisation_abac_rules():
     # TEST - Create Organization
     env = os.getenv("ENDPOINT")
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
     assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
                                                             f"{create_organization_response.text}"
@@ -130,7 +130,7 @@ def test_manu_admin_organisation_abac_rules():
 @pytest.mark.skip
 def test_manu_admin_patient_abac_rules():
     # TEST - Create Patient in Custom Organisation - must be forbidden
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_patient_template_response = get_template_by_id(auth_token, PATIENT_TEMPLATE_ID)
     payload = get_patient_template_response.json()
     update_patient_template_response = update_patient_template(auth_token, PATIENT_TEMPLATE_ID, payload)
@@ -174,7 +174,7 @@ def test_manu_admin_patient_abac_rules():
     assert phi_attribute_value == "testphi", f"phi attribute is '{phi_attribute_value}' instead of expected"
 
     # TEST - Edit Patient in Custom Organisation - must be allowed
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
@@ -233,7 +233,7 @@ def test_manu_admin_patient_abac_rules():
                                                        f"{delete_patient_response.text}"
 
     # TEST - Delete Custom Organisation
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
@@ -242,7 +242,7 @@ def test_manu_admin_patient_abac_rules():
                                                             f"{delete_organisation_response.text}"
 
     # TEST - Create Patient in Default Organisation - without phi attributes
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
@@ -255,7 +255,7 @@ def test_manu_admin_patient_abac_rules():
     patient_id = create_patient_default_response.json()["_id"]
 
     # TEST - Create Patient in Default Organisation - with phi attributes - must be forbidden
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == os.getenv('MANU_ADMIN_LOGIN'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
@@ -284,7 +284,7 @@ def test_manu_admin_patient_abac_rules():
 
 
 def test_manu_admin_caregiver_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Custom Organisation
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
@@ -362,7 +362,7 @@ def test_manu_admin_caregiver_abac_rules():
 
 
 def test_manu_admin_org_user_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Custom Organisation
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
@@ -440,7 +440,7 @@ def test_manu_admin_org_user_abac_rules():
 
 
 def test_manu_admin_device_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Device Template
     device_template_response = create_device_template_with_session(auth_token)
@@ -488,7 +488,7 @@ def test_manu_admin_device_abac_rules():
 
 
 def test_manu_admin_generic_entity_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create generic template without phi=true
     create_generic_template_no_phi_response = create_generic_template(auth_token)
@@ -539,7 +539,7 @@ def test_manu_admin_generic_entity_abac_rules():
 
 
 def test_manu_admin_registration_code_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create Registration Code template
     create_registration_code_template_response = create_registration_code_template(auth_token)
@@ -571,7 +571,7 @@ def test_manu_admin_registration_code_abac_rules():
 
 
 def test_manu_admin_device_alerts_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # Create Device template
     device_template_response = create_device_template_with_session(auth_token)
@@ -603,7 +603,7 @@ def test_manu_admin_device_alerts_abac_rules():
     accept_invitation(caregiver_email)
 
     # Create Device in Custom organisation
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     create_device_response = create_device_without_registration_code(auth_token, device_template_name, organization_id)
     device_id = create_device_response.json()["_id"]
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
@@ -639,7 +639,7 @@ def test_manu_admin_device_alerts_abac_rules():
     assert delete_device_alert_response.status_code == 204, f"{delete_device_alert_response.text}"
 
     # Delete Device
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     delete_device_response = delete_device(auth_token, device_id)
     assert delete_device_response.status_code == 204, f"{delete_device_alert_response.text}"
 
@@ -653,7 +653,7 @@ def test_manu_admin_device_alerts_abac_rules():
 
 
 def test_manu_admin_patient_alert_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Custom Organisation
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
@@ -684,7 +684,7 @@ def test_manu_admin_patient_alert_abac_rules():
     accept_invitation(patient_email)
 
     # create a Patient Alert Template
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     name = f'alert_templ{uuid.uuid4().hex}'[0:32]
     create_patient_alert_template_response = create_patient_alert_template(auth_token, PATIENT_TEMPLATE_ID, name)
     assert create_patient_alert_template_response.status_code == 201, f'{create_patient_alert_template_response.text}'
@@ -722,7 +722,7 @@ def test_manu_admin_patient_alert_abac_rules():
     assert delete_patient_alert_response.status_code == 204, f"{delete_patient_alert_response.text}"
 
     # TEST - Delete Patient
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     delete_patient_response = delete_patient(auth_token, patient_id)
     assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
 
@@ -736,7 +736,7 @@ def test_manu_admin_patient_alert_abac_rules():
 
 
 def test_manu_admin_locales_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Get available Locales
     get_locales_response = get_available_locales(auth_token)
@@ -785,7 +785,7 @@ def test_manu_admin_locales_abac_rules():
 
 
 def test_manu_admin_ums_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create caregiver by admin in default organization
     name = {"firstName": 'Manu',
             "lastName": 'Admin'}
@@ -819,13 +819,13 @@ def test_manu_admin_ums_abac_rules():
     assert bool(new_manu_admin_auth_token) is True
 
     # Delete Organisation user
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     delete_manu_admin_response = delete_organization_user(admin_auth_token, manu_admin_id)
     assert delete_manu_admin_response.status_code == 204, f"{delete_manu_admin_response.text}"
 
 
 def test_manu_admin_plugin_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Create Plugin
     plugin_name = f'plugin{uuid.uuid4().hex}'[0:16]
@@ -856,7 +856,7 @@ def test_manu_admin_plugin_abac_rules():
 
 
 def test_manu_admin_dms_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Create report
     create_report_response = create_report(admin_auth_token)
@@ -883,7 +883,7 @@ def test_manu_admin_dms_abac_rules():
 
 
 def test_manu_admin_templates_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - View templates should succeed
     view_template_response = get_templates_list(admin_auth_token)
@@ -915,7 +915,7 @@ def test_manu_admin_templates_abac_rules():
 
 
 def test_manu_admin_portal_builder_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - View full portal information
     view_portal_response = view_full_portal_information(admin_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
@@ -930,7 +930,7 @@ def test_manu_admin_portal_builder_abac_rules():
 
 @pytest.mark.skip
 def test_manu_admin_adb_abac_rules():
-    admin_auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Deploy ADB
     deploy_response = deploy_adb(admin_auth_token)
@@ -971,7 +971,7 @@ def test_manu_admin_adb_abac_rules():
 
 
 def test_manu_admin_usage_session_abac_rules():
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Device Template
     device_template_response = create_device_template_with_session(auth_token)
@@ -1006,7 +1006,7 @@ def test_manu_admin_usage_session_abac_rules():
         f"Actual email '{get_self_user_email_response}' does not match the expected"
 
     # create Device in a Custom Org-n
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     create_device_response = create_device_without_registration_code(auth_token, template_name, organization_id)
     device_id = create_device_response.json()["_id"]
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
@@ -1029,7 +1029,7 @@ def test_manu_admin_usage_session_abac_rules():
         f"Actual email '{get_self_user_email_response}' does not match the expected"
 
     # assign device to a Patient
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     update_device_response = update_device_with_new_patient(auth_token, device_id, patient_id)
     assert update_device_response.status_code == 200, f"{update_device_response.text}"
 
@@ -1043,7 +1043,7 @@ def test_manu_admin_usage_session_abac_rules():
     assert device_id_in_simulation_status == device_id, "Simulation is not started with expected device"
 
     # TEST - Start a Remote Usage session and Get a Remote Usage session by ID
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     start_usage_session_response = start_usage_session_without_name(auth_token, device_id, usage_session_template_id,
                                                                     patient_id)
     assert start_usage_session_response.status_code == 201, f"{start_usage_session_response.text}"
@@ -1141,7 +1141,7 @@ def test_manu_admin_usage_session_abac_rules():
     assert i == 2, "PHI attribute is not visible for Patient"
 
     # TEST - Verify that phi=true attribute is not seen by Manu Admin
-    auth_token = login_with_credentials(os.getenv('MANU_ADMIN_LOGIN'), os.getenv('MANU_ADMIN_PASSWORD'))
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_usage_session_response = get_usage_session_by_id(auth_token, device_id, usage_session_id)
     usage_session = json.loads(get_usage_session_response.text)
     i = 0
