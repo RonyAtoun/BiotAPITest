@@ -78,7 +78,7 @@ def delete_locale(auth_token, locale_id):
         "content-type": "application/json",
         "Authorization": "Bearer " + auth_token
     }
-    return requests.delete(ENDPOINT + '/settings/v1/locales/{id)'.replace('{id', locale_id), headers=headers)
+    return requests.delete(ENDPOINT + '/settings/v1/locales/{id}'.replace('{id}', locale_id), headers=headers)
 
 
 def update_locale(auth_token, code):
