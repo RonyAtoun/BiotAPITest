@@ -2,6 +2,7 @@ from test_constants import *
 from email_interface import *
 from API_drivers import *
 import pytest
+from api_test_helpers import map_template
 
 
 def test_manu_admin_command_abac_rules():
@@ -22,8 +23,9 @@ def test_manu_admin_command_abac_rules():
 
     # create command template #2
     command_template2_name = f'cmd_support_stop2_{uuid.uuid4().hex}'[0:32]
-    create_command_template2_response = create_command_template_with_support_stop_true(auth_token, command_template2_name,
-                                                                                      device_template_id)
+    create_command_template2_response = create_command_template_with_support_stop_true(auth_token,
+                                                                                       command_template2_name,
+                                                                                       device_template_id)
     assert create_command_template2_response.status_code == 201, f"{create_command_template2_response.text}"
     command_template2_id = create_command_template_response.json()['id']
 
@@ -92,7 +94,6 @@ def test_manu_admin_command_abac_rules():
 
 def test_manu_admin_organisation_abac_rules():
     # TEST - Create Organization
-    env = os.getenv("ENDPOINT")
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
     assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
@@ -127,18 +128,40 @@ def test_manu_admin_organisation_abac_rules():
                                                                     f"{delete_organisation_response.text}"
 
 
-@pytest.mark.skip
 def test_manu_admin_patient_abac_rules():
-    # TEST - Create Patient in Custom Organisation - must be forbidden
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    get_patient_template_response = get_template_by_id(auth_token, PATIENT_TEMPLATE_ID)
-    payload = get_patient_template_response.json()
-    update_patient_template_response = update_patient_template(auth_token, PATIENT_TEMPLATE_ID, payload)
+    get_patient_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
 
+    # add phi attribute to Patient template
+    phi_object = {
+        "name": "test_phi_object_patient",
+        "id": str(uuid.uuid4()),
+        "basePath": None,
+        "displayName": "test phi object patient",
+        "phi": True,
+        "type": "LABEL",
+        "validation": {
+            "mandatory": False,
+            "min": None,
+            "max": None,
+            "regex": None
+        },
+        "numericMetaData": None,
+        "referenceConfiguration": None
+    }
+    (template_payload['customAttributes']).append(phi_object)
+    update_template_response = update_template(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create Custom Organisation
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
     assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
                                                             f"{create_organization_response.text}"
     organization_id = create_organization_response.json()['_id']
+
+    # TEST - Create Patient in Custom Organisation - must be forbidden
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
             "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
@@ -157,18 +180,19 @@ def test_manu_admin_patient_abac_rules():
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == primary_admin_email, \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
-    email = f'integ_test_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
 
-    # create a Patient with phi attribute in Custom Organisation
+    # create a Patient with phi attribute in Custom Organisation as Admin of custom Org-n
     create_patient_custom_response = create_patient_with_phi(auth_token, name, email, PATIENT_TEMPLATE_NAME,
-                                                             organization_id)  # create patient with phi attributes
-    phi_attribute = "phitruelabel"
+                                                             organization_id,
+                                                             "test_phi_object_patient")  # create patient with phi attributes
+    phi_attribute_key = "test_phi_object_patient"
     assert create_patient_custom_response.status_code == 201, f"Status code " \
                                                               f"{create_patient_custom_response.status_code}" \
                                                               f" {create_patient_custom_response.text}"
     patient_id = create_patient_custom_response.json()["_id"]
     get_patient_by_id_response = get_patient(auth_token, patient_id)
-    phi_attribute_value = get_patient_by_id_response.json()["phitruelabel"]
+    phi_attribute_value = get_patient_by_id_response.json()["test_phi_object_patient"]
     assert phi_attribute_value in get_patient_by_id_response.text, \
         f"'{phi_attribute_value}' should be present in the response"
     assert phi_attribute_value == "testphi", f"phi attribute is '{phi_attribute_value}' instead of expected"
@@ -186,14 +210,14 @@ def test_manu_admin_patient_abac_rules():
     assert updated_description == change_string, f"'{updated_description}' doesn't match the expected value " \
                                                  f"{change_string}"
 
-    # TEST - Get Patient by ID in Custom Organisation and Verify that phi attribute is not seen for manu admin
+    # TEST - Get Patient by ID in Custom Organisation and Verify that phi attribute is not seen for Manu admin
     get_patient_by_id_response = get_patient(auth_token, patient_id)
     assert get_patient_by_id_response.status_code == 200, f"Status code {get_patient_by_id_response.status_code} " \
                                                           f"{get_patient_by_id_response.text}"
     assert patient_id == get_patient_by_id_response.json()["_id"], f"{patient_id} doesn't match the expected"
     patient = json.loads(get_patient_by_id_response.text)
     for key, value in patient.items():
-        assert phi_attribute not in key, f"PHI=true attribute {phi_attribute} is present in response"
+        assert phi_attribute_key not in key, f"PHI=true attribute {phi_attribute_key} is present in response"
 
     # TEST - Disable a Patient in Custom Organisation
     disable_patient_response = change_patient_state(auth_token, patient_id, state='DISABLED')
@@ -203,7 +227,7 @@ def test_manu_admin_patient_abac_rules():
                                                                       f"{disable_patient_response.json()['_enabled']}" \
                                                                       f" instead of ""DISABLED"
 
-    # TEST - Disable a Patient in Custom Organisation
+    # TEST - Enable a Patient in Custom Organisation
     enable_patient_response = change_patient_state(auth_token, patient_id, state='ENABLED')
     assert enable_patient_response.status_code == 200, f"Status code {enable_patient_response.status_code} " \
                                                        f"{enable_patient_response.text}"
@@ -225,14 +249,14 @@ def test_manu_admin_patient_abac_rules():
     all_patients = patients_data["data"]
     for patient in all_patients:
         for key, value in patient.items():
-            assert phi_attribute not in key, f"PHI=true attribute {phi_attribute} is present in response"
+            assert phi_attribute_key not in key, f"PHI=true attribute {phi_attribute_key} is present in response"
 
     # TEST - Delete Patient in Custom Organisation
     delete_patient_response = delete_patient(auth_token, patient_id)
     assert delete_patient_response.status_code == 204, f"Status code {delete_patient_response.status_code} " \
                                                        f"{delete_patient_response.text}"
 
-    # TEST - Delete Custom Organisation
+    # Delete Custom Organisation
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == os.getenv('USERNAME'), \
@@ -247,7 +271,7 @@ def test_manu_admin_patient_abac_rules():
     assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     organization_id = DEFAULT_ORGANISATION_ID
-    email = f'integ_test_no_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_default_response = create_patient(auth_token, name, email, "Patient", organization_id)
     assert create_patient_default_response.status_code == 201, f"Status code " \
                                                                f"{create_patient_default_response.status_code}" \
@@ -260,9 +284,9 @@ def test_manu_admin_patient_abac_rules():
     assert get_self_user_email_response == os.getenv('USERNAME'), \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
     organization_id = DEFAULT_ORGANISATION_ID
-    email = f'integ_test_patient_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    email = f'integ_test{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_with_phi_default_response = create_patient_with_phi(auth_token, name, email, PATIENT_TEMPLATE_NAME,
-                                                                       organization_id)
+                                                                       organization_id, "test_phi_object_patient")
     assert create_patient_with_phi_default_response.status_code == 403, \
         f"{create_patient_with_phi_default_response.text}"
 
@@ -282,6 +306,19 @@ def test_manu_admin_patient_abac_rules():
     assert delete_patient_response.status_code == 204, f"Status code {delete_patient_response.status_code}" \
                                                        f"{delete_patient_response.text}"
 
+    # revert changes in Patient Template
+    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == "test_phi_object_patient":
+            del template_payload['customAttributes'][index]
+            continue
+        else:
+            index += 1
+    update_template_response = update_template(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
 
 def test_manu_admin_caregiver_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
@@ -296,6 +333,7 @@ def test_manu_admin_caregiver_abac_rules():
 
     # create Caregiver Template
     create_caregiver_template_response = create_caregiver_template(auth_token)
+    assert create_caregiver_template_response.status_code == 201, f"{create_caregiver_template_response.text}"
     template_name = create_caregiver_template_response.json()["name"]
     template_id = create_caregiver_template_response.json()["id"]
     email = f'Caregiver_Templ_{uuid.uuid4().hex}'[0:35] + '@biotmail.com'
@@ -374,6 +412,7 @@ def test_manu_admin_org_user_abac_rules():
 
     # create Org-n User Template
     create_org_user_template_response = create_org_user_template(auth_token)
+    assert create_org_user_template_response.status_code == 201, f"{create_org_user_template_response.text}"
     template_name = create_org_user_template_response.json()["name"]
     template_id = create_org_user_template_response.json()["id"]
     email = f'Org_User_Template_{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
@@ -594,12 +633,12 @@ def test_manu_admin_device_alerts_abac_rules():
     # create a Caregiver in Custom Organisation
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
             "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    caregiver_email = f'integ_test_phi{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_caregiver_custom_response = create_caregiver(auth_token, name, caregiver_email, "Clinician",
-                                                             organization_id)
+                                                        organization_id)
     assert create_caregiver_custom_response.status_code == 201, f"Status code " \
-                                                              f"{create_caregiver_custom_response.status_code}" \
-                                                              f" {create_caregiver_custom_response.text}"
+                                                                f"{create_caregiver_custom_response.status_code}" \
+                                                                f" {create_caregiver_custom_response.text}"
     accept_invitation(caregiver_email)
 
     # Create Device in Custom organisation
@@ -732,7 +771,7 @@ def test_manu_admin_patient_alert_abac_rules():
 
     # delete Patient Alert template
     delete_patient_alert_template_response = delete_template(auth_token, patient_alert_template_id)
-    assert delete_patient_alert_template_response.status_code == 204, f"{ delete_patient_alert_template_response.text}"
+    assert delete_patient_alert_template_response.status_code == 204, f"{delete_patient_alert_template_response.text}"
 
 
 def test_manu_admin_locales_abac_rules():
@@ -949,7 +988,7 @@ def test_manu_admin_adb_abac_rules():
     while adb_state != "ACTIVE_AND_SYNC_OFF":
         get_adb_info_response = get_adb_info(admin_auth_token)
         adb_state = get_adb_info_response.json()["activationState"]
-    assert adb_state == "ACTIVE_AND_SYNC_OFF",  f"Expected state 'ACTIVE_AND_SYNC_OFF', actual state '{adb_state}'"
+    assert adb_state == "ACTIVE_AND_SYNC_OFF", f"Expected state 'ACTIVE_AND_SYNC_OFF', actual state '{adb_state}'"
 
     # TEST - Stop init
     start_init_response = start_init_adb(admin_auth_token)
@@ -962,7 +1001,7 @@ def test_manu_admin_adb_abac_rules():
     while adb_state != "INACTIVE":
         get_adb_info_response = get_adb_info(admin_auth_token)
         adb_state = get_adb_info_response.json()["activationState"]
-    assert adb_state == "INACTIVE",  f"Expected state 'INACTIVE', actual state '{adb_state}'"
+    assert adb_state == "INACTIVE", f"Expected state 'INACTIVE', actual state '{adb_state}'"
 
     # TEST - Stop sync
 
@@ -1175,3 +1214,97 @@ def test_manu_admin_usage_session_abac_rules():
     # Delete Device template
     delete_device_template_response = delete_template(auth_token, device_template_id)
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
+
+
+def test_manu_admin_files_abac_rules():
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+
+    # create a Custom Organisation
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # create Generic template with file attribute
+    create_generic_template_response = create_generic_template(auth_token)
+    assert create_generic_template_response.status_code == 201, f"{create_generic_template_response.text}"
+    generic_template_id = create_generic_template_response.json()["id"]
+    get_generic_template_response = get_template(auth_token, generic_template_id)
+    assert get_generic_template_response.status_code == 200, f"{get_generic_template_response.text}"
+    template_payload = map_template(get_generic_template_response.json())
+
+    # add file attribute to Generic template
+    file_attribute = {
+        "name": "file_attr_integ_test",
+        "type": "FILE",
+        "displayName": "file_attr_integ_test",
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "max": 3221225472
+        },
+        "selectableValues": [],
+        "category": "REGULAR"
+    }
+    file_attribute_name = "file_attr_integ_test"
+    (template_payload['customAttributes']).append(file_attribute)
+    update_template_response = update_template(auth_token, generic_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create Generic Entity in Default Organisation
+    generic_name = f"Generic_File_Def_{uuid.uuid4().hex}"[0:32]
+    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
+                                                           DEFAULT_ORGANISATION_ID)
+    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
+    generic_entity1_id = create_generic_entity_response.json()["_id"]
+
+    # create Generic Entity in Custom Organisation
+    generic_name = f"Generic_File_Cus_{uuid.uuid4().hex}"[0:32]
+    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
+                                                           organization_id)
+    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
+    generic_entity2_id = create_generic_entity_response.json()["_id"]
+
+    # create files in Custom Organization and Default
+    name = f'test_file{uuid.uuid4().hex}'[0:16]
+    mime_type = 'text/plain'
+    data = open('./upload-file.txt', 'rb').read()
+    create_file_response = create_file(auth_token, name, mime_type)
+    assert create_file_response.status_code == 200, f"{create_file_response.text}"
+    file1_id = create_file_response.json()['id']
+    signed_url = create_file_response.json()['signedUrl']
+    upload_response = requests.put(signed_url, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200, f"{upload_response.text}"
+    create_file2_response = create_file(auth_token, name, mime_type)
+    assert create_file2_response.status_code == 200, f"{create_file2_response.text}"
+    file2_id = create_file2_response.json()['id']
+    signed_url2 = create_file2_response.json()['signedUrl']
+    upload_response = requests.put(signed_url2, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200, f"{upload_response.text}"
+
+    # associate files with Generic entities
+    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity1_id, file_attribute_name, file1_id)
+    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
+    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity2_id, file_attribute_name,
+                                                              file2_id)
+    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
+
+    # TEST - Get file in Default Organisation - success
+    get_file_response = get_file(auth_token, file2_id)
+    assert get_file_response.status_code == 200, f"{get_file_response.text}"
+
+    # TEST - Get file in Custom Organisation - success
+    get_file_response = get_file(auth_token, file1_id)
+    assert get_file_response.status_code == 200, f"{get_file_response.text}"
+
+    # delete Custom Organisation
+    delete_organization_response = delete_organization(auth_token, organization_id)
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
+
+    # delete generic entities
+    delete_generic_response = delete_generic_entity(auth_token, generic_entity1_id)
+    assert delete_generic_response.status_code== 204, f"{delete_generic_response.text}"
+
+    # delete generic entity template
+    delete_generic_template = delete_template(auth_token, generic_template_id)
+    assert delete_generic_template.status_code == 204, f"{delete_generic_template.text}"
