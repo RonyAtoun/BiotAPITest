@@ -3,6 +3,7 @@ import os
 import uuid
 import requests
 from urllib.parse import urlencode
+import pytest
 
 # from test_constants import *
 
@@ -295,7 +296,7 @@ def create_patient(auth_token, name, email, template_name, organization_id):
                          .replace("{templateName}", template_name), headers=headers, data=json.dumps(payload))
 
 
-def create_patient_with_phi(auth_token, name, email, template_name, organization_id):
+def create_patient_with_phi(auth_token, name, email, template_name, organization_id, phi_attribute_name):
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
@@ -305,7 +306,7 @@ def create_patient_with_phi(auth_token, name, email, template_name, organization
     payload = {
         "_name": name,
         "_description": "Lorem Ipsum",
-        "phitruelabel": "testphi",
+        phi_attribute_name: "testphi",
         "_email": email,
         # "_phone": "+12345678901",
         "_locale": "en-us",
@@ -1200,6 +1201,13 @@ def update_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
+def update_patient_template(auth_token, template_id, payload):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
+                        headers=headers, data=json.dumps(payload))
+
+
 def get_template_by_id(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v1/templates/{template_id}'
@@ -1386,7 +1394,7 @@ def create_generic_template_with_phi_true(auth_token):
 def update_patient_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
-                        headers=headers, data=json.dumps(payload))
+                        headers=headers, data=payload)
 
 
 def create_registration_code_template(auth_token):
@@ -1494,6 +1502,13 @@ def update_generic_entity(auth_token, entity_id, change_string):
     payload = {
         "_name": change_string,
     }
+    return requests.patch(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
+                          headers=headers, data=json.dumps(payload))
+
+
+def update_generic_entity_with_file(auth_token, entity_id, file_attribute_name, file_id):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+    payload = {file_attribute_name: {"id": file_id}}
     return requests.patch(ENDPOINT + '/generic-entity/v1/generic-entities/{id}'.replace('{id}', entity_id),
                           headers=headers, data=json.dumps(payload))
 
