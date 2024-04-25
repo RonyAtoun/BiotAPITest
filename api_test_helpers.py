@@ -197,8 +197,6 @@ def map_template(template):
     return template
 
 
-
-
 def get_manu_admin_credentials(auth_token, organization_id):
     # accept invitation as an admin of custom Org-n
     get_organisation_response = get_organization(auth_token, organization_id)

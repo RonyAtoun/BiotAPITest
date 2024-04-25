@@ -307,7 +307,7 @@ def test_caregiver_patient_abac_rules():
     assert test_patient_create_response.status_code == 201
     default_org_patient_id = test_patient_create_response.json()['_id']
 
-    # update patient only for self
+    # update patient only for own org
     update_patient_response = update_patient(caregiver_auth_token, new_org_patient_id, organization_id,
                                              "change string", None, None)
     assert update_patient_response.status_code == 200
@@ -320,8 +320,14 @@ def test_caregiver_patient_abac_rules():
     # get patient only in same organization
     get_patient_response = get_patient(caregiver_auth_token, new_org_patient_id)  # same org
     assert get_patient_response.status_code == 200
+    can_login_val = not get_patient_response.json()['_canLogin']
     get_patient_response = get_patient(caregiver_auth_token, default_org_patient_id)  # other org patient
     assert get_patient_response.status_code == 403
+
+    # update canLoging should fail
+    update_patient_response = update_patient(caregiver_auth_token, new_org_patient_id, organization_id,
+                                             None, None, {"_canLogin": can_login_val})
+    assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
     # search patient only in same organization
 

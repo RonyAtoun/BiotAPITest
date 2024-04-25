@@ -312,13 +312,19 @@ def test_patient_patient_abac_rules():
     update_patient_response = update_patient(patient_auth_token, patient1_id,
                                              "00000000-0000-0000-0000-000000000000",
                                              "change string", None, None)
-    assert update_patient_response.status_code == 403
+    assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
     # get patient only for self
     get_patient_response = get_patient(patient_auth_token, patient_id)  # self
     assert get_patient_response.status_code == 200
+    can_login_val = not get_patient_response.json()['_canLogin']
     get_patient_response = get_patient(patient_auth_token, patient1_id)  # other patient
     assert get_patient_response.status_code == 403
+
+    # update canLoging should fail
+    update_patient_response = update_patient(patient_auth_token, patient1_id, "00000000-0000-0000-0000-000000000000",
+                                             None, None, {"_canLogin": can_login_val})
+    assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
     # search patient only for self
     # Positive - for self
