@@ -1201,13 +1201,6 @@ def update_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
-# def update_patient_template(auth_token, template_id, payload):
-#     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-#
-#     return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
-#                         headers=headers, data=json.dumps(payload))
-
-
 def get_template_by_id(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v1/templates/{template_id}'
