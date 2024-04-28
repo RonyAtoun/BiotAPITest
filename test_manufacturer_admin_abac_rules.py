@@ -136,7 +136,7 @@ def test_manu_admin_patient_abac_rules():
 
     # add phi attribute to Patient template
     phi_object = {
-        "name": "test_phi_object_patient",
+        "name": f'test_phi_object_patient{uuid.uuid4().hex}'[0:36],
         "id": str(uuid.uuid4()),
         "basePath": None,
         "displayName": "test phi object patient",
@@ -162,7 +162,7 @@ def test_manu_admin_patient_abac_rules():
     organization_id = create_organization_response.json()['_id']
 
     # TEST - Create Patient in Custom Organisation - must be forbidden
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
             "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_custom_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME, organization_id)
@@ -1028,8 +1028,9 @@ def test_manu_admin_files_abac_rules():
     template_payload = map_template(get_generic_template_response.json())
 
     # add file attribute to Generic template
+    file_attribute_name = f'file_attr_integ_test{uuid.uuid4().hex}'[0:36]
     file_attribute = {
-        "name": "file_attr_integ_test",
+        "name": file_attribute_name,
         "type": "FILE",
         "displayName": "file_attr_integ_test",
         "phi": False,
@@ -1040,7 +1041,6 @@ def test_manu_admin_files_abac_rules():
         "selectableValues": [],
         "category": "REGULAR"
     }
-    file_attribute_name = "file_attr_integ_test"
     (template_payload['customAttributes']).append(file_attribute)
     update_template_response = update_template(auth_token, generic_template_id, template_payload)
     assert update_template_response.status_code == 200, f"{update_template_response.text}"
@@ -1105,7 +1105,6 @@ def test_manu_admin_files_abac_rules():
     assert delete_generic_template.status_code == 204, f"{delete_generic_template.text}"
 
 
-# @pytest.mark.skip
 def test_manu_admin_measurements_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
