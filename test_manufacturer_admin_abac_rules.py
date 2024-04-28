@@ -135,8 +135,9 @@ def test_manu_admin_patient_abac_rules():
     template_payload = map_template(get_patient_template_response.json())
 
     # add phi attribute to Patient template
+    phi_name = f'test_phi_object_patient{uuid.uuid4().hex}'[0:36]
     phi_object = {
-        "name": f'test_phi_object_patient{uuid.uuid4().hex}'[0:36],
+        "name": phi_name,
         "id": str(uuid.uuid4()),
         "basePath": None,
         "displayName": "test phi object patient",
@@ -185,14 +186,14 @@ def test_manu_admin_patient_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_custom_response = create_patient_with_phi(auth_token, name, email, PATIENT_TEMPLATE_NAME,
                                                              organization_id,
-                                                             "test_phi_object_patient")  # create patient with phi attributes
-    phi_attribute_key = "test_phi_object_patient"
+                                                             phi_name)  # create patient with phi attributes
+    phi_attribute_key = phi_name
     assert create_patient_custom_response.status_code == 201, f"Status code " \
                                                               f"{create_patient_custom_response.status_code}" \
                                                               f" {create_patient_custom_response.text}"
     patient_id = create_patient_custom_response.json()["_id"]
     get_patient_by_id_response = get_patient(auth_token, patient_id)
-    phi_attribute_value = get_patient_by_id_response.json()["test_phi_object_patient"]
+    phi_attribute_value = get_patient_by_id_response.json()[phi_name]
     assert phi_attribute_value in get_patient_by_id_response.text, \
         f"'{phi_attribute_value}' should be present in the response"
     assert phi_attribute_value == "testphi", f"phi attribute is '{phi_attribute_value}' instead of expected"
@@ -286,7 +287,7 @@ def test_manu_admin_patient_abac_rules():
     organization_id = DEFAULT_ORGANISATION_ID
     email = f'integ_test{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_with_phi_default_response = create_patient_with_phi(auth_token, name, email, PATIENT_TEMPLATE_NAME,
-                                                                       organization_id, "test_phi_object_patient")
+                                                                       organization_id, phi_name)
     assert create_patient_with_phi_default_response.status_code == 403, \
         f"{create_patient_with_phi_default_response.text}"
 
@@ -311,7 +312,7 @@ def test_manu_admin_patient_abac_rules():
     template_payload = map_template(get_template_response.json())
     index = 0
     for element in template_payload['customAttributes']:
-        if element['name'] == "test_phi_object_patient":
+        if element['name'] == phi_name:
             del template_payload['customAttributes'][index]
             continue
         else:
