@@ -1201,10 +1201,10 @@ def update_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
-def update_patient_template(auth_token, template_id, payload):
+def update_patient_template_force_true(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}?force=true'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
 
@@ -1917,6 +1917,7 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
     return response
 
 
+# gets any measurement attribute from Patient template
 def get_observation_attribute(username, password):
     auth_token = login_with_credentials(username, password)
     headers = {
@@ -1932,7 +1933,7 @@ def get_observation_attribute(username, password):
     observation_attribute = None
     custom_attributes = get_patient_template_response.json()["customAttributes"]
     for custom_attribute in custom_attributes:
-        if custom_attribute["category"]["name"] == "MEASUREMENT":
+        if custom_attribute["category"]["name"] == "MEASUREMENT" and (custom_attribute["type"] == "INTEGER" or custom_attribute["type"] == "DECIMAL"):
             observation_attribute = custom_attribute
             break
     return observation_attribute
@@ -1993,7 +1994,7 @@ def check_simulator_status():
 
 
 # Measurement APIs ################################################################################################
-def create_measurement(auth_token, device_id, patient_id, session_id):
+def create_measurement(auth_token, device_id, patient_id, session_id, observation_attribute_name):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "metadata": {
@@ -2003,13 +2004,13 @@ def create_measurement(auth_token, device_id, patient_id, session_id):
             "sessionId": session_id
         },
         "data": {
-            "test_hr": 70
+            observation_attribute_name: 70
         }
     }
     return requests.post(ENDPOINT + '/measurement/v1/measurements', data=json.dumps(payload), headers=headers)
 
 
-def create_bulk_measurement(auth_token, device_id, patient_id, session_id):
+def create_bulk_measurement(auth_token, device_id, patient_id, session_id, observation_attribute_name):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "metadata": {
@@ -2019,16 +2020,16 @@ def create_bulk_measurement(auth_token, device_id, patient_id, session_id):
             "sessionId": session_id
         },
         "data": {
-            "test_hr": 70,
+            observation_attribute_name: 70,
         }
     }
     return requests.post(ENDPOINT + '/measurement/v1/measurements/bulk', data=json.dumps(payload), headers=headers)
 
 
-def get_raw_measurements(auth_token, patient_id):
+def get_raw_measurements(auth_token, patient_id, observation_attribute):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {
-        "attributes": "test_hr",
+        "attributes": observation_attribute,
         "patientId": patient_id,
         "startTime": "2023-12-30T10:15:30Z",
         "endTime": "2024-01-30T08:15:30Z"
@@ -2037,12 +2038,12 @@ def get_raw_measurements(auth_token, patient_id):
     return requests.get(ENDPOINT + "/measurement/v1/measurements/raw?" + encoded_params, headers=headers)
 
 
-def get_aggregated_measurements(auth_token, patient_id):
+def get_aggregated_measurements(auth_token, patient_id, observation_attribute_name):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {
-        "attributes": "test_hr",
+        "attributes": observation_attribute_name,
         "patientId": patient_id,
-        "startTime": "2023-12-30T10:15:30Z",
+        "startTime": "2023-12-20T10:15:30Z",
         "endTime": "2024-01-30T08:15:30Z",
         "binIntervalSeconds": 120
     }
@@ -2050,7 +2051,7 @@ def get_aggregated_measurements(auth_token, patient_id):
     return requests.get(ENDPOINT + "/measurement/v1/measurements/aggregated?" + encoded_params, headers=headers)
 
 
-def get_v2_raw_measurements(auth_token, patient_id):
+def get_v2_raw_measurements(auth_token, patient_id, observation_attribute_name):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
@@ -2058,9 +2059,8 @@ def get_v2_raw_measurements(auth_token, patient_id):
                 "_patient.id": {
                     "eq": patient_id
                 },
-                "test_hr": {
-                    "gt": 25,
-                    "gte": 25,
+                "attributes": {
+                    "in": [observation_attribute_name]
                 },
                 "timestamp": {
                     "from": "2023-12-30T10:15:30Z",
@@ -2072,7 +2072,7 @@ def get_v2_raw_measurements(auth_token, patient_id):
     return requests.get(ENDPOINT + "/measurement/v2/measurements/raw?", params=search_request, headers=headers)
 
 
-def get_v2_aggregated_measurements(auth_token, patient_id):
+def get_v2_aggregated_measurements(auth_token, patient_id, observation_attribute_name):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     search_request = {
         "searchRequest": json.dumps({
@@ -2080,12 +2080,11 @@ def get_v2_aggregated_measurements(auth_token, patient_id):
                 "_patient.id": {
                     "eq": patient_id
                 },
-                "test_hr": {
-                    "gt": 25,
-                    "gte": 25,
+                "attributes": {
+                    "in": [observation_attribute_name]
                 },
                 "timestamp": {
-                    "from": "2023-12-30T10:15:30Z",
+                    "from": "2023-12-20T10:15:30Z",
                     "to": "2023-12-30T10:15:35Z",
                 },
                 "binIntervalSeconds": {
@@ -4387,4 +4386,4 @@ def create_device_template_with_session(auth_token):
                                                        data=payload_usage)
     assert response_usage_session_template.status_code == 201, f"{response_usage_session_template.status_code}, " \
                                                                f"{response_usage_session_template.text}"
-    return response_device_template
+    return response_device_template, response_usage_session_template

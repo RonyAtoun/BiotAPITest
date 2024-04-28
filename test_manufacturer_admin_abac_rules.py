@@ -9,7 +9,7 @@ def test_manu_admin_command_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create device template
-    device_template_response = create_device_template_with_session(auth_token)
+    device_template_response = create_device_template_with_session(auth_token)[0]
     assert device_template_response.status_code == 201, f"{device_template_response.text}"
     template_name = device_template_response.json()["name"]
     device_template_id = device_template_response.json()["id"]
@@ -180,9 +180,9 @@ def test_manu_admin_patient_abac_rules():
     get_self_user_email_response = get_self_user_email(auth_token)
     assert get_self_user_email_response == primary_admin_email, \
         f"Actual email '{get_self_user_email_response}' does not match the expected"
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
 
     # create a Patient with phi attribute in Custom Organisation as Admin of custom Org-n
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_patient_custom_response = create_patient_with_phi(auth_token, name, email, PATIENT_TEMPLATE_NAME,
                                                              organization_id,
                                                              "test_phi_object_patient")  # create patient with phi attributes
@@ -482,7 +482,7 @@ def test_manu_admin_device_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Device Template
-    device_template_response = create_device_template_with_session(auth_token)
+    device_template_response = create_device_template_with_session(auth_token)[0]
     assert device_template_response.status_code == 201, f"{device_template_response.text}"
     template_name = device_template_response.json()["name"]
     template_id = device_template_response.json()["id"]
@@ -613,7 +613,7 @@ def test_manu_admin_device_alerts_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # Create Device template
-    device_template_response = create_device_template_with_session(auth_token)
+    device_template_response = create_device_template_with_session(auth_token)[0]
     assert device_template_response.status_code == 201, f"{device_template_response.text}"
     device_template_name = device_template_response.json()["name"]
     device_template_id = device_template_response.json()["id"]
@@ -972,11 +972,11 @@ def test_manu_admin_portal_builder_abac_rules():
 def test_manu_admin_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
-    # TEST - Deploy ADB
+    # TEST - Deploy ADB - must be forbidden
     deploy_response = deploy_adb(admin_auth_token)
     assert deploy_response.status_code == 403, f"{deploy_response.text}"
 
-    # TEST - Undeploy ADB
+    # TEST - Undeploy ADB - must be forbidden
     undeploy_response = undeploy_adb(admin_auth_token)
     assert undeploy_response.status_code == 403, f"{undeploy_response.text}"
 
@@ -1010,23 +1010,337 @@ def test_manu_admin_adb_abac_rules():
     assert get_adb_response.status_code == 200, f"{get_adb_info_response.text}"
 
 
+def test_manu_admin_files_abac_rules():
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+
+    # create a Custom Organisation
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # create Generic template with file attribute
+    create_generic_template_response = create_generic_template(auth_token)
+    assert create_generic_template_response.status_code == 201, f"{create_generic_template_response.text}"
+    generic_template_id = create_generic_template_response.json()["id"]
+    get_generic_template_response = get_template(auth_token, generic_template_id)
+    assert get_generic_template_response.status_code == 200, f"{get_generic_template_response.text}"
+    template_payload = map_template(get_generic_template_response.json())
+
+    # add file attribute to Generic template
+    file_attribute = {
+        "name": "file_attr_integ_test",
+        "type": "FILE",
+        "displayName": "file_attr_integ_test",
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "max": 3221225472
+        },
+        "selectableValues": [],
+        "category": "REGULAR"
+    }
+    file_attribute_name = "file_attr_integ_test"
+    (template_payload['customAttributes']).append(file_attribute)
+    update_template_response = update_template(auth_token, generic_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create Generic Entity in Default Organisation
+    generic_name = f"Generic_File_Def_{uuid.uuid4().hex}"[0:32]
+    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
+                                                           DEFAULT_ORGANISATION_ID)
+    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
+    generic_entity1_id = create_generic_entity_response.json()["_id"]
+
+    # create Generic Entity in Custom Organisation
+    generic_name = f"Generic_File_Cus_{uuid.uuid4().hex}"[0:32]
+    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
+                                                           organization_id)
+    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
+    generic_entity2_id = create_generic_entity_response.json()["_id"]
+
+    # create files in Custom Organization and Default
+    name = f'test_file{uuid.uuid4().hex}'[0:16]
+    mime_type = 'text/plain'
+    data = open('./upload-file.txt', 'rb').read()
+    create_file_response = create_file(auth_token, name, mime_type)
+    assert create_file_response.status_code == 200, f"{create_file_response.text}"
+    file1_id = create_file_response.json()['id']
+    signed_url = create_file_response.json()['signedUrl']
+    upload_response = requests.put(signed_url, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200, f"{upload_response.text}"
+    create_file2_response = create_file(auth_token, name, mime_type)
+    assert create_file2_response.status_code == 200, f"{create_file2_response.text}"
+    file2_id = create_file2_response.json()['id']
+    signed_url2 = create_file2_response.json()['signedUrl']
+    upload_response = requests.put(signed_url2, data=data, headers={'Content-Type': 'text/plain'})
+    assert upload_response.status_code == 200, f"{upload_response.text}"
+
+    # associate files with Generic entities
+    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity1_id, file_attribute_name,
+                                                              file1_id)
+    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
+    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity2_id, file_attribute_name,
+                                                              file2_id)
+    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
+
+    # TEST - Get file in Default Organisation - success
+    get_file_response = get_file(auth_token, file2_id)
+    assert get_file_response.status_code == 200, f"{get_file_response.text}"
+
+    # TEST - Get file in Custom Organisation - success
+    get_file_response = get_file(auth_token, file1_id)
+    assert get_file_response.status_code == 200, f"{get_file_response.text}"
+
+    # delete Custom Organisation
+    delete_organization_response = delete_organization(auth_token, organization_id)
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
+
+    # delete generic entities
+    delete_generic_response = delete_generic_entity(auth_token, generic_entity1_id)
+    assert delete_generic_response.status_code == 204, f"{delete_generic_response.text}"
+
+    # delete generic entity template
+    delete_generic_template = delete_template(auth_token, generic_template_id)
+    assert delete_generic_template.status_code == 204, f"{delete_generic_template.text}"
+
+
+# @pytest.mark.skip
+def test_manu_admin_measurements_abac_rules():
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+
+    # create Custom organization
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # accept invitation as an Admin of a Custom Organisation
+    get_organisation_response = get_organization(auth_token, organization_id)
+    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
+    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
+    primary_admin_email = get_organisation_user_response.json()["_email"]
+    accept_invitation(primary_admin_email)
+    auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    get_self_user_email_response = get_self_user_email(auth_token)
+    assert get_self_user_email_response == primary_admin_email, \
+        f"Actual email '{get_self_user_email_response}' does not match the expected"
+
+    # Create Patient in Custom Organisation as its admin
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    create_patient_custom_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
+                                                    organization_id)
+    assert create_patient_custom_response.status_code == 201, f"Status code " \
+                                                              f"{create_patient_custom_response.status_code} " \
+                                                              f"{create_patient_custom_response.text}"
+    patient_id_custom = create_patient_custom_response.json()["_id"]
+
+    # Create Patient in Default Organisation as manu admin
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    create_patient_default_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
+                                                     DEFAULT_ORGANISATION_ID)
+    assert create_patient_custom_response.status_code == 201, f"Status code " \
+                                                              f"{create_patient_custom_response.status_code} " \
+                                                              f"{create_patient_custom_response.text}"
+    patient_id_default = create_patient_default_response.json()["_id"]
+
+    # add observation attributes to Patient template
+    get_patient_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
+    observation_aggregated_object = {
+        "name": aggregated_observation_attribute_name,
+        "type": "DECIMAL",
+        "displayName": aggregated_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": None,
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    observation_raw_object = {
+        "name": raw_observation_attribute_name,
+        "type": "WAVEFORM",
+        "displayName": raw_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": {
+            "subType": "INTEGER"
+        },
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    (template_payload['customAttributes']).append(observation_raw_object)
+    (template_payload['customAttributes']).append(observation_aggregated_object)
+    update_template_response = update_template(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create a Device Template
+    device_template_response, usage_session_template_response = create_device_template_with_session(auth_token)
+    assert device_template_response.status_code == 201, f"{device_template_response.text}"
+    template_name = device_template_response.json()["name"]
+    device_template_id = device_template_response.json()["id"]
+    usage_session_template_id = usage_session_template_response.json()["id"]
+
+    # Create Device in a Default Org-n
+    create_device_response = create_device_without_registration_code(auth_token, template_name, DEFAULT_ORGANISATION_ID)
+    device_id_default = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # Create Device in a Custom Org-n
+    create_device_response = create_device_without_registration_code(auth_token, template_name, organization_id)
+    device_id_custom = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # create session for Default Org-n
+    create_session_response = create_usage_session_without_name(auth_token, device_id_default, patient_id_default,
+                                                                usage_session_template_id)
+    assert create_session_response.status_code == 201, f"{create_session_response.text}"
+    usage_session_default_id = create_session_response.json()['_id']
+
+    # create session for Custom Org-n
+    create_session_response = create_usage_session_without_name(auth_token, device_id_custom, patient_id_custom,
+                                                                usage_session_template_id)
+    assert create_session_response.status_code == 201, f"{create_session_response.text}"
+    usage_session_custom_id = create_session_response.json()['_id']
+
+    # create measurement on Patient from Default org-n
+    create_measurement_response = create_measurement(auth_token, device_id_default, patient_id_default,
+                                                     usage_session_default_id, aggregated_observation_attribute_name)
+    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
+
+    # create measurement on Patient from Default org-n
+    create_measurement_response = create_measurement(auth_token, device_id_custom, patient_id_custom,
+                                                     usage_session_custom_id, aggregated_observation_attribute_name)
+    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
+
+    # create bulk measurement in Default Org-n
+    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_default,
+                                                               patient_id_default, usage_session_default_id,
+                                                               aggregated_observation_attribute_name)
+    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
+
+    # create bulk measurement in Custom Org-n
+    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_custom,
+                                                               patient_id_custom, usage_session_custom_id,
+                                                               aggregated_observation_attribute_name)
+    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
+
+    # TEST - get v1 raw measurements from Patient in Default Org-n
+    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_default,
+                                                           raw_observation_attribute_name)
+    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
+    # TEST - get v1 raw measurements from Patient in Custom Org-n
+    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_custom,
+                                                           raw_observation_attribute_name)
+    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
+
+    # TEST - get v1 aggregated measurements from Patient in Default Org-n
+    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_default,
+                                                                   aggregated_observation_attribute_name)
+    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
+
+    # TEST - get v1 aggregated measurements from Patient in Custom Org-n
+    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_custom,
+                                                                   aggregated_observation_attribute_name)
+    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
+
+    # TEST - get V2 raw measurements from Patient in Default Org-n
+    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_default,
+                                                              raw_observation_attribute_name)
+    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
+    # TEST - get V2 raw measurements from Patient in Custom Org-n
+    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_custom,
+                                                              raw_observation_attribute_name)
+    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
+
+    # TEST - get v2 aggregated measurements from Patient in Default Org-n
+    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_default,
+                                                                 aggregated_observation_attribute_name)
+    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
+    # TEST - get v2 aggregated measurements from Patient in Custom Org-n
+    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_custom,
+                                                                 aggregated_observation_attribute_name)
+    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
+
+    # TEST - get device credentials should always succeed (try with caregiver from new org)
+    get_credentials_response = get_device_credentials(auth_token)
+    assert get_credentials_response.status_code == 200, f"{get_credentials_response.text}"
+
+    # teardown
+    delete_usage_session_response = delete_usage_session(auth_token, device_id_default, usage_session_default_id)
+    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
+    delete_usage_session_response = delete_usage_session(auth_token, device_id_custom, usage_session_custom_id)
+    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
+    delete_template_response = delete_template(auth_token, usage_session_template_id)
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
+
+    # delete devices
+    delete_device_response = delete_device(auth_token, device_id_custom)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+    delete_device_response = delete_device(auth_token, device_id_default)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+
+    # delete second organization
+    delete_organization_response = delete_organization(auth_token, organization_id)
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
+
+    # delete device template
+    delete_device_template_response = delete_template(auth_token, device_template_id)
+    assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
+
+    # revert changes in Patient Template
+    # delete raw attribute from Patient Template
+    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == raw_observation_attribute_name:
+            del template_payload['customAttributes'][index]
+        else:
+            index += 1
+    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # delete aggregated attribute from Patient Template
+    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == aggregated_observation_attribute_name:
+            del template_payload['customAttributes'][index]
+        else:
+            index += 1
+    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+
 def test_manu_admin_usage_session_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # create a Device Template
-    device_template_response = create_device_template_with_session(auth_token)
+    device_template_response, usage_session_template_response = create_device_template_with_session(auth_token)
     assert device_template_response.status_code == 201, f"{device_template_response.text}"
     template_name = device_template_response.json()["name"]
     device_template_id = device_template_response.json()["id"]
-
-    # get usage session template
-    usage_session_templates_response = get_template_by_parent_id(auth_token, parent_template_id=device_template_id)
-    assert usage_session_templates_response.status_code == 200, f"{usage_session_templates_response.text}"
-    usage_sessions_templates = json.loads(usage_session_templates_response.text)
-    usage_session_data = usage_sessions_templates["data"]
-    usage_session_template_id = None
-    for usage_template in usage_session_data:
-        usage_session_template_id = usage_template["id"]
+    usage_session_template_id = usage_session_template_response.json()["id"]
 
     # create a Custom Organisation
     create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
@@ -1214,97 +1528,3 @@ def test_manu_admin_usage_session_abac_rules():
     # Delete Device template
     delete_device_template_response = delete_template(auth_token, device_template_id)
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
-
-
-def test_manu_admin_files_abac_rules():
-    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-
-    # create a Custom Organisation
-    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
-    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
-                                                            f"{create_organization_response.text}"
-    organization_id = create_organization_response.json()['_id']
-
-    # create Generic template with file attribute
-    create_generic_template_response = create_generic_template(auth_token)
-    assert create_generic_template_response.status_code == 201, f"{create_generic_template_response.text}"
-    generic_template_id = create_generic_template_response.json()["id"]
-    get_generic_template_response = get_template(auth_token, generic_template_id)
-    assert get_generic_template_response.status_code == 200, f"{get_generic_template_response.text}"
-    template_payload = map_template(get_generic_template_response.json())
-
-    # add file attribute to Generic template
-    file_attribute = {
-        "name": "file_attr_integ_test",
-        "type": "FILE",
-        "displayName": "file_attr_integ_test",
-        "phi": False,
-        "validation": {
-            "mandatory": False,
-            "max": 3221225472
-        },
-        "selectableValues": [],
-        "category": "REGULAR"
-    }
-    file_attribute_name = "file_attr_integ_test"
-    (template_payload['customAttributes']).append(file_attribute)
-    update_template_response = update_template(auth_token, generic_template_id, template_payload)
-    assert update_template_response.status_code == 200, f"{update_template_response.text}"
-
-    # create Generic Entity in Default Organisation
-    generic_name = f"Generic_File_Def_{uuid.uuid4().hex}"[0:32]
-    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
-                                                           DEFAULT_ORGANISATION_ID)
-    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
-    generic_entity1_id = create_generic_entity_response.json()["_id"]
-
-    # create Generic Entity in Custom Organisation
-    generic_name = f"Generic_File_Cus_{uuid.uuid4().hex}"[0:32]
-    create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
-                                                           organization_id)
-    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
-    generic_entity2_id = create_generic_entity_response.json()["_id"]
-
-    # create files in Custom Organization and Default
-    name = f'test_file{uuid.uuid4().hex}'[0:16]
-    mime_type = 'text/plain'
-    data = open('./upload-file.txt', 'rb').read()
-    create_file_response = create_file(auth_token, name, mime_type)
-    assert create_file_response.status_code == 200, f"{create_file_response.text}"
-    file1_id = create_file_response.json()['id']
-    signed_url = create_file_response.json()['signedUrl']
-    upload_response = requests.put(signed_url, data=data, headers={'Content-Type': 'text/plain'})
-    assert upload_response.status_code == 200, f"{upload_response.text}"
-    create_file2_response = create_file(auth_token, name, mime_type)
-    assert create_file2_response.status_code == 200, f"{create_file2_response.text}"
-    file2_id = create_file2_response.json()['id']
-    signed_url2 = create_file2_response.json()['signedUrl']
-    upload_response = requests.put(signed_url2, data=data, headers={'Content-Type': 'text/plain'})
-    assert upload_response.status_code == 200, f"{upload_response.text}"
-
-    # associate files with Generic entities
-    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity1_id, file_attribute_name, file1_id)
-    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
-    update_generic_response = update_generic_entity_with_file(auth_token, generic_entity2_id, file_attribute_name,
-                                                              file2_id)
-    assert update_generic_response.status_code == 200, f"{update_generic_response.text}"
-
-    # TEST - Get file in Default Organisation - success
-    get_file_response = get_file(auth_token, file2_id)
-    assert get_file_response.status_code == 200, f"{get_file_response.text}"
-
-    # TEST - Get file in Custom Organisation - success
-    get_file_response = get_file(auth_token, file1_id)
-    assert get_file_response.status_code == 200, f"{get_file_response.text}"
-
-    # delete Custom Organisation
-    delete_organization_response = delete_organization(auth_token, organization_id)
-    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
-
-    # delete generic entities
-    delete_generic_response = delete_generic_entity(auth_token, generic_entity1_id)
-    assert delete_generic_response.status_code== 204, f"{delete_generic_response.text}"
-
-    # delete generic entity template
-    delete_generic_template = delete_template(auth_token, generic_template_id)
-    assert delete_generic_template.status_code == 204, f"{delete_generic_template.text}"
