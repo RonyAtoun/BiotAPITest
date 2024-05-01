@@ -1,4 +1,3 @@
-import pytest
 from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 
@@ -978,6 +977,8 @@ def test_caregiver_patient_alerts_abac_rules():
 # @pytest.mark.skip
 def test_caregiver_measurements_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
     assert get_self_org_response.status_code == 200, f"{get_self_org_response.text}"
@@ -989,6 +990,53 @@ def test_caregiver_measurements_abac_rules():
     patient_auth_token, patient_id, registration_code_id, device_id = (
         create_single_patient_self_signup(admin_auth_token,
                                           "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
+
+    # get the patient templateId
+    get_patient_response = get_patient(patient_auth_token, patient_id)
+    assert get_patient_response.status_code == 200
+    patient_template_id = get_patient_response.json()['_template']['id']
+    # add observation attributes to Patient template
+    get_patient_template_response = get_template(admin_auth_token, patient_template_id)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
+    observation_aggregated_object = {
+        "name": aggregated_observation_attribute_name,
+        "type": "DECIMAL",
+        "displayName": aggregated_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": None,
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    observation_raw_object = {
+        "name": raw_observation_attribute_name,
+        "type": "WAVEFORM",
+        "displayName": raw_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": {
+            "subType": "INTEGER"
+        },
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    (template_payload['customAttributes']).append(observation_raw_object)
+    (template_payload['customAttributes']).append(observation_aggregated_object)
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     # create caregiver template
     create_template_response = create_caregiver_template(admin_auth_token)
@@ -1021,39 +1069,48 @@ def test_caregiver_measurements_abac_rules():
     usage_session_id = create_session_response.json()['_id']
     # create measurement on patient1
     create_measurement_response = create_measurement(caregiver_default_auth_token, device_id, patient_id,
-                                                     usage_session_id)
+                                                     usage_session_id, aggregated_observation_attribute_name)
     assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
     # create bulk measurement
     create_bulk_measurement_response = create_bulk_measurement(caregiver_default_auth_token, device_id,
-                                                               patient_id, usage_session_id)
+                                                               patient_id, usage_session_id,
+                                                               aggregated_observation_attribute_name)
     assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
 
     # get v1 raw measurements should succeed for same org caregiver
-    get_v1_measurement_response = get_raw_measurements(caregiver_default_auth_token, patient_id)
+    get_v1_measurement_response = get_raw_measurements(caregiver_default_auth_token, patient_id,
+                                                       raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200, f"{get_v1_measurement_response.text}"
     # fail for other org caregiver
-    get_v1_measurement_response = get_raw_measurements(caregiver_new_auth_token, patient_id)
+    get_v1_measurement_response = get_raw_measurements(caregiver_new_auth_token, patient_id,
+                                                       raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403, f"{get_v1_measurement_response.text}"
 
     # get v1 aggregated measurements should succeed for same org caregiver
-    get_v1_measurement_response = get_aggregated_measurements(caregiver_default_auth_token, patient_id)
+    get_v1_measurement_response = get_aggregated_measurements(caregiver_default_auth_token, patient_id,
+                                                              aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200, f"{get_v1_measurement_response.text}"
     # fail for other org caregiver
-    get_v1_measurement_response = get_aggregated_measurements(caregiver_new_auth_token, patient_id)
+    get_v1_measurement_response = get_aggregated_measurements(caregiver_new_auth_token, patient_id,
+                                                              aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403, f"{get_v1_measurement_response.text}"
 
     # get V2 raw measurements should succeed for same org caregiver
-    get_v2_measurement_response = get_v2_raw_measurements(caregiver_default_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_raw_measurements(caregiver_default_auth_token, patient_id,
+                                                          raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
     # fail for other org caregiver
-    get_v2_measurement_response = get_v2_raw_measurements(caregiver_new_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_raw_measurements(caregiver_new_auth_token, patient_id,
+                                                          raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403, f"{get_v2_measurement_response.text}"
 
     # get v2 aggregated measurements should succeed for same org caregiver
-    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_default_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_default_auth_token, patient_id,
+                                                                 aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
     # fail for other org caregiver
-    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_new_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_new_auth_token, patient_id,
+                                                                 aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403, f"{get_v2_measurement_response.text}"
 
     # get device credentials should always succeed (try with caregiver from new org)

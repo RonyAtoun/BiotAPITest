@@ -768,11 +768,59 @@ def test_patient_patient_alerts_abac_rules():
 # @pytest.mark.skip
 def test_patient_measurements_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
     # create patient, registration codes and devices in default org
     patient_auth_token, patient_id, registration_code_id, device1_id = (
         create_single_patient_self_signup(admin_auth_token,  "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
     # create second patient in default org
     patient2_auth_token, patient2_id = create_single_patient(admin_auth_token)
+    # get the patient templateId
+    get_patient_response = get_patient(patient_auth_token, patient_id)
+    assert get_patient_response.status_code == 200
+    patient_template_id = get_patient_response.json()['_template']['id']
+    # add observation attributes to Patient template
+    get_patient_template_response = get_template(admin_auth_token, patient_template_id)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
+    observation_aggregated_object = {
+        "name": aggregated_observation_attribute_name,
+        "type": "DECIMAL",
+        "displayName": aggregated_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": None,
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    observation_raw_object = {
+        "name": raw_observation_attribute_name,
+        "type": "WAVEFORM",
+        "displayName": raw_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": {
+            "subType": "INTEGER"
+        },
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    (template_payload['customAttributes']).append(observation_raw_object)
+    (template_payload['customAttributes']).append(observation_aggregated_object)
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     # create usage session template and usage session; associate to patient
     # associate patient with device
@@ -793,39 +841,47 @@ def test_patient_measurements_abac_rules():
     assert create_session_response.status_code == 201
     usage_session_id = create_session_response.json()['_id']
     # create measurement on patient1
-    create_measurement_response = create_measurement(patient_auth_token, device1_id, patient_id, usage_session_id)
+    create_measurement_response = create_measurement(patient_auth_token, device1_id, patient_id, usage_session_id,
+                                                     aggregated_observation_attribute_name)
     assert create_measurement_response.status_code == 200
     # create bulk measurement
     create_bulk_measurement_response = create_bulk_measurement(patient_auth_token, device1_id,
-                                                               patient_id, usage_session_id)
+                                                               patient_id, usage_session_id,
+                                                               aggregated_observation_attribute_name)
     assert create_bulk_measurement_response.status_code == 200
 
     # get v1 raw measurements
-    get_v1_measurement_response = get_raw_measurements(patient_auth_token, patient_id)
+    get_v1_measurement_response = get_raw_measurements(patient_auth_token, patient_id, raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200
     # fail for other patient
-    get_v1_measurement_response = get_raw_measurements(patient_auth_token, patient2_id)
+    get_v1_measurement_response = get_raw_measurements(patient_auth_token, patient2_id, raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403
 
     # get v1 aggregated measurements
-    get_v1_measurement_response = get_aggregated_measurements(patient_auth_token, patient_id)
+    get_v1_measurement_response = get_aggregated_measurements(patient_auth_token, patient_id,
+                                                              aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200
     # fail for other patient
-    get_v1_measurement_response = get_aggregated_measurements(patient_auth_token, patient2_id)
+    get_v1_measurement_response = get_aggregated_measurements(patient_auth_token, patient2_id,
+                                                              aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403
 
     # get V2 raw measurements
-    get_v2_measurement_response = get_v2_raw_measurements(patient_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_raw_measurements(patient_auth_token, patient_id,
+                                                          raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200
     # fail for other patient
-    get_v2_measurement_response = get_v2_raw_measurements(patient_auth_token, patient2_id)
+    get_v2_measurement_response = get_v2_raw_measurements(patient_auth_token, patient2_id,
+                                                          raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403
 
     # get v2 aggregated measurements
-    get_v2_measurement_response = get_v2_aggregated_measurements(patient_auth_token, patient_id)
+    get_v2_measurement_response = get_v2_aggregated_measurements(patient_auth_token, patient_id,
+                                                                 aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200
     # fail for other patient
-    get_v2_measurement_response = get_v2_aggregated_measurements(patient_auth_token, patient2_id)
+    get_v2_measurement_response = get_v2_aggregated_measurements(patient_auth_token, patient2_id,
+                                                                 aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403
 
     # get device credentials
