@@ -177,7 +177,7 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     }
     # payload['customAttributes'].append(append_data)
 
-    update_template_response = update_patient_template(auth_token, template_id, payload)
+    update_template_response = update_patient_template(auth_token, template_id, json.dumps(payload))
     assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     return template_id, patient_payload

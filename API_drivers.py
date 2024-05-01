@@ -433,7 +433,7 @@ def get_caregiver(auth_token, caregiver_id):
 
 def get_caregiver_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
+    query_params = {"limit": 200}
     return requests.get(ENDPOINT + '/organization/v1/users/caregivers', data=json.dumps(query_params), headers=headers)
 
 
@@ -1201,6 +1201,13 @@ def update_template(auth_token, template_id, payload):
                         headers=headers, data=json.dumps(payload))
 
 
+def update_patient_template_force_true(auth_token, template_id, payload):
+    headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
+
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}?force=true'.replace('{templateId}', template_id),
+                        headers=headers, data=json.dumps(payload))
+
+
 def get_template_by_id(auth_token, template_id):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     return requests.get(ENDPOINT + '/settings/v1/templates/{template_id}'
@@ -1514,7 +1521,7 @@ def get_generic_entity(auth_token, entity_id):
 
 def get_generic_entity_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
+    query_params = {"limit": 200}
     return requests.get(ENDPOINT + '/generic-entity/v1/generic-entities', data=json.dumps(query_params),
                         headers=headers)
 
@@ -1707,7 +1714,7 @@ def get_device(auth_token, device_id):
 
 def get_device_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
+    query_params = {"limit": 200}
     return requests.get(ENDPOINT + '/device/v2/devices', data=json.dumps(query_params), headers=headers)
 
 
@@ -1823,7 +1830,7 @@ def get_usage_session(auth_token, device_id, session_id):
 
 def get_usage_session_list(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    query_params = {}
+    query_params = {"limit": 200}
     return requests.get(ENDPOINT + '/device/v1/devices/usage-sessions', data=json.dumps(query_params), headers=headers)
 
 
@@ -1910,6 +1917,7 @@ def get_usage_session_by_id(auth_token, device_id, usage_session_id):
     return response
 
 
+# gets any measurement attribute from Patient template
 def get_observation_attribute(username, password):
     auth_token = login_with_credentials(username, password)
     headers = {
@@ -1925,7 +1933,7 @@ def get_observation_attribute(username, password):
     observation_attribute = None
     custom_attributes = get_patient_template_response.json()["customAttributes"]
     for custom_attribute in custom_attributes:
-        if custom_attribute["category"]["name"] == "MEASUREMENT":
+        if custom_attribute["category"]["name"] == "MEASUREMENT" and (custom_attribute["type"] == "INTEGER" or custom_attribute["type"] == "DECIMAL"):
             observation_attribute = custom_attribute
             break
     return observation_attribute
@@ -4380,4 +4388,4 @@ def create_device_template_with_session(auth_token):
                                                        data=payload_usage)
     assert response_usage_session_template.status_code == 201, f"{response_usage_session_template.status_code}, " \
                                                                f"{response_usage_session_template.text}"
-    return response_device_template
+    return response_device_template, response_usage_session_template
