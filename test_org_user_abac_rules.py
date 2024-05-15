@@ -547,7 +547,7 @@ def test_org_user_caregiver_abac_rules():
     assert delete_org_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_devices_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -557,13 +557,13 @@ def test_org_user_devices_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create caregiver by admin in new organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                     organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
     # create a device by admin in new org
     device_template_id, device_template_name, device_template_display_name = (
         create_template_setup(admin_auth_token, organization_id, "device", None))
@@ -577,30 +577,30 @@ def test_org_user_devices_abac_rules():
     assert create_device_response.status_code == 201
     device_default_id = create_device_response.json()['_id']
 
-    # create device by caregiver fails
-    create_device_response = create_device_without_registration_code(caregiver_auth_token, device_template_name,
+    # create device by org_user fails
+    create_device_response = create_device_without_registration_code(org_user_auth_token, device_template_name,
                                                                      organization_id)
     assert create_device_response.status_code == 403
 
-    # update device by caregiver only in same org
-    update_device_response = update_device(caregiver_auth_token, device_new_id, "change_string", None)
+    # update device by org_user only in same org
+    update_device_response = update_device(org_user_auth_token, device_new_id, "change_string", None)
     assert update_device_response.status_code == 200
-    update_device_response = update_device(caregiver_auth_token, device_default_id, "change_string", None)
+    update_device_response = update_device(org_user_auth_token, device_default_id, "change_string", None)
     assert update_device_response.status_code == 403
 
-    # delete device by caregiver fails
-    delete_device_response = delete_device(caregiver_auth_token, device_new_id)
+    # delete device by org_user fails
+    delete_device_response = delete_device(org_user_auth_token, device_new_id)
     assert delete_device_response.status_code == 403
 
     # get device succeeds for only in same organization
-    get_device_response = get_device(caregiver_auth_token, device_new_id)
+    get_device_response = get_device(org_user_auth_token, device_new_id)
     assert get_device_response.status_code == 200
-    get_device_response = get_device(caregiver_auth_token, device_default_id)
+    get_device_response = get_device(org_user_auth_token, device_default_id)
     assert get_device_response.status_code == 403
 
-    # search device by caregiver only in same org
+    # search device by org_user only in same org
     # Positive - for self
-    get_device_list_response = get_device_list(caregiver_auth_token)
+    get_device_list_response = get_device_list(org_user_auth_token)
     assert get_device_list_response.status_code == 200
     assert get_device_list_response.json()['metadata']['page']['totalResults'] == 1
 
@@ -609,17 +609,17 @@ def test_org_user_devices_abac_rules():
     assert delete_device_response.status_code == 204
     delete_device_response = delete_device(admin_auth_token, device_default_id)
     assert delete_device_response.status_code == 204
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, device_template_id)
     assert delete_template_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
     delete_org_response = delete_organization(admin_auth_token, organization_id)
     assert delete_org_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_generic_entity_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -629,13 +629,13 @@ def test_org_user_generic_entity_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create caregiver by admin in new organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                     organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
 
     # create generic entity template in both organizations
     generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -644,18 +644,18 @@ def test_org_user_generic_entity_abac_rules():
                                                         "generic-entity", None)[0]
     # NOTE: function returns tuple. First element is id
 
-    # create generic entity by caregiver only for self organization
-    create_generic_entity_response = create_generic_entity(caregiver_auth_token, generic_entity_template_id,
+    # create generic entity by org_user only for self organization
+    create_generic_entity_response = create_generic_entity(org_user_auth_token, generic_entity_template_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31],
                                                            "00000000-0000-0000-0000-000000000000")
     assert create_generic_entity_response.status_code == 403
 
-    create_generic_entity_response = create_generic_entity(caregiver_auth_token, generic_entity_template_id2,
+    create_generic_entity_response = create_generic_entity(org_user_auth_token, generic_entity_template_id2,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31], organization_id)
     assert create_generic_entity_response.status_code == 201
     entity_id = create_generic_entity_response.json()["_id"]
 
-    # update generic entity by patient only for self organization
+    # update generic entity by org_user only for self organization
     # create second generic entity by admin on default organization
     create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id,
                                                             f'generic_entity_{uuid.uuid4().hex}'[0:31],
@@ -665,52 +665,52 @@ def test_org_user_generic_entity_abac_rules():
     entity2_id = create_generic_entity_response2.json()["_id"]
 
     # positive - same organization
-    update_generic_entity_response = update_generic_entity(caregiver_auth_token, entity_id, "change string")
+    update_generic_entity_response = update_generic_entity(org_user_auth_token, entity_id, "change string")
     assert update_generic_entity_response.status_code == 200
     # Negative - second organization
-    update_generic_entity_response = update_generic_entity(caregiver_auth_token, entity2_id, "change string")
+    update_generic_entity_response = update_generic_entity(org_user_auth_token, entity2_id, "change string")
     assert update_generic_entity_response.status_code == 403
 
     # get only for same organization
-    get_generic_entity_response = get_generic_entity(caregiver_auth_token, entity_id)
+    get_generic_entity_response = get_generic_entity(org_user_auth_token, entity_id)
     assert get_generic_entity_response.status_code == 200
-    get_generic_entity_response = get_generic_entity(caregiver_auth_token, entity2_id)
+    get_generic_entity_response = get_generic_entity(org_user_auth_token, entity2_id)
     assert get_generic_entity_response.status_code == 403
 
     # search only for same organization
-    get_generic_entity_list_response = get_generic_entity_list(caregiver_auth_token)
+    get_generic_entity_list_response = get_generic_entity_list(org_user_auth_token)
     assert get_generic_entity_list_response.status_code == 200
 
     assert get_generic_entity_list_response.json()['metadata']['page']['totalResults'] == 1
 
     # delete only for same organization
-    delete_generic_entity_response = delete_generic_entity(caregiver_auth_token, entity_id)
+    delete_generic_entity_response = delete_generic_entity(org_user_auth_token, entity_id)
     assert delete_generic_entity_response.status_code == 204
     # should fail for generic entity in other organization
-    delete_generic_entity_response = delete_generic_entity(caregiver_auth_token, entity2_id)
+    delete_generic_entity_response = delete_generic_entity(org_user_auth_token, entity2_id)
     assert delete_generic_entity_response.status_code == 403
 
     # Teardown
     # delete second generic entity created
     delete_generic_entity_response = delete_generic_entity(admin_auth_token, entity2_id)
     assert delete_generic_entity_response.status_code == 204
-    # delete caregiver
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204
+    # delete org_user
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
     # delete generic entity templates
     delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id)
     assert delete_generic_entity_template_response.status_code == 204
     delete_generic_entity_template_response = delete_template(admin_auth_token, generic_entity_template_id2)
     assert delete_generic_entity_template_response.status_code == 204
-    # delete caregiver template
-    delete_generic_entity_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    # delete org_user template
+    delete_generic_entity_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_generic_entity_template_response.status_code == 204
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_registration_codes_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
@@ -721,24 +721,24 @@ def test_org_user_registration_codes_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create caregiver in new org
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                     organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
 
-    # create registration code by caregiver in new organization should succeed
+    # create registration code by org_user in new organization should succeed
     registration_code1 = str(uuid.uuid4())
-    create_registration_code1_response = create_registration_code(caregiver_auth_token, "RegistrationCode",
+    create_registration_code1_response = create_registration_code(org_user_auth_token, "RegistrationCode",
                                                                   registration_code1, organization_id)
     assert create_registration_code1_response.status_code == 201
     registration_code1_id = create_registration_code1_response.json()['_id']
 
-    # create registration code by caregiver of different organization should fail
+    # create registration code by org_user of different organization should fail
     registration_code2 = str(uuid.uuid4())
-    create_registration_code2_response = create_registration_code(caregiver_auth_token, "RegistrationCode",
+    create_registration_code2_response = create_registration_code(org_user_auth_token, "RegistrationCode",
                                                                   registration_code2,
                                                                   "00000000-0000-0000-0000-000000000000")
     assert create_registration_code2_response.status_code == 403
@@ -751,42 +751,42 @@ def test_org_user_registration_codes_abac_rules():
     registration_code2_id = create_registration_code2_response.json()['_id']
 
     # update registration code should succeed in same organization (code1 - using same code)
-    update_registration_code_response = update_registration_code(caregiver_auth_token, registration_code1_id,
+    update_registration_code_response = update_registration_code(org_user_auth_token, registration_code1_id,
                                                                  str(uuid.uuid4()))
     assert update_registration_code_response.status_code == 200
 
-    # update registration code (code2) by caregiver of default organization should fail
-    update_registration_code_response = update_registration_code(caregiver_auth_token, registration_code2_id,
+    # update registration code (code2) by or_user of default organization should fail
+    update_registration_code_response = update_registration_code(org_user_auth_token, registration_code2_id,
                                                                  str(uuid.uuid4()))
     assert update_registration_code_response.status_code == 403
 
     # get in same org should succeed
-    get_registration_code_response = get_registration_code(caregiver_auth_token, registration_code1_id)
+    get_registration_code_response = get_registration_code(org_user_auth_token, registration_code1_id)
     assert get_registration_code_response.status_code == 200
 
     # get in different org should fail
-    get_registration_code_response = get_registration_code(caregiver_auth_token, registration_code2_id)
+    get_registration_code_response = get_registration_code(org_user_auth_token, registration_code2_id)
     assert get_registration_code_response.status_code == 403
 
     # search in same org should succeed
-    get_registration_code_list_response = get_registration_code_list(caregiver_auth_token)
+    get_registration_code_list_response = get_registration_code_list(org_user_auth_token)
     assert get_registration_code_list_response.status_code == 200
     assert get_registration_code_list_response.json()['metadata']['page']['totalResults'] == 1
 
     # delete in same org should succeed
-    delete_registration_response = delete_registration_code(caregiver_auth_token, registration_code1_id)
+    delete_registration_response = delete_registration_code(org_user_auth_token, registration_code1_id)
     assert delete_registration_response.status_code == 204
 
     # delete in different org should fail
-    delete_registration_response = delete_registration_code(caregiver_auth_token, registration_code2_id)
+    delete_registration_response = delete_registration_code(org_user_auth_token, registration_code2_id)
     assert delete_registration_response.status_code == 403
 
     # Teardown
-    # delete caregiver
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204
-    # delete caregiver template
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    # delete org_user
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
+    # delete org_user template
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
     # delete registration code of second organization
     delete_registration_response = delete_registration_code(admin_auth_token, registration_code2_id)
@@ -796,7 +796,7 @@ def test_org_user_registration_codes_abac_rules():
     assert delete_organization_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_files_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
@@ -813,19 +813,19 @@ def test_org_user_files_abac_rules():
     # create patient in default org
     patient2_auth_token, patient2_id = create_single_patient(admin_auth_token)
 
-    # create caregiver in new org
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                   organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
 
     # create files in new organization and default
     name = f'test_file{uuid.uuid4().hex}'[0:16]
     mime_type = 'text/plain'
     data = open('./upload-file.txt', 'rb').read()
-    create_file_response = create_file(caregiver1_auth_token, name, mime_type)
+    create_file_response = create_file(org_user_auth_token, name, mime_type)
     assert create_file_response.status_code == 200
     file1_id = create_file_response.json()['id']
     signed_url = create_file_response.json()['signedUrl']
@@ -847,9 +847,9 @@ def test_org_user_files_abac_rules():
     assert update_patient_response.status_code == 200
 
     # get should succeed only in self organization
-    get_file_response = get_file(caregiver1_auth_token, file1_id)  # should succeed
+    get_file_response = get_file(org_user_auth_token, file1_id)  # should succeed
     assert get_file_response.status_code == 200
-    get_file_response = get_file(caregiver1_auth_token, file2_id)  # should fail
+    get_file_response = get_file(org_user_auth_token, file2_id)  # should fail
     assert get_file_response.status_code == 403
 
     # teardown
@@ -857,9 +857,9 @@ def test_org_user_files_abac_rules():
     assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
     delete_patient_response = delete_patient(admin_auth_token, patient2_id)
     assert delete_patient_response.status_code == 204, f"{delete_patient_response.text}"
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver1_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
