@@ -266,7 +266,7 @@ def create_single_org_user(auth_token, org_user_template_name, organization_id):
     password = accept_invitation_response.json()['operationData']['password']
     # login
     auth_token = login_with_credentials(org_user_email, password)
-    return auth_token, org_user_id
+    return auth_token, org_user_id, password
 
 
 def check_simulator_status():

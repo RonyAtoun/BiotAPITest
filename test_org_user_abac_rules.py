@@ -6,7 +6,7 @@ from email_interface import accept_invitation, reset_password_open_email_and_set
 # Username and password have to be set in the environment in advance for each individual test
 #############################################################################################
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_commands_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
@@ -33,19 +33,18 @@ def test_org_user_commands_abac_rules():
     assert command_template_response.status_code == 201, f"{command_template_response.text}"
     command_template_id = command_template_response.json()['id']
 
-    # create caregiver template
-    create_template_response = create_caregiver_template(admin_auth_token)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
     assert create_template_response.status_code == 201, f"{create_template_response.text}"
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    # create caregiver by admin in new organization
-    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                         organization_id)
-    # create caregiver by admin in default organization
-    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
-                                                                                 caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin in mew and default organizations
+    org_user_new_auth_token, org_user_new_id, password = create_single_org_user(admin_auth_token,
+                                                                                org_user_template_name,
+                                                                                organization_id)
+    org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
+                                                                                        org_user_template_name,
+                                                                                        "00000000-0000-0000-0000-000000000000")
     # start simulator with device
     sim_status = ' '
     while sim_status != "NO_RUNNING_SIMULATION":
@@ -53,39 +52,39 @@ def test_org_user_commands_abac_rules():
     start_simulation_with_existing_device(device_default_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start/stop command only for self organization
     # self org
-    start_command_response = start_command_by_template(caregiver_default_auth_token, device_default_id,
+    start_command_response = start_command_by_template(org_user_default_auth_token, device_default_id,
                                                        command_template_name)
     assert start_command_response.status_code == 201, f"{start_command_response.text}"
     command2_id = start_command_response.json()['_id']
     # self
-    get_command_response = get_command(caregiver_default_auth_token, device_default_id, command2_id)
+    get_command_response = get_command(org_user_default_auth_token, device_default_id, command2_id)
     assert get_command_response.status_code == 200, f"{get_command_response.text}"
     # other
-    get_command_response = get_command(caregiver_new_auth_token, device_default_id, command2_id)
+    get_command_response = get_command(org_user_new_auth_token, device_default_id, command2_id)
     assert get_command_response.status_code == 403, f"{get_command_response.text}"
-    stop_command_response = stop_command(caregiver_default_auth_token, device_default_id, command2_id)
+    stop_command_response = stop_command(org_user_default_auth_token, device_default_id, command2_id)
     assert stop_command_response.status_code == 200, f"{stop_command_response.text}"
     # other org
-    start_command_response = start_command_by_template(caregiver_new_auth_token, device_default_id,
+    start_command_response = start_command_by_template(org_user_new_auth_token, device_default_id,
                                                        command_template_name)
     assert start_command_response.status_code == 403, f"{start_command_response.text}"
-    stop_command_response = stop_command(caregiver_new_auth_token, device_default_id, command2_id)
+    stop_command_response = stop_command(org_user_new_auth_token, device_default_id, command2_id)
     assert stop_command_response.status_code == 403, f"{stop_command_response.text}"
     # self org start by id
-    start_command_response = start_command_by_id(caregiver_default_auth_token, device_default_id, command_template_id)
+    start_command_response = start_command_by_id(org_user_default_auth_token, device_default_id, command_template_id)
     assert start_command_response.status_code == 201, f"{start_command_response.text}"
 
     # other org
-    start_command_response = start_command_by_id(caregiver_new_auth_token, device_default_id, command_template_id)
+    start_command_response = start_command_by_id(org_user_new_auth_token, device_default_id, command_template_id)
     assert start_command_response.status_code == 403, f"{start_command_response.text}"
 
     # self
-    search_command_response = search_commands(caregiver_default_auth_token, command2_id)
+    search_command_response = search_commands(org_user_default_auth_token, command2_id)
     assert search_command_response.status_code == 200, f"{search_command_response.text}"
     assert search_command_response.json()['metadata']['page']['totalResults'] == 1, \
         f"totalResult={search_command_response.json()['metadata']['page']['totalResults']}"
     # other
-    search_command_response = search_commands(caregiver_new_auth_token, command2_id)
+    search_command_response = search_commands(org_user_new_auth_token, command2_id)
     assert search_command_response.status_code == 200, f"{search_command_response.text}"
     assert search_command_response.json()['metadata']['page']['totalResults'] == 0, \
         f"totalResults={search_command_response.json()['metadata']['page']['totalResults']}"
@@ -97,11 +96,11 @@ def test_org_user_commands_abac_rules():
     while sim_status != "NO_RUNNING_SIMULATION":
         sim_status = check_simulator_status()
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_default_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_new_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
     delete_device_response = delete_device(admin_auth_token, device_default_id)
     assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
@@ -109,7 +108,7 @@ def test_org_user_commands_abac_rules():
     delete_template_response = delete_template(admin_auth_token, command_template_id)
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     # delete second organization
@@ -133,7 +132,8 @@ def test_org_user_organization_abac_rules():
     org_user_template_name = create_template_response.json()['name']
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
-    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
     # create, update  and delete organization must fail
     create_organization_response = create_organization(org_user_auth_token, template_id)
@@ -563,7 +563,8 @@ def test_org_user_devices_abac_rules():
     org_user_template_name = create_template_response.json()['name']
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
-    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
     # create a device by admin in new org
     device_template_id, device_template_name, device_template_display_name = (
         create_template_setup(admin_auth_token, organization_id, "device", None))
@@ -635,7 +636,8 @@ def test_org_user_generic_entity_abac_rules():
     org_user_template_name = create_template_response.json()['name']
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
-    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
     # create generic entity template in both organizations
     generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
@@ -727,7 +729,8 @@ def test_org_user_registration_codes_abac_rules():
     org_user_template_name = create_template_response.json()['name']
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
-    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
     # create registration code by org_user in new organization should succeed
     registration_code1 = str(uuid.uuid4())
@@ -819,7 +822,8 @@ def test_org_user_files_abac_rules():
     org_user_template_name = create_template_response.json()['name']
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
-    org_user_auth_token, org_user_id = create_single_org_user(admin_auth_token, org_user_template_name, organization_id)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
     # create files in new organization and default
     name = f'test_file{uuid.uuid4().hex}'[0:16]
@@ -980,7 +984,7 @@ def test_org_user_patient_alerts_abac_rules():
     # assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_measurements_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
@@ -1044,20 +1048,18 @@ def test_org_user_measurements_abac_rules():
     update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
     assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
-    # create caregiver template
-    create_template_response = create_caregiver_template(admin_auth_token)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
     assert create_template_response.status_code == 201, f"{create_template_response.text}"
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    # create caregiver by admin in new organization
-    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                         organization_id)
-
-    # create caregiver by admin in default organization
-    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
-                                                                                 caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin in mew and default organizations
+    org_user_new_auth_token, org_user_new_id, password = create_single_org_user(admin_auth_token,
+                                                                                org_user_template_name,
+                                                                                organization_id)
+    org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
+                                                                                        org_user_template_name,
+                                                                                        "00000000-0000-0000-0000-000000000000")
     # create usage session template and usage session; associate to patient
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
@@ -1069,58 +1071,58 @@ def test_org_user_measurements_abac_rules():
     usage_session_template_id = usage_template_data[0]
 
     # create session by caregiver should succeed for same org
-    create_session_response = create_usage_session_by_usage_type(caregiver_default_auth_token, device_id,
+    create_session_response = create_usage_session_by_usage_type(org_user_default_auth_token, device_id,
                                                                  usage_session_template_name)
     assert create_session_response.status_code == 201, f"{create_session_response.text}"
     usage_session_id = create_session_response.json()['_id']
     # create measurement on patient1
-    create_measurement_response = create_measurement(caregiver_default_auth_token, device_id, patient_id,
+    create_measurement_response = create_measurement(org_user_default_auth_token, device_id, patient_id,
                                                      usage_session_id, aggregated_observation_attribute_name)
     assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
     # create bulk measurement
-    create_bulk_measurement_response = create_bulk_measurement(caregiver_default_auth_token, device_id,
+    create_bulk_measurement_response = create_bulk_measurement(org_user_default_auth_token, device_id,
                                                                patient_id, usage_session_id,
                                                                aggregated_observation_attribute_name)
     assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
 
     # get v1 raw measurements should succeed for same org caregiver
-    get_v1_measurement_response = get_raw_measurements(caregiver_default_auth_token, patient_id,
+    get_v1_measurement_response = get_raw_measurements(org_user_default_auth_token, patient_id,
                                                        raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200, f"{get_v1_measurement_response.text}"
     # fail for other org caregiver
-    get_v1_measurement_response = get_raw_measurements(caregiver_new_auth_token, patient_id,
+    get_v1_measurement_response = get_raw_measurements(org_user_new_auth_token, patient_id,
                                                        raw_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403, f"{get_v1_measurement_response.text}"
 
     # get v1 aggregated measurements should succeed for same org caregiver
-    get_v1_measurement_response = get_aggregated_measurements(caregiver_default_auth_token, patient_id,
+    get_v1_measurement_response = get_aggregated_measurements(org_user_default_auth_token, patient_id,
                                                               aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 200, f"{get_v1_measurement_response.text}"
     # fail for other org caregiver
-    get_v1_measurement_response = get_aggregated_measurements(caregiver_new_auth_token, patient_id,
+    get_v1_measurement_response = get_aggregated_measurements(org_user_new_auth_token, patient_id,
                                                               aggregated_observation_attribute_name)
     assert get_v1_measurement_response.status_code == 403, f"{get_v1_measurement_response.text}"
 
     # get V2 raw measurements should succeed for same org caregiver
-    get_v2_measurement_response = get_v2_raw_measurements(caregiver_default_auth_token, patient_id,
+    get_v2_measurement_response = get_v2_raw_measurements(org_user_default_auth_token, patient_id,
                                                           raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
     # fail for other org caregiver
-    get_v2_measurement_response = get_v2_raw_measurements(caregiver_new_auth_token, patient_id,
+    get_v2_measurement_response = get_v2_raw_measurements(org_user_new_auth_token, patient_id,
                                                           raw_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403, f"{get_v2_measurement_response.text}"
 
     # get v2 aggregated measurements should succeed for same org caregiver
-    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_default_auth_token, patient_id,
+    get_v2_measurement_response = get_v2_aggregated_measurements(org_user_default_auth_token, patient_id,
                                                                  aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
     # fail for other org caregiver
-    get_v2_measurement_response = get_v2_aggregated_measurements(caregiver_new_auth_token, patient_id,
+    get_v2_measurement_response = get_v2_aggregated_measurements(org_user_new_auth_token, patient_id,
                                                                  aggregated_observation_attribute_name)
     assert get_v2_measurement_response.status_code == 403, f"{get_v2_measurement_response.text}"
 
     # get device credentials should always succeed (try with caregiver from new org)
-    get_credentials_response = get_device_credentials(caregiver_new_auth_token)
+    get_credentials_response = get_device_credentials(org_user_new_auth_token)
     assert get_credentials_response.status_code == 200, f"{get_credentials_response.text}"
 
     # teardown
@@ -1131,13 +1133,13 @@ def test_org_user_measurements_abac_rules():
 
     single_self_signup_patient_teardown(admin_auth_token, patient_id, registration_code_id, device_id)
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_default_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_new_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     # delete second organization
@@ -1145,181 +1147,174 @@ def test_org_user_measurements_abac_rules():
     assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
+    # create org_user by admin in default organization
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin (also tests login)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
+    org_user_email = get_self_user_email(org_user_auth_token)
 
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
-    assert create_caregiver_response.status_code == 201
-    caregiver_id = create_caregiver_response.json()['_id']
-    response_text, accept_invitation_response = accept_invitation(caregiver_email)
-    password = accept_invitation_response.json()['operationData']['password']
-    # login
-    caregiver_auth_token = login_with_credentials(caregiver_email, password)
-    # set password by patient
+    # set password by org_user
     new_password = "Bb234567NewPass"
-    set_password_response = set_password(caregiver_auth_token, password, new_password)
+    set_password_response = set_password(org_user_auth_token, password, new_password)
     assert set_password_response.status_code == 200
     # check login with new password
-    caregiver_auth_token = login_with_credentials(caregiver_email, new_password)
+    caregiver_auth_token = login_with_credentials(org_user_email, new_password)
 
     # forgot password flow
-    forgot_password_response = forgot_password(caregiver_email)
+    forgot_password_response = forgot_password(org_user_email)
     new_password = "Cc345678NewPass2"
-    reset_password_open_email_and_set_new_password(caregiver_email, new_password)
+    reset_password_open_email_and_set_new_password(org_user_email, new_password)
     # check login with new password
-    caregiver_auth_token = login_with_credentials(caregiver_email, new_password)
+    caregiver_auth_token = login_with_credentials(org_user_email, new_password)
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_locales_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+    # create org_user by admin in default organization
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin (also tests login)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # get available locales should succeed
-    get_locales_response = get_available_locales(caregiver_auth_token)
+    get_locales_response = get_available_locales(org_user_auth_token)
     assert get_locales_response.status_code == 200
 
     # add locale should fail
     code = 'en-us'
-    add_locale_response = add_locale(caregiver_auth_token, code)
+    add_locale_response = add_locale(org_user_auth_token, code)
     assert add_locale_response.status_code == 403
 
     # delete locale should fail
     locale_id = 'any'
-    delete_locale_response = delete_locale(caregiver_auth_token, locale_id)
+    delete_locale_response = delete_locale(org_user_auth_token, locale_id)
     assert delete_locale_response.status_code == 403
 
     # update locale should fail
-    update_locale_response = update_locale(caregiver_auth_token, code)
+    update_locale_response = update_locale(org_user_auth_token, code)
     assert update_locale_response.status_code == 403
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_plugins_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+    # create org_user by admin in default organization
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin (also tests login)
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # create plugin should fail
-    create_plugin_response = create_plugin(caregiver_auth_token, 'test_plugin')
+    create_plugin_response = create_plugin(org_user_auth_token, 'test_plugin')
     assert create_plugin_response.status_code == 403
 
     # delete plugin should fail
-    delete_plugin_response = delete_plugin(caregiver_auth_token, 'test_plugin')
+    delete_plugin_response = delete_plugin(org_user_auth_token, 'test_plugin')
     assert delete_plugin_response.status_code == 403
 
     # update plugin should fail
-    update_plugin_response = update_plugin(caregiver_auth_token, 'test_plugin', 'test_plugin')
+    update_plugin_response = update_plugin(org_user_auth_token, 'test_plugin', 'test_plugin')
     assert update_plugin_response.status_code == 403
 
     # get plugin should fail
-    get_plugin_response = get_plugin(caregiver_auth_token, 'test_plugin')
+    get_plugin_response = get_plugin(org_user_auth_token, 'test_plugin')
     assert get_plugin_response.status_code == 403
 
     # search plugin should fail
-    search_plugin_response = get_plugin_list(caregiver_auth_token, 'test_plugin')
+    search_plugin_response = get_plugin_list(org_user_auth_token, 'test_plugin')
     assert search_plugin_response.status_code == 403
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_dms_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver template
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    # create 2 caregivers
-    caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                   "00000000-0000-0000-0000-000000000000")
-    caregiver2_auth_token, caregiver2_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                   "00000000-0000-0000-0000-000000000000")
+    # create org_user by admin in default organization
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create 2 org_users by admin
+    org_user1_auth_token, org_user1_id, password1 = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                           "00000000-0000-0000-0000-000000000000")
+    org_user2_auth_token, org_user2_id, password2 = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                           "00000000-0000-0000-0000-000000000000")
 
     # create_report should succeed
-    create_report_response = create_report(caregiver1_auth_token)
+    create_report_response = create_report(org_user1_auth_token)
     assert create_report_response.status_code == 201, f"{create_report_response.text}"
     report_id = create_report_response.json()['id']
 
     # get report should succeed for self
-    get_report_response = get_report(caregiver1_auth_token, report_id)
+    get_report_response = get_report(org_user1_auth_token, report_id)
     assert get_report_response.status_code == 200, f"{get_report_response.text}"
-    get_report_response = get_report(caregiver2_auth_token, report_id)
+    get_report_response = get_report(org_user2_auth_token, report_id)
     assert get_report_response.status_code == 403, f"{get_report_response.text}"
 
     # search report should succeed
-    search_report_response = get_report_list(caregiver1_auth_token)
+    search_report_response = get_report_list(org_user1_auth_token)
     assert search_report_response.status_code == 200, f"{search_report_response.text}"
 
     # delete report should succeed
-    delete_report_response = delete_report(caregiver1_auth_token, report_id)
+    delete_report_response = delete_report(org_user1_auth_token, report_id)
     assert delete_report_response.status_code == 204, f"{delete_report_response.text}"
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver1_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver2_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
-    delete_caregiver_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user1_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user2_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
+    delete_caregiver_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_caregiver_template_response.status_code == 204, f"{delete_caregiver_template_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_templates_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # view templates should succeed
-    view_template_response = get_templates_list(caregiver_auth_token)
+    view_template_response = get_templates_list(org_user_auth_token)
     assert view_template_response.status_code == 200
-    get_minimized_response = get_all_templates(caregiver_auth_token)
+    get_minimized_response = get_all_templates(org_user_auth_token)
     assert get_minimized_response.status_code == 200
 
     # extract valid id and parentId
@@ -1328,114 +1323,114 @@ def test_org_user_templates_abac_rules():
 
     # get by id should succeed
 
-    get_template_response = get_template_by_id(caregiver_auth_token, template_id)
+    get_template_response = get_template_by_id(org_user_auth_token, template_id)
     assert get_template_response.status_code == 200
 
     # get overview should fail
-    get_overview_response = get_template_overview(caregiver_auth_token, template_id)
+    get_overview_response = get_template_overview(org_user_auth_token, template_id)
     assert get_overview_response.status_code == 403
 
     # delete should fail
-    delete_template_response = delete_template(caregiver_auth_token, template_id)
+    delete_template_response = delete_template(org_user_auth_token, template_id)
     assert delete_template_response.status_code == 403
 
     # create should fail
-    create_template_response = create_generic_template(caregiver_auth_token)
+    create_template_response = create_generic_template(org_user_auth_token)
     assert create_template_response.status_code == 403
 
     # update should fail
     payload = get_template_response.json()
-    update_template_response = update_template(caregiver_auth_token, template_id, payload)
+    update_template_response = update_template(org_user_auth_token, template_id, payload)
 
     assert update_template_response.status_code == 403
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_portal_builder_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # view full info should succeed
-    view_template_response = get_templates_list(caregiver_auth_token)
+    view_template_response = get_templates_list(org_user_auth_token)
     assert view_template_response.status_code == 200
-    get_minimized_response = get_all_templates(caregiver_auth_token)
+    get_minimized_response = get_all_templates(org_user_auth_token)
     assert get_minimized_response.status_code == 200
 
     # extract valid id and parentId
     template_id = get_minimized_response.json()['data'][0]['id']
-    view_portal_response = view_full_portal_information(caregiver_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
+    view_portal_response = view_full_portal_information(org_user_auth_token, 'ORGANIZATION_PORTAL', 'ENTITY_LIST',
                                                         None)
     assert view_portal_response.status_code == 200
     payload = view_portal_response.json()
     view_id = payload['id']
     # update views should fail
-    update_portal_view_response = update_portal_views(caregiver_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
+    update_portal_view_response = update_portal_views(org_user_auth_token, 'ORGANIZATION_PORTAL', view_id, payload)
     assert update_portal_view_response.status_code == 403
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    # create caregiver by admin in default organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # deploy adb should fail
-    deploy_response = deploy_adb(caregiver_auth_token)
+    deploy_response = deploy_adb(org_user_auth_token)
     assert deploy_response.status_code == 403
 
     # undeploy should fail
-    undeploy_response = undeploy_adb(caregiver_auth_token)
+    undeploy_response = undeploy_adb(org_user_auth_token)
     assert undeploy_response.status_code == 403
 
     # start init should fail
-    start_init_response = start_init_adb(caregiver_auth_token)
+    start_init_response = start_init_adb(org_user_auth_token)
     assert start_init_response.status_code == 403
 
     # stop init should fail
-    stop_init_response = stop_init_adb(caregiver_auth_token)
+    stop_init_response = stop_init_adb(org_user_auth_token)
     assert stop_init_response.status_code == 403
 
     # stop sync should fail
-    stop_sync_response = stop_sync_adb(caregiver_auth_token)
+    stop_sync_response = stop_sync_adb(org_user_auth_token)
     assert stop_sync_response.status_code == 403
 
     # get adb info should succeed
-    get_adb_response = get_adb_info(caregiver_auth_token)
+    get_adb_response = get_adb_info(org_user_auth_token)
     assert get_adb_response.status_code == 200
 
     # teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_usage_session_abac_rules():  # IP
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
@@ -1458,20 +1453,18 @@ def test_org_user_usage_session_abac_rules():  # IP
     # update_device_response = update_device(admin_auth_token, device2_id, "change_string", patient_id)
     # assert update_device_response.status_code == 200, f"{update_device_response.text}"
 
-    # create caregiver template
-    create_template_response = create_caregiver_template(admin_auth_token)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
     assert create_template_response.status_code == 201, f"{create_template_response.text}"
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-
-    # create caregiver by admin in default organization
-    caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
-                                                                                 caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
-
-    # create caregiver by admin in new organization
-    caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                         organization_id)
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin in mew and default organizations
+    org_user_new_auth_token, org_user_new_id, password = create_single_org_user(admin_auth_token,
+                                                                                org_user_template_name,
+                                                                                organization_id)
+    org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
+                                                                                        org_user_template_name,
+                                                                                        "00000000-0000-0000-0000-000000000000")
 
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
@@ -1483,43 +1476,43 @@ def test_org_user_usage_session_abac_rules():  # IP
     usage_session_template_id = usage_template_data[0]
 
     # create session should succeed for caregiver in same org
-    create_session_response = create_usage_session_by_usage_type(caregiver_default_auth_token, device_id,
+    create_session_response = create_usage_session_by_usage_type(org_user_default_auth_token, device_id,
                                                                  usage_session_template_name)
     assert create_session_response.status_code == 201, f"{create_session_response.text}"
     usage_session_id = create_session_response.json()['_id']
     # create session should fail for caregiver in other org
-    create_session_response = create_usage_session_by_usage_type(caregiver_new_auth_token, device_id,
+    create_session_response = create_usage_session_by_usage_type(org_user_new_auth_token, device_id,
                                                                  usage_session_template_name)
     assert create_session_response.status_code == 403, f"{create_session_response.text}"
 
     # update session should succeed for caregiver in same org and fail for caregiver in other org
-    update_session_response = update_usage_session(caregiver_default_auth_token, device_id, usage_session_id)
+    update_session_response = update_usage_session(org_user_default_auth_token, device_id, usage_session_id)
     assert update_session_response.status_code == 200, f"{update_session_response.text}"
-    update_session_response = update_usage_session(caregiver_new_auth_token, device_id, usage_session_id)
+    update_session_response = update_usage_session(org_user_new_auth_token, device_id, usage_session_id)
     assert update_session_response.status_code == 403, f"{update_session_response.text}"
 
     # get session should succeed only for same org
-    get_session_response = get_usage_session(caregiver_default_auth_token, device_id, usage_session_id)
+    get_session_response = get_usage_session(org_user_default_auth_token, device_id, usage_session_id)
     assert get_session_response.status_code == 200, f"{get_session_response.text}"
-    get_session_response = get_usage_session(caregiver_new_auth_token, device_id, usage_session_id)
+    get_session_response = get_usage_session(org_user_new_auth_token, device_id, usage_session_id)
     assert get_session_response.status_code == 403, f"{get_session_response.text}"
 
     # search usage session by caregiver only in same org
     # Positive - for same
-    get_session_list_response = get_usage_session_list(caregiver_default_auth_token)
+    get_session_list_response = get_usage_session_list(org_user_default_auth_token)
     assert get_session_list_response.status_code == 200, f"{get_session_list_response.text}"
     assert get_session_list_response.json()['metadata']['page']['totalResults'] != 0, \
         f"{get_session_list_response.json()['metadata']['page']['totalResults']}"
     # negative: other caregiver should get zero results
-    get_session_list_response = get_usage_session_list(caregiver_new_auth_token)
+    get_session_list_response = get_usage_session_list(org_user_new_auth_token)
     assert get_session_list_response.status_code == 200, f"{get_session_list_response.text}"
     assert get_session_list_response.json()['metadata']['page']['totalResults'] == 0, \
         f"{get_session_list_response.json()['metadata']['page']['totalResults']}"
 
     # delete session by caregiver should succeed for same org and fail for other org
-    delete_session_response = delete_usage_session(caregiver_new_auth_token, device_id, usage_session_id)
+    delete_session_response = delete_usage_session(org_user_new_auth_token, device_id, usage_session_id)
     assert delete_session_response.status_code == 403, f"{delete_session_response.text}"
-    delete_session_response = delete_usage_session(caregiver_default_auth_token, device_id, usage_session_id)
+    delete_session_response = delete_usage_session(org_user_default_auth_token, device_id, usage_session_id)
     assert delete_session_response.status_code == 204, f"{delete_session_response.text}"
 
     # patient_template_id = get_patient(admin_auth_token, patient_id).json()['_template']['id']
@@ -1532,20 +1525,20 @@ def test_org_user_usage_session_abac_rules():  # IP
     assert sim_status == "NO_RUNNING_SIMULATION", "Simulator failed to start"
     start_simulation_with_existing_device(device2_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # start session only in same organization
-    start_session_response = start_usage_session(caregiver_new_auth_token, device2_id, usage_session_template_id,
+    start_session_response = start_usage_session(org_user_new_auth_token, device2_id, usage_session_template_id,
                                                  patient_id)
     assert start_session_response.status_code == 403, f"{start_session_response.text}"
-    start_session_response = start_usage_session(caregiver_default_auth_token, device2_id, usage_session_template_id,
+    start_session_response = start_usage_session(org_user_default_auth_token, device2_id, usage_session_template_id,
                                                  patient_id)
     assert start_session_response.status_code == 201, f"{start_session_response.text}"
     usage_session2_id = start_session_response.json()['_id']
 
     # pause only for same organization; first make sure it's active
 
-    get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    get_usage_session_response = get_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
     while get_usage_session_response.json()["_state"] != 'ACTIVE':
-        get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+        get_usage_session_response = get_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
         if get_usage_session_response.json()["_state"] == 'DONE':  # restart simulation
             break
         assert get_usage_session_response.status_code == 200, f"{get_usage_session_response.text}"
@@ -1553,27 +1546,27 @@ def test_org_user_usage_session_abac_rules():  # IP
     assert get_usage_session_response.json()["_state"] == "ACTIVE", \
         f"The current status is {get_usage_session_response.json()['_state']}, not 'ACTIVE', simulator timeout"
 
-    pause_session_response = pause_usage_session(caregiver_new_auth_token, device2_id, usage_session2_id)
+    pause_session_response = pause_usage_session(org_user_new_auth_token, device2_id, usage_session2_id)
     assert pause_session_response.status_code == 403, f"{pause_session_response.text}"
-    pause_session_response = pause_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    pause_session_response = pause_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     assert pause_session_response.status_code == 200, f"{pause_session_response.text}"
-    get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    get_usage_session_response = get_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     usage_session_status = get_usage_session_response.json()["_state"]
     assert usage_session_status == "PAUSED", f"The current status is {usage_session_status}, not 'PAUSED'"
 
     # resume session (should succeed only for self)
-    resume_usage_session_response = resume_usage_session(caregiver_new_auth_token, device2_id, usage_session2_id)
+    resume_usage_session_response = resume_usage_session(org_user_new_auth_token, device2_id, usage_session2_id)
     assert resume_usage_session_response.status_code == 403
-    resume_usage_session_response = resume_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    resume_usage_session_response = resume_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     assert resume_usage_session_response.status_code == 200, f"{resume_usage_session_response.text}"
-    get_usage_session_response = get_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    get_usage_session_response = get_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     usage_session_status = get_usage_session_response.json()["_state"]
     assert usage_session_status == "ACTIVE", f"The current status is {usage_session_status}, not 'ACTIVE'"
 
     # Stop a Remote usage session - succeed for own organization
-    stop_usage_session_response = stop_usage_session(caregiver_default_auth_token, device2_id, usage_session2_id)
+    stop_usage_session_response = stop_usage_session(org_user_default_auth_token, device2_id, usage_session2_id)
     assert stop_usage_session_response.status_code == 200, f"{stop_usage_session_response.text}"
-    get_usage_session_response = get_usage_session_by_id(caregiver_default_auth_token, device2_id, usage_session2_id)
+    get_usage_session_response = get_usage_session_by_id(org_user_default_auth_token, device2_id, usage_session2_id)
     usage_session_status = get_usage_session_response.json()["_state"]
     assert usage_session_status == "DONE", f"The current status is {usage_session_status}, not 'DONE'"
 
@@ -1595,13 +1588,13 @@ def test_org_user_usage_session_abac_rules():  # IP
     delete_device_response = delete_device(admin_auth_token, device2_id)
     assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_default_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 204, f"{delete_caregiver_response.text}"
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_new_id)
+    assert delete_org_user_response.status_code == 204, f"{delete_org_user_response.text}"
 
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     # delete second organization
