@@ -169,7 +169,7 @@ def test_org_user_organization_abac_rules():
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_org_users_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -179,96 +179,97 @@ def test_org_user_org_users_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create organization user in new organization
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    template_name = "OrganizationOperator"
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    email = email + '_@biotmail.com'
-    create_user_response = create_organization_user(admin_auth_token, template_name, name, email,
-                                                    organization_id)
+    # get the org admin credentials
+    org_admin_auth_token, org_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
-    assert create_user_response.status_code == 201
-    new_organization_user_id = create_user_response.json()['_id']
+    # Create org_user should only succeed  in same organization
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    # create org_user should fail in other org
+    test_org_user_create_response = create_organization_user(org_user_auth_token, org_user_template_name, test_name,
+                                                             email, "00000000-0000-0000-0000-000000000000")
+    assert test_org_user_create_response.status_code == 403
+    # create org_user should succeed in same org
+    new_org_org_user_auth_toke, new_org_user_id, new_org_user_password = create_single_org_user(org_user_auth_token,
+                                                                          org_user_template_name, organization_id)
 
-    # create organization user in default organization
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    template_name = "OrganizationOperator"
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    email = email + '_@biotmail.com'
-    create_user_response = create_organization_user(admin_auth_token, template_name, name, email,
-                                                    "00000000-0000-0000-0000-000000000000")
+    # first create an org_user by admin in default org
+    default_org_user_auth_token, default_org_user_id, new_org_user_password = create_single_org_user(admin_auth_token,
+                                                        org_user_template_name, "00000000-0000-0000-0000-000000000000")
 
-    assert create_user_response.status_code == 201
-    default_organization_user_id = create_user_response.json()['_id']
+    # update org_user only for own org
+    update_org_user_response = update_organization_user(org_user_auth_token, new_org_user_id, organization_id,
+                                                         "change string")
+    assert update_org_user_response.status_code == 200
+    # should fail for org_user in other org
+    update_org_user_response = update_organization_user(org_user_auth_token, default_org_user_id,
+                                                 "00000000-0000-0000-0000-000000000000", "change string")
 
-    # create caregiver by admin in new organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    # create caregiver by admin
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 organization_id)
+    assert update_org_user_response.status_code == 403
 
-    # create organization user by caregiver should fail
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    template_name = "OrganizationOperator"
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16]
-    email = email + '_@biotmail.com'
-    create_user_response = create_organization_user(caregiver_auth_token, template_name, name, email,
-                                                    organization_id)
-    assert create_user_response.status_code == 403
+    # enable/disable only in same organization
+    change_org_user_state_response = change_organization_user_state(org_user_auth_token, default_org_user_id, "ENABLED")
+    assert change_org_user_state_response.status_code == 403
+    change_org_user_state_response = change_organization_user_state(org_user_auth_token, new_org_user_id, "ENABLED")
+    assert change_org_user_state_response.status_code == 200
 
-    # delete organization user by caregiver should fail
-    delete_user_response = delete_organization_user(caregiver_auth_token, new_organization_user_id)
-    assert delete_user_response.status_code == 403
+    # resend invitation only for admins and only in same org
+    # create another org_user without accepting invitation
+    test_name2 = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email2 = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_org_user_create_response = create_organization_user(admin_auth_token, org_user_template_name, test_name2,
+                                                             email2, organization_id)
 
-    # update organization user should fail
-    update_organization_user_response = update_organization_user(caregiver_auth_token, new_organization_user_id,
-                                                                 organization_id, "change string")
-    assert update_organization_user_response.status_code == 403
-
-    # get organization user by caregiver only in same organization
-    get_organization_user_response = get_organization_user(caregiver_auth_token, new_organization_user_id)
-    assert get_organization_user_response.status_code == 200
-    get_organization_user_response = get_organization_user(caregiver_auth_token, default_organization_user_id)
-    assert get_organization_user_response.status_code == 403
-
-    # search organization list by caregiver only in same organization
-    search_organization_users_response = get_organization_user_list(caregiver_auth_token)
-    assert search_organization_users_response.status_code == 200
-    assert search_organization_users_response.json()['metadata']['page']['totalResults'] == 2
-    search_organization_users_response = get_organization_user_list(admin_auth_token)
-    assert search_organization_users_response.status_code == 200
-    assert search_organization_users_response.json()['metadata']['page']['totalResults'] > 2
-
-    # change state of organization user by caregiver should fail
-    change_organization_user_state_response = change_organization_user_state(caregiver_auth_token,
-                                                                             new_organization_user_id, "ENABLED")
-    assert change_organization_user_state_response.status_code == 403
-
-    # resend invitation to organization user by caregiver should fail
-    resend_invitation_response = resend_invitation(caregiver_auth_token, new_organization_user_id)
+    assert test_org_user_create_response.status_code == 201
+    new_org_user2_id = test_org_user_create_response.json()['_id']
+    resend_invitation_response = resend_invitation(org_user_auth_token, new_org_user2_id)
     assert resend_invitation_response.status_code == 403
+    resend_invitation_response = resend_invitation(org_admin_auth_token, new_org_user2_id)
+    assert resend_invitation_response.status_code == 200
 
-    # teardown
+    # get org_user only in same organization
+    get_org_user_response = get_organization_user(org_user_auth_token, new_org_user_id)  # same org
+    assert get_org_user_response.status_code == 200
+    get_org_user_response = get_organization_user(org_user_auth_token, default_org_user_id)  # other org patient
+    assert get_org_user_response.status_code == 403
 
-    delete_user_response = delete_organization_user(admin_auth_token, default_organization_user_id)
-    assert delete_user_response.status_code == 204
-    delete_user_response = delete_organization_user(admin_auth_token, new_organization_user_id)
-    assert delete_user_response.status_code == 204
-    delete_user_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_user_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    # search org_user only in same organization
+
+    get_org_user_list_response = get_organization_user_list(org_user_auth_token)
+    assert get_org_user_list_response.status_code == 200
+    assert get_org_user_list_response.json()['metadata']['page']['totalResults'] == 4, f"{get_org_user_list_response.text}"
+
+    # delete org_user only in same organization
+    test_org_user_delete_response = delete_organization_user(org_user_auth_token, default_org_user_id)
+    assert test_org_user_delete_response.status_code == 403
+    test_org_user_delete_response = delete_organization_user(org_user_auth_token, new_org_user_id)
+    assert test_org_user_delete_response.status_code == 204
+
+    # Teardown
+
+    delete_org_user_response = delete_organization_user(admin_auth_token, default_org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_org_user_response = delete_organization_user(admin_auth_token, new_org_user2_id)
+    assert delete_org_user_response.status_code == 204
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
-    delete_organization_response = delete_organization(admin_auth_token, organization_id)
-    assert delete_organization_response.status_code == 204
+    delete_org_response = delete_organization(admin_auth_token, organization_id)
+    assert delete_org_response.status_code == 204
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -278,89 +279,102 @@ def test_org_user_patient_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create caregiver by admin in new organization
-    create_template_response = create_caregiver_template(admin_auth_token)
-    assert create_template_response.status_code == 201
-    caregiver_template_name = create_template_response.json()['name']
-    caregiver_template_id = create_template_response.json()['id']
-    # create caregiver by admin
-    caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 organization_id)
+    # get the org admin credentials
+    org_admin_auth_token, org_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
 
     # Create patient should only succeed  in same organization
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create patient should fail in other org
-    test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
+    test_patient_create_response = create_patient(org_user_auth_token, test_name, email, "Patient",
                                                   "00000000-0000-0000-0000-000000000000")
     assert test_patient_create_response.status_code == 403
     # create patient should succeed in same org
-    test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
-                                                  organization_id)
-    assert test_patient_create_response.status_code == 201
-    new_org_patient_id = test_patient_create_response.json()['_id']
+    new_org_patient_auth_toke, new_org_patient_id = create_single_patient(org_user_auth_token, organization_id)
 
     # first create a patient by admin in default org
-    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
-                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
-    test_patient_create_response = create_patient(admin_auth_token, test_name, email, "Patient",
-                                                  "00000000-0000-0000-0000-000000000000")
-    assert test_patient_create_response.status_code == 201
-    default_org_patient_id = test_patient_create_response.json()['_id']
+    default_org_patient_auth_token, default_org_patient_id = create_single_patient(admin_auth_token)
 
     # update patient only for own org
-    update_patient_response = update_patient(caregiver_auth_token, new_org_patient_id, organization_id,
+    update_patient_response = update_patient(org_user_auth_token, new_org_patient_id, organization_id,
                                              "change string", None, None)
     assert update_patient_response.status_code == 200
     # should fail for patient in other org
-    update_patient_response = update_patient(caregiver_auth_token, default_org_patient_id,
+    update_patient_response = update_patient(org_user_auth_token, default_org_patient_id,
                                              "00000000-0000-0000-0000-000000000000", "change string", None, None)
 
     assert update_patient_response.status_code == 403
 
+    # enable/disable only in same organization
+    change_patient_state_response = change_patient_state(org_user_auth_token, default_org_patient_id, "ENABLED")
+    assert change_patient_state_response.status_code == 403
+    change_patient_state_response = change_patient_state(org_user_auth_token, new_org_patient_id, "ENABLED")
+    assert change_patient_state_response.status_code == 200
+
+    # resend invitation only for admins and only in same org
+    # create another patient without accepting invitation
+    test_name2 = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email2 = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_patient_create_response = create_patient(org_user_auth_token, test_name2, email2, "Patient", organization_id)
+    assert test_patient_create_response.status_code == 201
+    new_org_patient2_id = test_patient_create_response.json()['_id']
+    resend_invitation_response = resend_invitation(org_user_auth_token, new_org_patient2_id)
+    assert resend_invitation_response.status_code == 403
+    resend_invitation_response = resend_invitation(org_admin_auth_token, new_org_patient2_id)
+    assert resend_invitation_response.status_code == 200
+
     # get patient only in same organization
-    get_patient_response = get_patient(caregiver_auth_token, new_org_patient_id)  # same org
+    get_patient_response = get_patient(org_user_auth_token, new_org_patient_id)  # same org
     assert get_patient_response.status_code == 200
     can_login_val = not get_patient_response.json()['_canLogin']
-    get_patient_response = get_patient(caregiver_auth_token, default_org_patient_id)  # other org patient
+    get_patient_response = get_patient(org_user_auth_token, default_org_patient_id)  # other org patient
     assert get_patient_response.status_code == 403
 
-    # update canLoging should fail
-    update_patient_response = update_patient(caregiver_auth_token, new_org_patient_id, organization_id,
+    # update canLoging should only by admins and only in same organization
+    update_patient_response = update_patient(org_user_auth_token, new_org_patient_id, organization_id,
                                              None, None, {"_canLogin": can_login_val})
+    assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
+
+    update_patient_response = update_patient(org_admin_auth_token, new_org_patient_id, organization_id,
+                                             None, None, {"_canLogin": can_login_val})
+    assert update_patient_response.status_code == 200, f"{update_patient_response.text}"
+
+    update_patient_response = update_patient(org_admin_auth_token, default_org_patient_id,
+                                             "00000000-0000-0000-0000-000000000000", None, None,
+                                             {"_canLogin": can_login_val})
     assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
     # search patient only in same organization
 
-    get_patient_list_response = get_patient_list(caregiver_auth_token)
+    get_patient_list_response = get_patient_list(org_user_auth_token)
     assert get_patient_list_response.status_code == 200
-    assert get_patient_list_response.json()['metadata']['page']['totalResults'] == 1
-
-    # enable/disable only in same organization
-    change_patient_state_response = change_patient_state(caregiver_auth_token, default_org_patient_id, "ENABLED")
-    assert change_patient_state_response.status_code == 403
-    change_patient_state_response = change_patient_state(caregiver_auth_token, new_org_patient_id, "ENABLED")
-    assert change_patient_state_response.status_code == 200
-
-    # resend invitation fails
-    resend_invitation_response = resend_invitation(caregiver_auth_token, new_org_patient_id)
-    assert resend_invitation_response.status_code == 403
+    assert get_patient_list_response.json()['metadata']['page']['totalResults'] == 2
 
     # delete patient only in same organization
-    test_patient_delete_response = delete_patient(caregiver_auth_token, default_org_patient_id)
+    test_patient_delete_response = delete_patient(org_user_auth_token, default_org_patient_id)
     assert test_patient_delete_response.status_code == 403
-    test_patient_delete_response = delete_patient(caregiver_auth_token, new_org_patient_id)
+    test_patient_delete_response = delete_patient(org_user_auth_token, new_org_patient_id)
     assert test_patient_delete_response.status_code == 204
 
     # Teardown
 
     delete_patient_response = delete_patient(admin_auth_token, default_org_patient_id)
     assert delete_patient_response.status_code == 204
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
-    assert delete_caregiver_response.status_code == 204
-    delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
+    delete_patient_response = delete_patient(admin_auth_token, new_org_patient2_id)
+    assert delete_patient_response.status_code == 204
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
     assert delete_template_response.status_code == 204
     delete_org_response = delete_organization(admin_auth_token, organization_id)
     assert delete_org_response.status_code == 204
@@ -472,7 +486,7 @@ def test_org_user_device_alerts_abac_rules():
     assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_org_user_caregiver_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
@@ -482,65 +496,97 @@ def test_org_user_caregiver_abac_rules():
     create_organization_response = create_organization(admin_auth_token, template_id)
     assert create_organization_response.status_code == 201
     organization_id = create_organization_response.json()['_id']
-    # create caregiver by admin in new organization
+    # get the org admin credentials
+    org_admin_auth_token, org_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
+    # create organization user
+    create_template_response = create_org_user_template(admin_auth_token)
+    assert create_template_response.status_code == 201, f"{create_template_response.text}"
+    org_user_template_name = create_template_response.json()['name']
+    org_user_template_id = create_template_response.json()['id']
+    # create org_user by admin
+    org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
+                                                                        organization_id)
     create_template_response = create_caregiver_template(admin_auth_token)
     assert create_template_response.status_code == 201
     caregiver_template_name = create_template_response.json()['name']
     caregiver_template_id = create_template_response.json()['id']
-    # create caregiver by admin
-    caregiver_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                     organization_id)
 
-    # create caregiver by admin in default org
-    caregiver_def_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                             "00000000-0000-0000-0000-000000000000")
-
-    # create caregiver by caregiver should fail
-    caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    # Create caregiver should only succeed  in same organization
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    create_caregiver_response = create_caregiver(caregiver_auth_token, test_name, caregiver_email, "Clinician",
-                                                 organization_id)
-    assert create_caregiver_response.status_code == 403
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    # create caregiver should fail in other org
+    test_caregiver_create_response = create_caregiver(org_user_auth_token, test_name, email, caregiver_template_name,
+                                                      "00000000-0000-0000-0000-000000000000")
+    assert test_caregiver_create_response.status_code == 403
+    # create caregiver should succeed in same org
+    new_org_caregiver_auth_toke, new_org_caregiver_id = create_single_caregiver(org_user_auth_token,
+                                                                                caregiver_template_name,
+                                                                                organization_id)
 
-    # update caregiver by caregiver should fail
-    update_caregiver_response = update_caregiver(caregiver_auth_token, caregiver_new_id,
-                                                 organization_id, "change string")
+    # first create a caregiver by admin in default org
+    default_org_caregiver_auth_token, default_org_caregiver_id = create_single_caregiver(admin_auth_token,
+                                                                                         caregiver_template_name,
+                                                                                         "00000000-0000-0000-0000-000000000000")
+
+    # update caregiver only for own org
+    update_caregiver_response = update_caregiver(org_user_auth_token, new_org_caregiver_id, organization_id,
+                                                 "change string")
+    assert update_caregiver_response.status_code == 200
+    # should fail for caregiver in other org
+    update_caregiver_response = update_caregiver(org_user_auth_token, default_org_caregiver_id,
+                                                 "00000000-0000-0000-0000-000000000000", "change string")
+
     assert update_caregiver_response.status_code == 403
 
-    # delete caregiver by caregiver should fail
-    delete_caregiver_response = delete_caregiver(caregiver_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 403
-
-    # change caregiver state by caregiver should fail
-    change_caregiver_state_response = change_caregiver_state(caregiver_auth_token, caregiver_new_id, "ENABLED")
+    # enable/disable only in same organization
+    change_caregiver_state_response = change_caregiver_state(org_user_auth_token, default_org_caregiver_id, "ENABLED")
     assert change_caregiver_state_response.status_code == 403
+    change_caregiver_state_response = change_caregiver_state(org_user_auth_token, new_org_caregiver_id, "ENABLED")
+    assert change_caregiver_state_response.status_code == 200
 
-    # get caregiver by caregiver only in same organization
-    get_caregiver_response = get_caregiver(caregiver_auth_token, caregiver_new_id)
+    # resend invitation only for admins and only in same org
+    # create another caregiver without accepting invitation
+    test_name2 = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email2 = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_caregiver_create_response = create_caregiver(org_user_auth_token, test_name2, email2, caregiver_template_name,
+                                                      organization_id)
+    assert test_caregiver_create_response.status_code == 201
+    new_org_caregiver2_id = test_caregiver_create_response.json()['_id']
+    resend_invitation_response = resend_invitation(org_user_auth_token, new_org_caregiver2_id)
+    assert resend_invitation_response.status_code == 403
+    resend_invitation_response = resend_invitation(org_admin_auth_token, new_org_caregiver2_id)
+    assert resend_invitation_response.status_code == 200
+
+    # get caregiver only in same organization
+    get_caregiver_response = get_caregiver(org_user_auth_token, new_org_caregiver_id)  # same org
     assert get_caregiver_response.status_code == 200
-    get_caregiver_response = get_caregiver(caregiver_auth_token, caregiver_default_id)
+    get_caregiver_response = get_caregiver(org_user_auth_token, default_org_caregiver_id)  # other org patient
     assert get_caregiver_response.status_code == 403
 
-    # search caregiver by caregiver only in same org
-    # Positive - for self
-    get_caregiver_list_response = get_caregiver_list(caregiver_auth_token)
+    # search caregiver only in same organization
+
+    get_caregiver_list_response = get_caregiver_list(org_user_auth_token)
     assert get_caregiver_list_response.status_code == 200
-    assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] == 1
+    assert get_caregiver_list_response.json()['metadata']['page']['totalResults'] == 2
 
-    # resend invitation fails
-    resend_invitation_response = resend_invitation(caregiver_auth_token, caregiver_new_id)
-    assert resend_invitation_response.status_code == 403
-
-    # delete should fail
-    delete_caregiver_response = delete_caregiver(caregiver_auth_token, caregiver_new_id)
-    assert delete_caregiver_response.status_code == 403
+    # delete caregiver only in same organization
+    test_caregiver_delete_response = delete_caregiver(org_user_auth_token, default_org_caregiver_id)
+    assert test_caregiver_delete_response.status_code == 403
+    test_caregiver_delete_response = delete_caregiver(org_user_auth_token, new_org_caregiver_id)
+    assert test_caregiver_delete_response.status_code == 204
 
     # Teardown
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
+
+    delete_caregiver_response = delete_caregiver(admin_auth_token, default_org_caregiver_id)
     assert delete_caregiver_response.status_code == 204
-    delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_default_id)
+    delete_caregiver_response = delete_caregiver(admin_auth_token, new_org_caregiver2_id)
     assert delete_caregiver_response.status_code == 204
+    delete_org_user_response = delete_organization_user(admin_auth_token, org_user_id)
+    assert delete_org_user_response.status_code == 204
+    delete_template_response = delete_template(admin_auth_token, org_user_template_id)
+    assert delete_template_response.status_code == 204
     delete_template_response = delete_template(admin_auth_token, caregiver_template_id)
     assert delete_template_response.status_code == 204
     delete_org_response = delete_organization(admin_auth_token, organization_id)
