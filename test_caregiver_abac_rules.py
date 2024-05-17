@@ -424,7 +424,7 @@ def test_caregiver_device_alerts_abac_rules():
     # get current alerts (nursing station)
     get_current_alert_response = get_current_device_alert_list(caregiver_new_auth_token, alert_id)
     assert get_current_alert_response.status_code == 200, f"{get_current_alert_response.text}"
-    get_current_alert_response = get_current_device_alert_list(caregiver_new_auth_token, alert_id)
+    get_current_alert_response = get_current_device_alert_list(caregiver_default_auth_token, alert_id)
     assert get_current_alert_response.status_code == 200, f"{get_current_alert_response.text}"
 
     # delete device-alert only in same organization
