@@ -233,7 +233,7 @@ def test_patient_device_alerts_abac_rules():
     create_alert_response = create_device_alert_by_id(patient1_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 201  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_id(patient2_auth_token, device1_id, alert_template2_id)
+    create_alert_response = create_device_alert_by_id(patient2_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 403  # other org
 
     # get device-alert only in same organization
