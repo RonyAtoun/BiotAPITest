@@ -407,7 +407,7 @@ def test_caregiver_device_alerts_abac_rules():
     create_alert_response = create_device_alert_by_id(caregiver_new_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 201, f"{create_alert_response.text}"  # same org
     alert_id = create_alert_response.json()['_id']
-    create_alert_response = create_patient_alert_by_id(caregiver_default_auth_token, device1_id, alert_template2_id)
+    create_alert_response = create_device_alert_by_id(caregiver_default_auth_token, device1_id, alert_template2_id)
     assert create_alert_response.status_code == 403, f"{create_alert_response.text}"  # other org
 
     # get device-alert only in same organization
