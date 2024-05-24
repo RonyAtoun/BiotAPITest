@@ -177,13 +177,41 @@ def update_patient_template_with_file_entity(auth_token, patient_id, file_name):
     }
     # payload['customAttributes'].append(append_data)
 
-    update_template_response = update_patient_template(auth_token, template_id, payload)
+    update_template_response = update_patient_template(auth_token, template_id, json.dumps(payload))
     assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     return template_id, patient_payload
 
 
-def create_single_patient(auth_token):
+def map_template(template):
+    custom_attributes = template['customAttributes']
+    for attribute in custom_attributes:
+        attribute['category'] = attribute['category']['name']
+
+    template_attributes = template['templateAttributes']
+    for attribute in template_attributes:
+        value = attribute['organizationSelection']['configuration']
+        attribute['organizationSelectionConfiguration'] = value
+        del attribute['organizationSelection']
+
+    return template
+
+
+def get_manu_admin_credentials(auth_token, organization_id):
+    # accept invitation as an admin of custom Org-n
+    get_organisation_response = get_organization(auth_token, organization_id)
+    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
+    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
+    primary_admin_email = get_organisation_user_response.json()["_email"]
+    accept_invitation(primary_admin_email)
+    primary_admin_auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    get_self_user_email_response = get_self_user_email(primary_admin_auth_token)
+    assert get_self_user_email_response == primary_admin_email, \
+        f"Actual email '{get_self_user_email_response}' does not match the expected"
+    return primary_admin_auth_token, primary_admin_id
+
+
+def create_single_patient(auth_token, organization_id="00000000-0000-0000-0000-000000000000"):
     # create a patient
     # get the Patient template name
     template_list_response = get_all_templates(auth_token)
@@ -200,7 +228,7 @@ def create_single_patient(auth_token):
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
 
     create_patient_response = create_patient(auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
+                                             organization_id)
     assert create_patient_response.status_code == 201, f"{create_patient_response.text}"
     patient_id = create_patient_response.json()['_id']
 
@@ -224,6 +252,21 @@ def create_single_caregiver(auth_token, caregiver_template_name, organization_id
     # login
     caregiver_auth_token = login_with_credentials(caregiver_email, password)
     return caregiver_auth_token, caregiver_id
+
+
+def create_single_org_user(auth_token, org_user_template_name, organization_id):
+    org_user_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_org_user_response = create_organization_user(auth_token, org_user_template_name, test_name, org_user_email,
+                                                        organization_id)
+    assert create_org_user_response.status_code == 201, f"{create_org_user_response.text}"
+    org_user_id = create_org_user_response.json()['_id']
+    response_text, accept_invitation_response = accept_invitation(org_user_email)
+    password = accept_invitation_response.json()['operationData']['password']
+    # login
+    auth_token = login_with_credentials(org_user_email, password)
+    return auth_token, org_user_id, password
 
 
 def check_simulator_status():

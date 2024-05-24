@@ -9,6 +9,20 @@ from API_drivers import *
 
 def force_cleanup():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    get_registration_code_list_response = get_registration_code_list(admin_auth_token)
+    assert get_registration_code_list_response.status_code == 200
+    for reg_code in get_registration_code_list_response.json()['data']:
+        print(f"reg_code_id: {reg_code['_id']}")
+        delete_reg_response = delete_registration_code(admin_auth_token, reg_code['_id'])
+        assert delete_reg_response.status_code == 204
+    get_org_users_list_response = get_organization_user_list(admin_auth_token)
+    assert get_org_users_list_response.status_code == 200
+    for user in get_org_users_list_response.json()['data']:
+        if 'test' in user['_name']['firstName']:
+            print(f"org user name: {user['_name']}")
+            delete_org_user_response = delete_organization_user(admin_auth_token, user['_id'])
+            assert delete_org_user_response.status_code == 204
+
     get_device_alert_list_response = get_device_alert_list(admin_auth_token, None)
     if os.getenv('ENDPOINT') == 'https://api.staging.biot-gen2.biot-med.com':
         assert get_device_alert_list_response.status_code == 200
@@ -32,14 +46,14 @@ def force_cleanup():
     get_device_list_response = get_device_list(admin_auth_token)
     assert get_device_list_response.status_code == 200
     for device in get_device_list_response.json()['data']:
-        print("deviceId", device['_id'])
         if 'test' in device['_id'] or 'device_by_manu_admin' in device['_id'] or '343' in device['_id']:
             delete_device_response = delete_device(admin_auth_token, device['_id'])
             assert delete_device_response.status_code == 204
+            print("deviceId", device['_id'])
     get_patient_list_response = get_patient_list(admin_auth_token)
     assert get_patient_list_response.status_code == 200
     for patient in get_patient_list_response.json()['data']:
-        if "test" in patient['_name']['firstName']:
+        if '_name' in patient and "test" in patient['_name']['firstName']:
             print("patient", patient['_name'])
             patient_delete_response = delete_patient(admin_auth_token, patient['_id'])
             assert patient_delete_response.status_code == 204
@@ -59,7 +73,7 @@ def force_cleanup():
             get_generic_entity_list_response = get_generic_entity_list(admin_auth_token)
             assert get_generic_entity_list_response.status_code == 200
             for generic_entity in get_generic_entity_list_response.json()['data']:
-                print('generic entity', generic_entity['_name'])
+                print('generic entity', generic_entity['_id'])
                 delete_generic_entity_response = delete_generic_entity(admin_auth_token, generic_entity['_id'])
                 assert delete_generic_entity_response.status_code == 204
             delete_organization_response = delete_organization(admin_auth_token, org['_id'])
@@ -75,6 +89,7 @@ def force_cleanup():
                 print("Failed to delete template in use", template['name'])
 
     stop_simulation()
+
 
 if __name__ == "__main__":
     force_cleanup()
