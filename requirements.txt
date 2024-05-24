@@ -8,7 +8,10 @@ iniconfig==2.0.0
 packaging==23.2
 pluggy==1.4.0
 pytest==8.0.1
+pytest-rerunfailures==14.0
+pytest-variables==3.1.0
 pytest-xdist==3.5.0
+python-dotenv==1.0.1
 requests==2.31.0
 soupsieve==2.5
 tomli==2.0.1
