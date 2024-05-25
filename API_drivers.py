@@ -2344,7 +2344,7 @@ def create_plugin(auth_token, name):
                        f'"subscriptions": {{"interceptionOrder": 1, "interceptions": '
                        f'[{{"type": "PRE_REQUEST", "apiId": "POST/generic-entity/v1/generic-entities", "order": 1}}], '
                        f'"notifications": [{{"entityTypeName": "generic-entity", "actionName": '
-                       f'"_create"}}]}}, "enabledState": "ENABLED"}}')
+                       f'"_create"}}]}}, "enabledState": "DISABLED"}}')
     }
 
     return requests.post(ENDPOINT + '/settings/v2/plugins', headers=headers, files=payload)
@@ -2379,7 +2379,7 @@ def update_plugin(auth_token, name, updated_display_name):
                        f'"subscriptions": {{"interceptionOrder": 1, "interceptions": '
                        f'[{{"type": "PRE_REQUEST", "apiId": "POST/generic-entity/v1/generic-entities", "order": 1}}], '
                        f'"notifications": [{{"entityTypeName": "generic-entity", "actionName": '
-                       f'"_create"}}]}}, "enabledState": "ENABLED"}}')
+                       f'"_create"}}]}}, "enabledState": "DISABLED"}}')
     }
     return requests.patch(ENDPOINT + '/settings/v2/plugins/{name}'.replace('{name}', name),
                           headers=headers, files=payload)
