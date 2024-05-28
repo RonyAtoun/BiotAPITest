@@ -1,6 +1,9 @@
 # import pytest
 from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 #############################################################################################
@@ -639,6 +642,28 @@ def test_patient_files_abac_rules():
     # create patient in default org
     patient2_auth_token, patient2_id = create_single_patient(admin_auth_token)
 
+    # add file attribute to Patient template
+    patient_template_id = "a38f32d7-de6c-4252-9061-9bcdc253f6c9"
+    get_patient_template_response = get_template(admin_auth_token, patient_template_id)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+    file_attribute_name = f'file_attr_integ_test{uuid.uuid4().hex}'[0:36]
+    file_attribute = {
+        "name": file_attribute_name,
+        "type": "FILE",
+        "displayName": "file_attr_integ_test",
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "max": 3221225472
+        },
+        "selectableValues": [],
+        "category": "REGULAR"
+    }
+    (template_payload['customAttributes']).append(file_attribute)
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
     # create files in new organization and default , associate the files to patients
     name = f'test_file{uuid.uuid4().hex}'[0:16]
     mime_type = 'text/plain'
@@ -657,10 +682,10 @@ def test_patient_files_abac_rules():
     assert upload_response.status_code == 200
     # associate files to patients
     update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
-                                             {"uploadFile": {"id": file1_id}})
+                                             {file_attribute_name: {"id": file1_id}})
     assert update_patient_response.status_code == 200
     update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
-                                             None, None, {"uploadFile": {"id": file2_id}})
+                                             None, None, {file_attribute_name: {"id": file2_id}})
     assert update_patient_response.status_code == 200
     # get should succeed only in self organization
     get_file_response = get_file(patient1_auth_token, file1_id)  # should succeed
@@ -676,6 +701,19 @@ def test_patient_files_abac_rules():
     # delete second organization
     delete_organization_response = delete_organization(admin_auth_token, organization_id)
     assert delete_organization_response.status_code == 204
+
+    # revert changes in Patient Template
+    get_template_response = get_template(admin_auth_token, patient_template_id)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == file_attribute_name:
+            del template_payload['customAttributes'][index]
+            continue
+        else:
+            index += 1
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
 
 # @pytest.mark.skip

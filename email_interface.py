@@ -2,7 +2,9 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import unquote, parse_qs, urlparse
-import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ENDPOINT = os.getenv('ENDPOINT')
 slack_token = os.getenv('SLACK_TOKEN')

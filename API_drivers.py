@@ -3,7 +3,9 @@ import os
 import uuid
 import requests
 from urllib.parse import urlencode
-import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # from test_constants import *
 
@@ -36,6 +38,7 @@ def get_self_user_email(auth_token):
     response = requests.get(ENDPOINT + '/organization/v1/users/self', headers=headers, data=json.dumps(payload))
     # assert response.status_code == 200
     return response.json()["_email"]
+
 
 def get_self_user(auth_token):
     headers = {
@@ -1185,7 +1188,8 @@ def get_template_overview(auth_token, template_id):
 def get_all_templates(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     query_params = {}
-    return requests.get(ENDPOINT + '/settings/v1/templates/minimized', data=json.dumps(query_params), headers=headers)
+    return requests.get(ENDPOINT + '/settings/v1/templates/minimized?'
+                                   'searchRequest=%7B%0A%20%20%22limit%22%3A%201000%0A%7D', data=json.dumps(query_params), headers=headers)
 
 
 def delete_template(auth_token, template_id):
@@ -1197,15 +1201,16 @@ def delete_template(auth_token, template_id):
 def update_template(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}'.replace('{templateId}', template_id),
+    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}?force=true'.replace('{templateId}', template_id),
                         headers=headers, data=json.dumps(payload))
 
 
 def update_patient_template_force_true(auth_token, template_id, payload):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
 
-    return requests.put(ENDPOINT + '/settings/v1/templates/{templateId}?force=true'.replace('{templateId}', template_id),
-                        headers=headers, data=json.dumps(payload))
+    return requests.put(
+        ENDPOINT + '/settings/v1/templates/{templateId}?force=true'.replace('{templateId}', template_id),
+        headers=headers, data=json.dumps(payload))
 
 
 def get_template_by_id(auth_token, template_id):
@@ -1229,7 +1234,7 @@ def get_template_by_parent_id(auth_token, parent_template_id):
 
 def create_generic_template(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    name = f"Generic_template_{uuid.uuid4().hex}"[0:32]
+    name = f"Test_Generic_template_{uuid.uuid4().hex}"[0:32]
     payload = json.dumps({
         "name": name,
         "displayName": name,
@@ -1398,7 +1403,7 @@ def update_patient_template(auth_token, template_id, payload):
 
 
 def create_registration_code_template(auth_token):
-    name = f"registration_code_{uuid.uuid4().hex}"[0:32]
+    name = f"test_registration_code_{uuid.uuid4().hex}"[0:32]
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = json.dumps({
         "name": name,
@@ -1528,7 +1533,7 @@ def get_generic_entity_list(auth_token):
 
 # Organization APIs ################################################################################################
 def create_organization(auth_token, template_id):
-    email = f'primary_admin_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
+    email = f'test_primary_admin_{uuid.uuid4().hex}'[0:32] + '_@biotmail.com'
     organization_name = f'Test Org_{uuid.uuid4().hex}'[0:32]
     headers = {
         "accept": "application/json",
@@ -1692,9 +1697,9 @@ def update_device(auth_token, device_id, change_string, patient_id):
         payload = {"_description": change_string}
     else:
         payload = {
-             "_description": change_string,
-             "_patient": {
-              "id": patient_id,
+            "_description": change_string,
+            "_patient": {
+                "id": patient_id,
             },
         }
     return requests.patch(ENDPOINT + '/device/v2/devices/{id}'.replace('{id}', device_id),
@@ -1724,7 +1729,7 @@ def get_device_credentials(auth_token):
 
 
 def create_device_without_registration_code(auth_token, template_name, organization_id):
-    device_id = f"device_by_manu_admin{uuid.uuid4().hex}"[0:32]
+    device_id = f"test_device_by_manu_admin{uuid.uuid4().hex}"[0:32]
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
     payload = {
         "_description": "integ_test_device",
@@ -1933,7 +1938,8 @@ def get_observation_attribute(username, password):
     observation_attribute = None
     custom_attributes = get_patient_template_response.json()["customAttributes"]
     for custom_attribute in custom_attributes:
-        if custom_attribute["category"]["name"] == "MEASUREMENT" and (custom_attribute["type"] == "INTEGER" or custom_attribute["type"] == "DECIMAL"):
+        if custom_attribute["category"]["name"] == "MEASUREMENT" and (
+                custom_attribute["type"] == "INTEGER" or custom_attribute["type"] == "DECIMAL"):
             observation_attribute = custom_attribute
             break
     return observation_attribute
@@ -2288,10 +2294,10 @@ def get_device_alert_list(auth_token, alert_id):
     else:
         search_request = {
             "searchRequest": json.dumps({
-              "filter": {
-                "_id": {
-                    "like": alert_id
-                 },
+                "filter": {
+                    "_id": {
+                        "like": alert_id
+                    },
                 }
             })
         }
@@ -3614,7 +3620,7 @@ def create_caregiver_template(auth_token):
 
 def create_org_user_template(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    name = f"org_user{uuid.uuid4().hex}"[0:35]
+    name = f"test_org_user{uuid.uuid4().hex}"[0:35]
     payload = json.dumps(
         {
             "name": name,
@@ -3864,8 +3870,8 @@ def create_org_user_template(auth_token):
 
 
 def create_device_template_with_session(auth_token):
-    name_device = f'device_templ_{uuid.uuid4().hex}'[0:32]
-    name_usage = f'session_templ_{uuid.uuid4().hex}'[0:32]
+    name_device = f'test_device_templ_{uuid.uuid4().hex}'[0:32]
+    name_usage = f'test_session_templ_{uuid.uuid4().hex}'[0:32]
 
     headers = {
         'accept': 'application/json, text/plain, */*',

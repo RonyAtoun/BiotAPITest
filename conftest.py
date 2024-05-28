@@ -1,10 +1,13 @@
-import os
 import requests
 import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 ENDPOINT = os.getenv('ENDPOINT')
 SIMULATOR_ENDPOINT = os.getenv('SIMULATOR_ENDPOINT')
-
 
 headers = {'accept': 'application/json, text/plain, */*'}
 payload = {}

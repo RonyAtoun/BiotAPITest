@@ -14,3 +14,5 @@
 *_REMOTE_*.txt
 
 !/biot_api.env
+.env
+.pytest_cache

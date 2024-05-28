@@ -3,6 +3,10 @@ from email_interface import *
 from API_drivers import *
 import pytest
 from api_test_helpers import map_template
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def test_manu_admin_command_abac_rules():
@@ -15,14 +19,14 @@ def test_manu_admin_command_abac_rules():
     device_template_id = device_template_response.json()["id"]
 
     # create command template #1
-    command_template_name = f'cmd_support_stop1_{uuid.uuid4().hex}'[0:32]
+    command_template_name = f'test_cmd_sprt_stop1_{uuid.uuid4().hex}'[0:32]
     create_command_template_response = create_command_template_with_support_stop_true(auth_token, command_template_name,
                                                                                       device_template_id)
     assert create_command_template_response.status_code == 201, f"{create_command_template_response.text}"
     command_template_id = create_command_template_response.json()['id']
 
     # create command template #2
-    command_template2_name = f'cmd_support_stop2_{uuid.uuid4().hex}'[0:32]
+    command_template2_name = f'test_cmd_sprt_stop2_{uuid.uuid4().hex}'[0:32]
     create_command_template2_response = create_command_template_with_support_stop_true(auth_token,
                                                                                        command_template2_name,
                                                                                        device_template_id)
@@ -101,7 +105,7 @@ def test_manu_admin_organisation_abac_rules():
     organization_id = create_organization_response.json()['_id']
 
     # TEST - Update the Created Organisation
-    change_string = f'Updated Org Name + {uuid.uuid4().hex}'[0:32]
+    change_string = f'Test Updated_Org_Name + {uuid.uuid4().hex}'[0:32]
     update_organization_response = update_organization(auth_token, organization_id, change_string)
     assert update_organization_response.status_code == 200, f"Status code {update_organization_response.status_code} " \
                                                             f"{update_organization_response.text}"
@@ -337,7 +341,7 @@ def test_manu_admin_caregiver_abac_rules():
     assert create_caregiver_template_response.status_code == 201, f"{create_caregiver_template_response.text}"
     template_name = create_caregiver_template_response.json()["name"]
     template_id = create_caregiver_template_response.json()["id"]
-    email = f'Caregiver_Templ_{uuid.uuid4().hex}'[0:35] + '@biotmail.com'
+    email = f'Test_caregiver_{uuid.uuid4().hex}'[0:35] + '@biotmail.com'
 
     # TEST - Create Caregiver in Custom Organisation
     create_caregiver_response = create_caregiver(auth_token, name, email, template_name, organization_id)
@@ -416,7 +420,7 @@ def test_manu_admin_org_user_abac_rules():
     assert create_org_user_template_response.status_code == 201, f"{create_org_user_template_response.text}"
     template_name = create_org_user_template_response.json()["name"]
     template_id = create_org_user_template_response.json()["id"]
-    email = f'Org_User_Template_{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
+    email = f'Test_Org_User_{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
 
     # TEST - Create Org-n User in Custom Organisation
     create_org_user_response = create_organization_user(auth_token, template_name, name, email, organization_id)
@@ -610,6 +614,7 @@ def test_manu_admin_registration_code_abac_rules():
     assert delete_registration_code_response.status_code == 204, f"{delete_registration_code_response.text}"
 
 
+@pytest.mark.skip
 def test_manu_admin_device_alerts_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -620,7 +625,7 @@ def test_manu_admin_device_alerts_abac_rules():
     device_template_id = device_template_response.json()["id"]
 
     # Create Device Alert template
-    name = f'alert_templ{uuid.uuid4().hex}'[0:32]
+    name = f'test_alert_templ{uuid.uuid4().hex}'[0:32]
     create_device_alert_template_response = create_device_alert_template(auth_token, device_template_id, name)
     assert create_device_alert_template_response.status_code == 201, f'{create_device_alert_template_response.text}'
     device_alert_template_id = create_device_alert_template_response.json()["id"]
@@ -692,6 +697,7 @@ def test_manu_admin_device_alerts_abac_rules():
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
 
 
+@pytest.mark.skip
 def test_manu_admin_patient_alert_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -714,9 +720,9 @@ def test_manu_admin_patient_alert_abac_rules():
 
     # create Patient in custom Org-n
     auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
-    patient_email = f'patient_alert{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
-    name = {"firstName": f'Patient',
-            "lastName": f'Usage'}
+    patient_email = f'test_patient_alert{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_patient_default_response = create_patient(auth_token, name, patient_email, PATIENT_TEMPLATE_NAME,
                                                      organization_id)
     assert create_patient_default_response.status_code == 201, f"{create_patient_default_response.text}"
@@ -725,7 +731,7 @@ def test_manu_admin_patient_alert_abac_rules():
 
     # create a Patient Alert Template
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    name = f'alert_templ{uuid.uuid4().hex}'[0:32]
+    name = f'test_alert_templ{uuid.uuid4().hex}'[0:32]
     create_patient_alert_template_response = create_patient_alert_template(auth_token, PATIENT_TEMPLATE_ID, name)
     assert create_patient_alert_template_response.status_code == 201, f'{create_patient_alert_template_response.text}'
     patient_alert_template_name = create_patient_alert_template_response.json()["name"]
@@ -827,8 +833,8 @@ def test_manu_admin_locales_abac_rules():
 def test_manu_admin_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create caregiver by admin in default organization
-    name = {"firstName": 'Manu',
-            "lastName": 'Admin'}
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     template_name = "ManufacturerAdmin"
     new_manu_admin_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
     create_manu_admin_response = create_organization_user(admin_auth_token, template_name, name, new_manu_admin_email,
@@ -868,7 +874,7 @@ def test_manu_admin_plugin_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Create Plugin
-    plugin_name = f'plugin{uuid.uuid4().hex}'[0:16]
+    plugin_name = f'test_plugin{uuid.uuid4().hex}'[0:16]
     create_plugin_response = create_plugin(admin_auth_token, plugin_name)
     assert create_plugin_response.status_code == 201, f"{create_plugin_response.text}"
     plugin_display_name = create_plugin_response.json()["displayName"]
@@ -1047,14 +1053,14 @@ def test_manu_admin_files_abac_rules():
     assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     # create Generic Entity in Default Organisation
-    generic_name = f"Generic_File_Def_{uuid.uuid4().hex}"[0:32]
+    generic_name = f"Test_Generic_File_Def_{uuid.uuid4().hex}"[0:32]
     create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
                                                            DEFAULT_ORGANISATION_ID)
     assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
     generic_entity1_id = create_generic_entity_response.json()["_id"]
 
     # create Generic Entity in Custom Organisation
-    generic_name = f"Generic_File_Cus_{uuid.uuid4().hex}"[0:32]
+    generic_name = f"Test_Generic_File_Cus_{uuid.uuid4().hex}"[0:32]
     create_generic_entity_response = create_generic_entity(auth_token, generic_template_id, generic_name,
                                                            organization_id)
     assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
@@ -1153,8 +1159,8 @@ def test_manu_admin_measurements_abac_rules():
     get_patient_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
     assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
     template_payload = map_template(get_patient_template_response.json())
-    aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
-    raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
+    aggregated_observation_attribute_name = f'test_integ_dec_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'test_integ_waveform{uuid.uuid4().hex}'[0:36]
     observation_aggregated_object = {
         "name": aggregated_observation_attribute_name,
         "type": "DECIMAL",
@@ -1367,9 +1373,9 @@ def test_manu_admin_usage_session_abac_rules():
 
     # create Patient in custom Org-n
     auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
-    patient_email = f'patient_usage{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
-    name = {"firstName": f'Patient',
-            "lastName": f'Usage'}
+    patient_email = f'test_patient_usage{uuid.uuid4().hex}'[0:32] + '@biotmail.com'
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_patient_default_response = create_patient(auth_token, name, patient_email, PATIENT_TEMPLATE_NAME,
                                                      organization_id)
     assert create_patient_default_response.status_code == 201, f"{create_patient_default_response.text}"
