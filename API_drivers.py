@@ -1930,7 +1930,7 @@ def get_observation_attribute(username, password):
     }
     payload = {}
     response = requests.request("GET",
-                                ENDPOINT + "/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22entityTypeName%22%3A%7B%22in%22%3A%5B%22patient%22%5D%7D%2C%22parentTemplateId%22%3A%7B%22isNull%22%3Atrue%7D%7D%2C%22page%22%3A0%2C%22limit%22%3A10%2C%22freeTextSearch%22%3A%22%22%7D",
+                ENDPOINT + "/settings/v1/templates?searchRequest=%7B%22filter%22%3A%7B%22entityTypeName%22%3A%7B%22in%22%3A%5B%22patient%22%5D%7D%2C%22parentTemplateId%22%3A%7B%22isNull%22%3Atrue%7D%7D%2C%22page%22%3A0%2C%22limit%22%3A10%2C%22freeTextSearch%22%3A%22%22%7D",
                                 headers=headers, data=payload)
     patient_template = response.json()["data"][0]
     patient_template_id = patient_template["id"]
