@@ -1,7 +1,6 @@
 import uuid
 import os
-from API_drivers import (login_with_credentials, create_generic_entity_template, delete_template, create_generic_entity,
-                         delete_generic_entity)
+from API_drivers import *
 
 user_name = os.getenv('USERNAME')  # Has to be set in the environment in advance
 pass_word = os.getenv('PASSWORD')
