@@ -614,7 +614,7 @@ def test_manu_admin_registration_code_abac_rules():
     assert delete_registration_code_response.status_code == 204, f"{delete_registration_code_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_manu_admin_device_alerts_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -697,7 +697,7 @@ def test_manu_admin_device_alerts_abac_rules():
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_manu_admin_patient_alert_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
