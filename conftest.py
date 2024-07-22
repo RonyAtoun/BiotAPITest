@@ -1,7 +1,10 @@
+import pytest
 import requests
 import time
 import os
 from dotenv import load_dotenv
+from API_drivers import get_template, login_with_credentials
+from api_test_helpers import map_template, update_template
 
 load_dotenv()
 
@@ -16,6 +19,32 @@ url_stop_simulator = SIMULATOR_ENDPOINT + "/stop"
 url_simulator = ENDPOINT + "/simulator/"
 url_simulator_healthcheck = ENDPOINT + "/simulator/system/healthCheck"
 MAX_RETRIES = 15
+
+
+@pytest.fixture(scope="session", autouse=True)
+def patient_template_prepare_on_fresh_install():
+    admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    patient_template_id = "a38f32d7-de6c-4252-9061-9bcdc253f6c9"
+    get_template_response = get_template(admin_auth_token, patient_template_id)
+    template_payload = map_template(get_template_response.json())
+    for element in template_payload['customAttributes']:
+        if element['validation']['mandatory']:
+            element['validation']['mandatory'] = False
+            element['validation']['defaultValue'] = None
+        else:
+            continue
+    for element in template_payload['builtInAttributes']:
+        if element['validation']['mandatory'] and element['validationMetadata']['mandatoryReadOnly'] is False:
+            element['validation']['mandatory'] = False
+            element['validation']['defaultValue'] = None
+        else:
+            continue
+    for element in template_payload['templateAttributes']:
+        element['value'] = ["SELF", "ANONYMOUS"]
+        element['organizationSelectionConfiguration']['all'] = True
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+    print("Patient Template Updated")
 
 
 def pytest_sessionstart(session):

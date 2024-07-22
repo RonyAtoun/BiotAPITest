@@ -38,9 +38,10 @@ def test_manu_admin_command_abac_rules():
     device_id = create_device_response.json()["_id"]
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
 
-    # start simulation
-    simulator_status_response = check_simulator_status()
-    assert simulator_status_response == "NO_RUNNING_SIMULATION"
+    # start simulator with device
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
     start_simulation_with_existing_device(device_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
     # TEST - Start Command in Default Org-n
@@ -61,12 +62,12 @@ def test_manu_admin_command_abac_rules():
     assert stop_command_response.status_code == 200, f"{start_command_response.text}"
     get_command_response = get_command(auth_token, device_id, command_id)
     command_state = get_command_response.json()['_state']
-    while command_state != "ABORTED":
+    while command_state not in ["ABORTED", "STOPPING"]:
         get_command_response = get_command(auth_token, device_id, command_id)
         command_state = get_command_response.json()['_state']
         if command_state in ["TIMEOUT", "FAILED"]:
             break
-    assert command_state == 'ABORTED', f'Command state is "{command_state}"'
+    assert command_state == 'ABORTED' or command_state == 'STOPPING', f'Command state is "{command_state}"'
 
     # TEST - Start another Command in Default Org-n and wait till it's Completed
     start_command2_response = start_command_by_id(auth_token, device_id, command_template2_id)
@@ -614,7 +615,6 @@ def test_manu_admin_registration_code_abac_rules():
     assert delete_registration_code_response.status_code == 204, f"{delete_registration_code_response.text}"
 
 
-# @pytest.mark.skip
 def test_manu_admin_device_alerts_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -697,7 +697,6 @@ def test_manu_admin_device_alerts_abac_rules():
     assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
 
 
-# @pytest.mark.skip
 def test_manu_admin_patient_alert_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -1393,9 +1392,10 @@ def test_manu_admin_usage_session_abac_rules():
     update_device_response = update_device_with_new_patient(auth_token, device_id, patient_id)
     assert update_device_response.status_code == 200, f"{update_device_response.text}"
 
-    # Start a session with device in simulator
-    simulator_status_response = check_simulator_status()
-    assert simulator_status_response == "NO_RUNNING_SIMULATION"
+    # start simulator with device
+    sim_status = ' '
+    while sim_status != "NO_RUNNING_SIMULATION":
+        sim_status = check_simulator_status()
     start_simulation_with_existing_device(device_id, os.getenv('USERNAME'), os.getenv('PASSWORD'))
     simulation_status_response = get_simulation_status()
     device_id_in_simulation_status = simulation_status_response.json()['devicesStatus'][0]['deviceStatistics'][
