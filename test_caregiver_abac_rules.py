@@ -1,6 +1,7 @@
 from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 from dotenv import load_dotenv
+from test_constants import *
 
 load_dotenv()
 
@@ -353,8 +354,84 @@ def test_caregiver_patient_abac_rules():
     test_patient_delete_response = delete_patient(caregiver_auth_token, new_org_patient_id)
     assert test_patient_delete_response.status_code == 204
 
+    # ########################################### phi test start ###########################################
+
+    get_patient_template_response = get_template(admin_auth_token, PATIENT_TEMPLATE_ID)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+
+    # add phi attribute to Patient template
+    phi_name = f'test_phi_object_patient{uuid.uuid4().hex}'[0:36]
+    phi_object = {
+        "name": phi_name,
+        "id": str(uuid.uuid4()),
+        "basePath": None,
+        "displayName": "test phi object patient",
+        "phi": True,
+        "type": "LABEL",
+        "validation": {
+            "mandatory": False,
+            "min": None,
+            "max": None,
+            "regex": None
+        },
+        "numericMetaData": None,
+        "referenceConfiguration": None
+    }
+    (template_payload['customAttributes']).append(phi_object)
+    update_template_response = update_template(admin_auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create a Patient with phi attribute in Custom Organisation as Admin of custom Org-n
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    create_patient_custom_response = create_patient_with_phi(caregiver_auth_token, name, email, PATIENT_TEMPLATE_NAME,
+                                                             organization_id,
+                                                             phi_name)  # create patient with phi attributes
+    phi_attribute_key = phi_name
+    assert create_patient_custom_response.status_code == 201, f"Status code " \
+                                                              f"{create_patient_custom_response.status_code}" \
+                                                              f" {create_patient_custom_response.text}"
+    phi_patient_id = create_patient_custom_response.json()["_id"]
+    get_patient_by_id_response = get_patient(caregiver_auth_token, phi_patient_id)
+    phi_attribute_value = get_patient_by_id_response.json()[phi_name]
+    assert phi_attribute_value in get_patient_by_id_response.text, \
+        f"'{phi_attribute_value}' should be present in the response"
+    assert phi_attribute_value == "testphi", f"phi attribute is '{phi_attribute_value}' instead of expected"
+
+    # TEST - Get Patient by ID in Custom Organisation and Verify that phi attribute is seen by Org User of custom Org-n
+    get_patient_by_id_response = get_patient(caregiver_auth_token, phi_patient_id)
+    assert get_patient_by_id_response.status_code == 200, f"Status code {get_patient_by_id_response.status_code} " \
+                                                          f"{get_patient_by_id_response.text}"
+    assert phi_patient_id == get_patient_by_id_response.json()["_id"], f"{phi_patient_id} doesn't match the expected"
+    patient = json.loads(get_patient_by_id_response.text)
+    i = 0
+    for key, value in patient.items():
+        if phi_attribute_key in key:
+            i = + 1
+            break
+    assert i == 1, f"PHI=true attribute {phi_attribute_key} is not present in response"
+
+    # revert changes in Patient Template
+    get_template_response = get_template(admin_auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == phi_name:
+            del template_payload['customAttributes'][index]
+            continue
+        else:
+            index += 1
+    update_template_response = update_template(admin_auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # ########################################### phi test end ###########################################
+
     # Teardown
 
+    delete_patient_response = delete_patient(admin_auth_token, phi_patient_id)
+    assert delete_patient_response.status_code == 204
     delete_patient_response = delete_patient(admin_auth_token, default_org_patient_id)
     assert delete_patient_response.status_code == 204
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_id)
@@ -687,10 +764,45 @@ def test_caregiver_generic_entity_abac_rules():
     delete_generic_entity_response = delete_generic_entity(caregiver_auth_token, entity2_id)
     assert delete_generic_entity_response.status_code == 403
 
+    # ########################################### phi test start ###########################################
+    # create generic template with phi=true
+    create_generic_template_with_phi_response = create_generic_template_with_phi_true(admin_auth_token)
+    assert create_generic_template_with_phi_response.status_code == 201, \
+        f"{create_generic_template_with_phi_response.text}"
+    generic_template_with_phi_id = create_generic_template_with_phi_response.json()["id"]
+
+    # TEST - Create Generic Entity with phi=true - allowed
+    generic_name_phi = f"Generic_Entity_PHI{uuid.uuid4().hex}"[0:32]
+    create_generic_entity_response = create_generic_entity(caregiver_auth_token, generic_template_with_phi_id,
+                                                           generic_name_phi,
+                                                           organization_id)
+    assert create_generic_entity_response.status_code == 201, f"{create_generic_entity_response.text}"
+    phi_generic_entity_id = create_generic_entity_response.json()["_id"]
+
+    # TEST - Get Generic Entity by ID - phi attribute is see
+    get_generic_entity_response = get_generic_entity(caregiver_auth_token, phi_generic_entity_id)
+    assert get_generic_entity_response.status_code == 200, f"{get_generic_entity_response.text}"
+
+    generic_with_phi = json.loads(get_generic_entity_response.text)
+    i = 0
+    for key, value in generic_with_phi.items():
+        if '_name' in key:
+            i = i + 1
+            break
+    assert i == 1, "PHI attribute is not visible for Caregiver User"
+
+    # ########################################### phi test end ###########################################
+
     # Teardown
     # delete second generic entity created
     delete_generic_entity_response = delete_generic_entity(admin_auth_token, entity2_id)
     assert delete_generic_entity_response.status_code == 204
+    # delete phi=true generic entity
+    delete_generic_entity_response = delete_generic_entity(admin_auth_token, phi_generic_entity_id)
+    assert delete_generic_entity_response.status_code == 204
+    # delete phi=true generic template
+    delete_generic_entity_template_response = delete_template(admin_auth_token, generic_template_with_phi_id)
+    assert delete_generic_entity_template_response.status_code == 204
     # delete caregiver
     delete_caregiver_response = delete_caregiver(admin_auth_token, caregiver_new_id)
     assert delete_caregiver_response.status_code == 204
@@ -1609,12 +1721,72 @@ def test_caregiver_usage_session_abac_rules():  # IP
     usage_session_status = get_usage_session_response.json()["_state"]
     assert usage_session_status == "DONE", f"The current status is {usage_session_status}, not 'DONE'"
 
+    # ########################################### phi test start ###########################################
+
+    # create a Device Template
+    # create Device in a Custom Org-n
+    device_template_response, usage_session_template_response = create_device_template_with_session(admin_auth_token)
+    assert device_template_response.status_code == 201, f"{device_template_response.text}"
+    device_template_name_phi = device_template_response.json()["name"]
+    device_template_id_phi = device_template_response.json()["id"]
+    usage_session_template_id_phi = usage_session_template_response.json()["id"]
+
+    create_device_response = create_device_without_registration_code(admin_auth_token, device_template_name_phi,
+                                                                     organization_id)
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+    device_id_test_phi = create_device_response.json()["_id"]
+
+    # create a Patient in custom Org-n
+    test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
+                 "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
+    test_patient_create_response = create_patient(caregiver_new_auth_token, test_name, email, "Patient",
+                                                  organization_id)
+    assert test_patient_create_response.status_code == 201
+    patient_id = test_patient_create_response.json()['_id']
+
+    # as a Caregiver of custom organisation create External usage session with PHI=true attribute
+
+    create_usage_with_phi_response = create_usage_session_with_name(caregiver_new_auth_token, device_id_test_phi,
+                                                                    patient_id,
+                                                                    usage_session_template_id_phi)
+    assert create_usage_with_phi_response.status_code == 201, f"{create_usage_with_phi_response.text}"
+    usage_session_phi_id = create_usage_with_phi_response.json()["_id"]
+    get_usage_session_response = get_usage_session_by_id(caregiver_new_auth_token, device_id_test_phi,
+                                                         usage_session_phi_id)
+    phi_attribute = get_usage_session_response.json()["_name"]
+
+    # TEST - Verify that phi=true attribute is seen by Caregiver of custom Org-n
+    get_usage_session_response = get_usage_session_by_id(caregiver_new_auth_token, device_id_test_phi,
+                                                         usage_session_phi_id)
+    usage_session = json.loads(get_usage_session_response.text)
+    i = 0
+    for key, value in usage_session.items():
+        if value is not None and isinstance(value, str):
+            if phi_attribute in value:
+                i += 1
+                break
+    assert i == 1, "PHI attribute is not visible for Caregiver"
+
+    # ########################################### phi test end ###########################################
+
     # Teardown
     # stop simulation
     stop_simulation()
     sim_status = ' '
     while sim_status != "NO_RUNNING_SIMULATION":
         sim_status = check_simulator_status()
+
+    # Delete an External Usage session with phi
+    delete_usage_session_response = delete_usage_session(admin_auth_token, device_id_test_phi,
+                                                         usage_session_phi_id)
+    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
+
+    delete_device_response = delete_device(admin_auth_token, device_id_test_phi)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+
+    delete_template_response = delete_template(admin_auth_token, device_template_id_phi)
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
 
     delete_session_response = delete_usage_session(admin_auth_token, device2_id, usage_session2_id)
     assert delete_session_response.status_code == 204, f"{delete_session_response.text}"

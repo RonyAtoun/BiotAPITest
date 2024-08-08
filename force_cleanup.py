@@ -91,28 +91,32 @@ def force_cleanup():
             else:
                 print("Failed to delete template in use", template['name'])
 
-        # revert changes in Patient Template
-        patient_template_id = "a38f32d7-de6c-4252-9061-9bcdc253f6c9"
-        get_template_response = get_template(admin_auth_token, patient_template_id)
-        template_payload = map_template(get_template_response.json())
-        index = 0
-        for element in template_payload['customAttributes']:
-            if "test_integ_dec_int" in element['name']:
-                del template_payload['customAttributes'][index]
-                print(f'Attribute removed {element["name"]}')
-                continue
-            elif "test_integ_waveform" in element['name']:
-                del template_payload['customAttributes'][index]
-                print(f'Attribute removed {element["name"]}')
-                continue
-            elif "file_attr_integ_test" in element['name']:
-                del template_payload['customAttributes'][index]
-                print(f'Attribute removed {element["name"]}')
-                continue
-            else:
-                index += 1
-        update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
-        assert update_template_response.status_code == 200, f"{update_template_response.text}"
+    # revert changes in Patient Template
+    patient_template_id = "a38f32d7-de6c-4252-9061-9bcdc253f6c9"
+    get_template_response = get_template(admin_auth_token, patient_template_id)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if "test_integ_dec_int" in element['name']:
+            del template_payload['customAttributes'][index]
+            print(f'Attribute removed {element["name"]}')
+            continue
+        elif "test_integ_waveform" in element['name']:
+            del template_payload['customAttributes'][index]
+            print(f'Attribute removed {element["name"]}')
+            continue
+        elif "file_attr_integ_test" in element['name']:
+            del template_payload['customAttributes'][index]
+            print(f'Attribute removed {element["name"]}')
+            continue
+        elif "test_phi_object_patient" in element['name']:
+            del template_payload['customAttributes'][index]
+            print(f'Attribute removed {element["name"]}')
+            continue
+        else:
+            index += 1
+    update_template_response = update_template(admin_auth_token, patient_template_id, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
     stop_simulation()
 
