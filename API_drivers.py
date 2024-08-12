@@ -1316,7 +1316,7 @@ def create_generic_template(auth_token):
 
 def create_generic_template_with_phi_true(auth_token):
     headers = {"content-type": "application/json", "Authorization": "Bearer " + auth_token}
-    name = f"Generic_template_phi_{uuid.uuid4().hex}"[0:32]
+    name = f"generic_template_phi_test_{uuid.uuid4().hex}"[0:32]
     payload = json.dumps({
         "name": name,
         "displayName": name,

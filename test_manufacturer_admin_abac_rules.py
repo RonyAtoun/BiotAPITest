@@ -574,7 +574,7 @@ def test_manu_admin_generic_entity_abac_rules():
     generic_name_phi = f"Generic_Entity_PHI{uuid.uuid4().hex}"[0:32]
     create_generic_entity_response = create_generic_entity(auth_token, generic_template_with_phi_id, generic_name_phi,
                                                            DEFAULT_ORGANISATION_ID)
-    assert create_generic_entity_response.status_code == 403, f"{create_generic_template_no_phi_response.text}"
+    assert create_generic_entity_response.status_code == 403, f"{create_generic_entity_response.text}"
 
     # TEST - Delete Generic Entity template
     delete_generic_template_no_phi_response = delete_template(auth_token, generic_template_no_phi_id)
@@ -1484,7 +1484,7 @@ def test_manu_admin_usage_session_abac_rules():
     delete_usage_session_response = delete_usage_session(auth_token, device_id, usage_session_id)
     assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
 
-    # as a Patient of custom organisation create usage External session with PHI=true attribute
+    # as a Patient of custom organisation create External usage session with PHI=true attribute
     auth_token = login_with_credentials(patient_email, "Aa123456strong!@")
     create_usage_with_phi_response = create_usage_session_with_name(auth_token, device_id, patient_id,
                                                                     usage_session_template_id)

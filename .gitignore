@@ -16,3 +16,11 @@
 !/biot_api.env
 .env
 .pytest_cache
+
+# Ignoring .idea directory (for JetBrains IDEs like PyCharm)
+.idea/
+
+# Ignoring compiled Python files
+__pycache__/
+*.pyc
+
