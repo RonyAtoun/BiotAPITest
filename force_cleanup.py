@@ -70,7 +70,6 @@ def force_cleanup():
 
     get_organization_list_response = get_organization_list(admin_auth_token)
     assert get_organization_list_response.status_code == 200
-
     for org in get_organization_list_response.json()['data']:
         if "Test Org_" in org['_name']:
             print(org['_name'], org['_id'])
