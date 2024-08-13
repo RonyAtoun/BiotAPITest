@@ -971,7 +971,7 @@ def test_caregiver_files_abac_rules():
     # associate files to patients
     update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
                                              {file_attribute_name: {"id": file1_id}})
-    assert update_patient_response.status_code == 200
+    assert update_patient_response.status_code == 200, f"{update_patient_response.text}"
     update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
                                              None, None,
                                              {file_attribute_name: {"id": file2_id}})
