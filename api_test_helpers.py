@@ -1,6 +1,7 @@
 import uuid
 from API_drivers import *
 from email_interface import accept_invitation
+from test_constants import *
 
 
 def self_signup_patient_setup(admin_auth_token, organization_id, device_template_name):
@@ -211,7 +212,7 @@ def get_manu_admin_credentials(auth_token, organization_id):
     return primary_admin_auth_token, primary_admin_id
 
 
-def create_single_patient(auth_token, organization_id="00000000-0000-0000-0000-000000000000"):
+def create_single_patient(auth_token, organization_id=DEFAULT_ORGANISATION_ID):
     # create a patient
     # get the Patient template name
     template_list_response = get_all_templates(auth_token)
