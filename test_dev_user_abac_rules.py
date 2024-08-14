@@ -11,7 +11,7 @@ load_dotenv()
 #############################################################################################
 
 # @pytest.mark.skip
-def test_org_user_commands_abac_rules():
+def test_dev_user_commands_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create second organization
@@ -24,7 +24,7 @@ def test_org_user_commands_abac_rules():
 
     # create a device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
-                                                                     DEFAULT_ORGANISATION_ID)
+                                                                     "00000000-0000-0000-0000-000000000000")
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
     device_default_id = create_device_response.json()['_id']
     device_template_id = create_device_response.json()['_template']['id']
@@ -48,7 +48,7 @@ def test_org_user_commands_abac_rules():
                                                                                 organization_id)
     org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
                                                                                         org_user_template_name,
-                                                                                        DEFAULT_ORGANISATION_ID)
+                                                                                        "00000000-0000-0000-0000-000000000000")
     # start simulator with device
     sim_status = ' '
     while sim_status != "NO_RUNNING_SIMULATION":
@@ -121,7 +121,7 @@ def test_org_user_commands_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_organization_abac_rules():
+def test_dev_user_organization_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization, get org_admin and login with admin
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -152,7 +152,7 @@ def test_org_user_organization_abac_rules():
     # positive (own organization)
     assert get_organization_response.status_code == 200, f"{get_organization_response.text}"
     # negative
-    get_organization_response = get_organization(org_user_auth_token, DEFAULT_ORGANISATION_ID)
+    get_organization_response = get_organization(org_user_auth_token, "00000000-0000-0000-0000-000000000000")
     assert get_organization_response.status_code == 403, f"{get_organization_response.text}"
     # positive (own organization should return one result)
     get_organization_list_response = get_organization_list(org_user_auth_token)
@@ -174,7 +174,7 @@ def test_org_user_organization_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_org_users_abac_rules():
+def test_dev_user_org_users_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -200,7 +200,7 @@ def test_org_user_org_users_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create org_user should fail in other org
     test_org_user_create_response = create_organization_user(org_user_auth_token, org_user_template_name, test_name,
-                                                             email, DEFAULT_ORGANISATION_ID)
+                                                             email, "00000000-0000-0000-0000-000000000000")
     assert test_org_user_create_response.status_code == 403
     # create org_user should succeed in same org
     new_org_org_user_auth_toke, new_org_user_id, new_org_user_password = create_single_org_user(org_user_auth_token,
@@ -210,7 +210,7 @@ def test_org_user_org_users_abac_rules():
     # first create an org_user by admin in default org
     default_org_user_auth_token, default_org_user_id, new_org_user_password = create_single_org_user(admin_auth_token,
                                                                                                      org_user_template_name,
-                                                                                                     DEFAULT_ORGANISATION_ID)
+                                                                                                     "00000000-0000-0000-0000-000000000000")
 
     # update org_user only for own org
     update_org_user_response = update_organization_user(org_user_auth_token, new_org_user_id, organization_id,
@@ -218,7 +218,7 @@ def test_org_user_org_users_abac_rules():
     assert update_org_user_response.status_code == 200
     # should fail for org_user in other org
     update_org_user_response = update_organization_user(org_user_auth_token, default_org_user_id,
-                                                        DEFAULT_ORGANISATION_ID, "change string")
+                                                        "00000000-0000-0000-0000-000000000000", "change string")
 
     assert update_org_user_response.status_code == 403
 
@@ -277,7 +277,7 @@ def test_org_user_org_users_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_patient_abac_rules():
+def test_dev_user_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -303,7 +303,7 @@ def test_org_user_patient_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create patient should fail in other org
     test_patient_create_response = create_patient(org_user_auth_token, test_name, email, "Patient",
-                                                  DEFAULT_ORGANISATION_ID)
+                                                  "00000000-0000-0000-0000-000000000000")
     assert test_patient_create_response.status_code == 403
     # create patient should succeed in same org
     new_org_patient_auth_toke, new_org_patient_id = create_single_patient(org_user_auth_token, organization_id)
@@ -317,7 +317,7 @@ def test_org_user_patient_abac_rules():
     assert update_patient_response.status_code == 200
     # should fail for patient in other org
     update_patient_response = update_patient(org_user_auth_token, default_org_patient_id,
-                                             DEFAULT_ORGANISATION_ID, "change string", None, None)
+                                             "00000000-0000-0000-0000-000000000000", "change string", None, None)
 
     assert update_patient_response.status_code == 403
 
@@ -357,7 +357,7 @@ def test_org_user_patient_abac_rules():
     assert update_patient_response.status_code == 200, f"{update_patient_response.text}"
 
     update_patient_response = update_patient(org_admin_auth_token, default_org_patient_id,
-                                             DEFAULT_ORGANISATION_ID, None, None,
+                                             "00000000-0000-0000-0000-000000000000", None, None,
                                              {"_canLogin": can_login_val})
     assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
@@ -464,7 +464,7 @@ def test_org_user_patient_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_device_alerts_abac_rules():
+def test_dev_user_device_alerts_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -481,7 +481,7 @@ def test_org_user_device_alerts_abac_rules():
     # create patient + device in default org
     # create patient in new org
     patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, DEFAULT_ORGANISATION_ID, 'DeviceType1')
+        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
     # get the device template
     get_device_response = get_device(patient1_auth_token, device1_id)
     assert get_device_response.status_code == 200, f"{get_device_response.text}"
@@ -505,7 +505,7 @@ def test_org_user_device_alerts_abac_rules():
                                                                                 organization_id)
     org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
                                                                                         org_user_template_name,
-                                                                                        DEFAULT_ORGANISATION_ID)
+                                                                                        "00000000-0000-0000-0000-000000000000")
 
     # Create device-alert by id only in same organization
     create_alert_response = create_device_alert_by_id(org_user_new_auth_token, device1_id, alert_template2_id)
@@ -584,7 +584,7 @@ def test_org_user_device_alerts_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_caregiver_abac_rules():
+def test_dev_user_caregiver_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -614,7 +614,7 @@ def test_org_user_caregiver_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create caregiver should fail in other org
     test_caregiver_create_response = create_caregiver(org_user_auth_token, test_name, email, caregiver_template_name,
-                                                      DEFAULT_ORGANISATION_ID)
+                                                      "00000000-0000-0000-0000-000000000000")
     assert test_caregiver_create_response.status_code == 403
     # create caregiver should succeed in same org
     new_org_caregiver_auth_toke, new_org_caregiver_id = create_single_caregiver(org_user_auth_token,
@@ -624,7 +624,7 @@ def test_org_user_caregiver_abac_rules():
     # first create a caregiver by admin in default org
     default_org_caregiver_auth_token, default_org_caregiver_id = create_single_caregiver(admin_auth_token,
                                                                                          caregiver_template_name,
-                                                                                         DEFAULT_ORGANISATION_ID)
+                                                                                         "00000000-0000-0000-0000-000000000000")
 
     # update caregiver only for own org
     update_caregiver_response = update_caregiver(org_user_auth_token, new_org_caregiver_id, organization_id,
@@ -632,7 +632,7 @@ def test_org_user_caregiver_abac_rules():
     assert update_caregiver_response.status_code == 200
     # should fail for caregiver in other org
     update_caregiver_response = update_caregiver(org_user_auth_token, default_org_caregiver_id,
-                                                 DEFAULT_ORGANISATION_ID, "change string")
+                                                 "00000000-0000-0000-0000-000000000000", "change string")
 
     assert update_caregiver_response.status_code == 403
 
@@ -691,7 +691,7 @@ def test_org_user_caregiver_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_devices_abac_rules():
+def test_dev_user_devices_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -717,7 +717,7 @@ def test_org_user_devices_abac_rules():
     device_new_id = create_device_response.json()['_id']
     # create device by admin in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, "DeviceType1",
-                                                                     DEFAULT_ORGANISATION_ID)
+                                                                     "00000000-0000-0000-0000-000000000000")
     assert create_device_response.status_code == 201
     device_default_id = create_device_response.json()['_id']
 
@@ -764,7 +764,7 @@ def test_org_user_devices_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_generic_entity_abac_rules():
+def test_dev_user_generic_entity_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -783,7 +783,7 @@ def test_org_user_generic_entity_abac_rules():
                                                                         organization_id)
 
     # create generic entity template in both organizations
-    generic_entity_template_id = create_template_setup(admin_auth_token, DEFAULT_ORGANISATION_ID,
+    generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
                                                        "generic-entity", None)[0]
     generic_entity_template_id2 = create_template_setup(admin_auth_token, organization_id,
                                                         "generic-entity", None)[0]
@@ -792,7 +792,7 @@ def test_org_user_generic_entity_abac_rules():
     # create generic entity by org_user only for self organization
     create_generic_entity_response = create_generic_entity(org_user_auth_token, generic_entity_template_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31],
-                                                           DEFAULT_ORGANISATION_ID)
+                                                           "00000000-0000-0000-0000-000000000000")
     assert create_generic_entity_response.status_code == 403
 
     create_generic_entity_response = create_generic_entity(org_user_auth_token, generic_entity_template_id2,
@@ -804,7 +804,7 @@ def test_org_user_generic_entity_abac_rules():
     # create second generic entity by admin on default organization
     create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id,
                                                             f'generic_entity_{uuid.uuid4().hex}'[0:31],
-                                                            DEFAULT_ORGANISATION_ID)
+                                                            "00000000-0000-0000-0000-000000000000")
     assert create_generic_entity_response2.status_code == 201
 
     entity2_id = create_generic_entity_response2.json()["_id"]
@@ -891,7 +891,7 @@ def test_org_user_generic_entity_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_registration_codes_abac_rules():
+def test_dev_user_registration_codes_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # first create new organization
@@ -921,13 +921,13 @@ def test_org_user_registration_codes_abac_rules():
     registration_code2 = str(uuid.uuid4())
     create_registration_code2_response = create_registration_code(org_user_auth_token, "RegistrationCode",
                                                                   registration_code2,
-                                                                  DEFAULT_ORGANISATION_ID)
+                                                                  "00000000-0000-0000-0000-000000000000")
     assert create_registration_code2_response.status_code == 403
 
     # create a registration code by admin in default organization for negative update tests
     create_registration_code2_response = create_registration_code(admin_auth_token, "RegistrationCode",
                                                                   registration_code2,
-                                                                  DEFAULT_ORGANISATION_ID)
+                                                                  "00000000-0000-0000-0000-000000000000")
     assert create_registration_code2_response.status_code == 201
     registration_code2_id = create_registration_code2_response.json()['_id']
 
@@ -978,7 +978,7 @@ def test_org_user_registration_codes_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_files_abac_rules():
+def test_dev_user_files_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -1045,7 +1045,7 @@ def test_org_user_files_abac_rules():
     update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
                                              {file_attribute_name: {"id": file1_id}})
     assert update_patient_response.status_code == 200, f"{update_patient_response.text}"
-    update_patient_response = update_patient(admin_auth_token, patient2_id, DEFAULT_ORGANISATION_ID,
+    update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
                                              None, None,
                                              {file_attribute_name: {"id": file2_id}})
     assert update_patient_response.status_code == 200
@@ -1084,7 +1084,7 @@ def test_org_user_files_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_patient_alerts_abac_rules():
+def test_dev_user_patient_alerts_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -1102,7 +1102,7 @@ def test_org_user_patient_alerts_abac_rules():
     assert get_patient_response.status_code == 200, f"{get_patient_response.text}"
     patient_template_id = get_patient_response.json()['_template']['id']
     patient2_auth_token, patient2_id = create_single_patient(admin_auth_token,
-                                                             DEFAULT_ORGANISATION_ID)
+                                                             "00000000-0000-0000-0000-000000000000")
 
     # create alert template based on patient parent (template1)
     alert_template_name = f'test_patient_alert{uuid.uuid4().hex}'[0:35]
@@ -1123,7 +1123,7 @@ def test_org_user_patient_alerts_abac_rules():
                                                                                 organization_id)
     org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
                                                                                         org_user_template_name,
-                                                                                        DEFAULT_ORGANISATION_ID)
+                                                                                        "00000000-0000-0000-0000-000000000000")
 
     # Create/Delete patient-alert by id only in same organization
     create_alert_response = create_patient_alert_by_id(org_user_new_auth_token, patient1_id, alert_template1_id)
@@ -1208,7 +1208,7 @@ def test_org_user_patient_alerts_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_measurements_abac_rules():
+def test_dev_user_measurements_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     aggregated_observation_attribute_name = f'aggr_observ_decimal_int{uuid.uuid4().hex}'[0:36]
     raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
@@ -1222,7 +1222,7 @@ def test_org_user_measurements_abac_rules():
     # create single patient, registration code and device in default org
     patient_auth_token, patient_id, registration_code_id, device_id = (
         create_single_patient_self_signup(admin_auth_token,
-                                          DEFAULT_ORGANISATION_ID, 'DeviceType1'))
+                                          "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
 
     # get the patient templateId
     get_patient_response = get_patient(patient_auth_token, patient_id)
@@ -1282,7 +1282,7 @@ def test_org_user_measurements_abac_rules():
                                                                                 organization_id)
     org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
                                                                                         org_user_template_name,
-                                                                                        DEFAULT_ORGANISATION_ID)
+                                                                                        "00000000-0000-0000-0000-000000000000")
     # create usage session template and usage session; associate to patient
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
@@ -1371,7 +1371,7 @@ def test_org_user_measurements_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_ums_abac_rules():
+def test_dev_user_ums_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create org_user by admin in default organization
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1380,7 +1380,7 @@ def test_org_user_ums_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin (also tests login)
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
     org_user_email = get_self_user_email(org_user_auth_token)
 
     # set password by org_user
@@ -1405,7 +1405,7 @@ def test_org_user_ums_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_locales_abac_rules():
+def test_dev_user_locales_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create org_user by admin in default organization
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1414,7 +1414,7 @@ def test_org_user_locales_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin (also tests login)
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # get available locales should succeed
     get_locales_response = get_available_locales(org_user_auth_token)
@@ -1442,7 +1442,7 @@ def test_org_user_locales_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_plugins_abac_rules():
+def test_dev_user_plugins_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create org_user by admin in default organization
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1451,7 +1451,7 @@ def test_org_user_plugins_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin (also tests login)
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # create plugin should fail
     create_plugin_response = create_plugin(org_user_auth_token, 'test_plugin')
@@ -1481,7 +1481,7 @@ def test_org_user_plugins_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_dms_abac_rules():
+def test_dev_user_dms_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create org_user by admin in default organization
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1490,9 +1490,9 @@ def test_org_user_dms_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create 2 org_users by admin
     org_user1_auth_token, org_user1_id, password1 = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                           DEFAULT_ORGANISATION_ID)
+                                                                           "00000000-0000-0000-0000-000000000000")
     org_user2_auth_token, org_user2_id, password2 = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                           DEFAULT_ORGANISATION_ID)
+                                                                           "00000000-0000-0000-0000-000000000000")
 
     # create_report should succeed
     create_report_response = create_report(org_user1_auth_token)
@@ -1523,7 +1523,7 @@ def test_org_user_dms_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_templates_abac_rules():
+def test_dev_user_templates_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization user
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1532,7 +1532,7 @@ def test_org_user_templates_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # view templates should succeed
     view_template_response = get_templates_list(org_user_auth_token)
@@ -1575,7 +1575,7 @@ def test_org_user_templates_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_portal_builder_abac_rules():
+def test_dev_user_portal_builder_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization user
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1584,7 +1584,7 @@ def test_org_user_portal_builder_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # view full info should succeed
     view_template_response = get_templates_list(org_user_auth_token)
@@ -1611,7 +1611,7 @@ def test_org_user_portal_builder_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_adb_abac_rules():
+def test_dev_user_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create organization user
     create_template_response = create_org_user_template(admin_auth_token)
@@ -1620,7 +1620,7 @@ def test_org_user_adb_abac_rules():
     org_user_template_id = create_template_response.json()['id']
     # create org_user by admin
     org_user_auth_token, org_user_id, password = create_single_org_user(admin_auth_token, org_user_template_name,
-                                                                        DEFAULT_ORGANISATION_ID)
+                                                                        "00000000-0000-0000-0000-000000000000")
 
     # deploy adb should fail
     deploy_response = deploy_adb(org_user_auth_token)
@@ -1654,7 +1654,7 @@ def test_org_user_adb_abac_rules():
 
 
 # @pytest.mark.skip
-def test_org_user_usage_session_abac_rules():  # IP
+def test_dev_user_usage_session_abac_rules():  # IP
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create second organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -1666,10 +1666,10 @@ def test_org_user_usage_session_abac_rules():  # IP
     # create single patient, registration code and device in default org
     patient_auth_token, patient_id, registration_code_id, device_id = (
         create_single_patient_self_signup(admin_auth_token,
-                                          DEFAULT_ORGANISATION_ID, 'DeviceType1'))
+                                          "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
     # create a second device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
-                                                                     DEFAULT_ORGANISATION_ID)
+                                                                     "00000000-0000-0000-0000-000000000000")
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
     device2_id = create_device_response.json()['_id']
     # associate patient with 2nd device
@@ -1687,7 +1687,7 @@ def test_org_user_usage_session_abac_rules():  # IP
                                                                                 organization_id)
     org_user_default_auth_token, org_user_default_id, password = create_single_org_user(admin_auth_token,
                                                                                         org_user_template_name,
-                                                                                        DEFAULT_ORGANISATION_ID)
+                                                                                        "00000000-0000-0000-0000-000000000000")
 
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)

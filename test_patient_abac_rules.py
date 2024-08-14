@@ -2,6 +2,7 @@
 from api_test_helpers import *
 from email_interface import accept_invitation, reset_password_open_email_and_set_new_password
 from dotenv import load_dotenv
+from test_constants import *
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ def test_patient_commands_abac_rules():
         admin_auth_token, organization_id, 'DeviceType1')
     # create patient in default org
     patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
+        admin_auth_token, DEFAULT_ORGANISATION_ID, 'DeviceType1')
 
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device2_id)
@@ -126,7 +127,7 @@ def test_patient_organization_abac_rules():
     # positive (own organization)
     assert get_organization_response.status_code == 200
     # negative
-    get_organization_response = get_organization(patient_auth_token, "00000000-0000-0000-0000-000000000000")
+    get_organization_response = get_organization(patient_auth_token, DEFAULT_ORGANISATION_ID)
     assert get_organization_response.status_code == 403
     # positive (own organization should return one result)
     get_organization_list_response = get_organization_list(patient_auth_token)
@@ -153,12 +154,12 @@ def test_patient_organization_users_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'
     create_user_response = create_organization_user(admin_auth_token, template_name, name, email,
-                                                    "00000000-0000-0000-0000-000000000000")
+                                                    DEFAULT_ORGANISATION_ID)
     assert create_user_response.status_code == 201
     organization_user_id = create_user_response.json()['_id']
 
     # create patient
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
 
     # create organization user by patient should fail
     name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -167,7 +168,7 @@ def test_patient_organization_users_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'
     create_user_response = create_organization_user(patient_auth_token, template_name, name, email,
-                                                    "00000000-0000-0000-0000-000000000000")
+                                                    DEFAULT_ORGANISATION_ID)
     assert create_user_response.status_code == 403
 
     # delete organization user by patient should fail
@@ -176,7 +177,7 @@ def test_patient_organization_users_abac_rules():
 
     # update organization user should fail
     update_organization_user_response = update_organization_user(patient_auth_token, organization_user_id,
-                                                                 "00000000-0000-0000-0000-000000000000",
+                                                                 DEFAULT_ORGANISATION_ID,
                                                                  "change string")
     assert update_organization_user_response.status_code == 403
 
@@ -220,7 +221,7 @@ def test_patient_device_alerts_abac_rules():
         admin_auth_token, organization_id, 'DeviceType1')
     # create patient in default org
     patient2_auth_token, patient2_id, registration_code2_id, device2_id = create_single_patient_self_signup(
-        admin_auth_token, "00000000-0000-0000-0000-000000000000", 'DeviceType1')
+        admin_auth_token, DEFAULT_ORGANISATION_ID, 'DeviceType1')
     # get the device template
     get_device_response = get_device(patient1_auth_token, device1_id)
     assert get_device_response.status_code == 200
@@ -292,8 +293,8 @@ def test_patient_device_alerts_abac_rules():
 def test_patient_patient_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
-    patient1_auth_token, patient1_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
+    patient1_auth_token, patient1_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
 
     # Create and delete patient should fail
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
@@ -301,19 +302,19 @@ def test_patient_patient_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create patient should fail
     test_patient_create_response = create_patient(patient_auth_token, test_name, email, "Patient",
-                                                  "00000000-0000-0000-0000-000000000000")
+                                                  DEFAULT_ORGANISATION_ID)
     assert test_patient_create_response.status_code == 403
     # delete patient (use second patient created)
     test_patient_delete_response = delete_patient(patient_auth_token, patient_id[1])
     assert test_patient_delete_response.status_code == 403
 
     # update patient only for self
-    update_patient_response = update_patient(patient_auth_token, patient_id, "00000000-0000-0000-0000-000000000000",
+    update_patient_response = update_patient(patient_auth_token, patient_id, DEFAULT_ORGANISATION_ID,
                                              "change string", None, None)
     assert update_patient_response.status_code == 200
     # should fail for other patient
     update_patient_response = update_patient(patient_auth_token, patient1_id,
-                                             "00000000-0000-0000-0000-000000000000",
+                                             DEFAULT_ORGANISATION_ID,
                                              "change string", None, None)
     assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
@@ -325,7 +326,7 @@ def test_patient_patient_abac_rules():
     assert get_patient_response.status_code == 403
 
     # update canLoging should fail
-    update_patient_response = update_patient(patient_auth_token, patient1_id, "00000000-0000-0000-0000-000000000000",
+    update_patient_response = update_patient(patient_auth_token, patient1_id, DEFAULT_ORGANISATION_ID,
                                              None, None, {"_canLogin": can_login_val})
     assert update_patient_response.status_code == 403, f"{update_patient_response.text}"
 
@@ -357,21 +358,21 @@ def test_patient_patient_abac_rules():
 def test_patient_caregiver_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients in default org
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
-    patient2_auth_token, patient2_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
+    patient2_auth_token, patient2_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
 
     # create caregiver by admin
     caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, "Clinician",
-                                                 "00000000-0000-0000-0000-000000000000")
+                                                 DEFAULT_ORGANISATION_ID)
     assert create_caregiver_response.status_code == 201
     caregiver_id = create_caregiver_response.json()['_id']
 
     # associate first of two patients setup with caregiver
     update_patient_response = update_patient(admin_auth_token, patient_id,
-                                             "00000000-0000-0000-0000-000000000000", "change string",
+                                             DEFAULT_ORGANISATION_ID, "change string",
                                              caregiver_id, None)
     assert update_patient_response.status_code == 200
 
@@ -380,12 +381,12 @@ def test_patient_caregiver_abac_rules():
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(patient_auth_token, test_name, caregiver_email, "Clinician",
-                                                 "00000000-0000-0000-0000-000000000000")
+                                                 DEFAULT_ORGANISATION_ID)
     assert create_caregiver_response.status_code == 403
 
     # update caregiver by patient should fail
     update_caregiver_response = update_caregiver(patient_auth_token, caregiver_id,
-                                                 "00000000-0000-0000-0000-000000000000", "change string")
+                                                 DEFAULT_ORGANISATION_ID, "change string")
     assert update_caregiver_response.status_code == 403
 
     # delete caregiver by patient should fail
@@ -426,7 +427,7 @@ def test_patient_caregiver_abac_rules():
 def test_patient_devices_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create two patients, registration codes and devices
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+    patient_setup = self_signup_patient_setup(admin_auth_token, DEFAULT_ORGANISATION_ID,
                                               'DeviceType1')
     device_id = patient_setup['device_id']
     registration_code_id = patient_setup['registration_code_id']
@@ -435,7 +436,7 @@ def test_patient_devices_abac_rules():
 
     # create device by patient fails
     create_device_response = create_device(patient_auth_token, 'DeviceType1', device_id[0],
-                                           registration_code_id[0], "00000000-0000-0000-0000-000000000000")
+                                           registration_code_id[0], DEFAULT_ORGANISATION_ID)
     assert create_device_response.status_code == 403
 
     # update device by patient fails
@@ -480,7 +481,7 @@ def test_patient_generic_entity_abac_rules():
     organization_id = create_organization_response.json()['_id']
 
     # create patient
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
 
     # create patient, registration code and device in second org
     primary_admin_auth_token, primary_admin_id = get_manu_admin_credentials(admin_auth_token, organization_id)
@@ -496,7 +497,7 @@ def test_patient_generic_entity_abac_rules():
     # create generic entity by patient only for self organization (sets name which is phi)
     create_generic_entity_response = create_generic_entity(patient_auth_token, generic_template_with_phi_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31],
-                                                           "00000000-0000-0000-0000-000000000000")
+                                                           DEFAULT_ORGANISATION_ID)
     assert create_generic_entity_response.status_code == 201
     entity_id = create_generic_entity_response.json()["_id"]
 
@@ -587,7 +588,7 @@ def test_patient_registration_codes_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create patient
-    patient_auth_token, patient_id = create_single_patient(admin_auth_token, "00000000-0000-0000-0000-000000000000")
+    patient_auth_token, patient_id = create_single_patient(admin_auth_token, DEFAULT_ORGANISATION_ID)
 
     # create new organization
     get_self_org_response = get_self_organization(admin_auth_token)
@@ -601,7 +602,7 @@ def test_patient_registration_codes_abac_rules():
     registration_code1 = str(uuid.uuid4())
     create_registration_code1_response = create_registration_code(patient_auth_token, "RegistrationCode",
                                                                   registration_code1,
-                                                                  "00000000-0000-0000-0000-000000000000")
+                                                                  DEFAULT_ORGANISATION_ID)
     assert create_registration_code1_response.status_code == 201
     registration_code1_id = create_registration_code1_response.json()['_id']
 
@@ -717,7 +718,7 @@ def test_patient_files_abac_rules():
     update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
                                              {file_attribute_name: {"id": file1_id}})
     assert update_patient_response.status_code == 200
-    update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
+    update_patient_response = update_patient(admin_auth_token, patient2_id, DEFAULT_ORGANISATION_ID,
                                              None, None, {file_attribute_name: {"id": file2_id}})
     assert update_patient_response.status_code == 200
     # get should succeed only in self organization
@@ -843,7 +844,7 @@ def test_patient_measurements_abac_rules():
     raw_observation_attribute_name = f'raw_observ_waveform{uuid.uuid4().hex}'[0:36]
     # create patient, registration codes and devices in default org
     patient_auth_token, patient_id, registration_code_id, device1_id = (
-        create_single_patient_self_signup(admin_auth_token,  "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
+        create_single_patient_self_signup(admin_auth_token,  DEFAULT_ORGANISATION_ID, 'DeviceType1'))
     # create second patient in default org
     patient2_auth_token, patient2_id = create_single_patient(admin_auth_token)
     # get the patient templateId
@@ -987,7 +988,7 @@ def test_patient_ums_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
 
     create_patient_response = create_patient(admin_auth_token, test_name, email, patient_template_name,
-                                             "00000000-0000-0000-0000-000000000000")
+                                             DEFAULT_ORGANISATION_ID)
     assert create_patient_response.status_code == 201
     patient_id = create_patient_response.json()['_id']
 
@@ -1202,7 +1203,7 @@ def test_patient_usage_session_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # Setup
     # create patients, registration codes and devices in default organization
-    patient_setup = self_signup_patient_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+    patient_setup = self_signup_patient_setup(admin_auth_token, DEFAULT_ORGANISATION_ID,
                                               'DeviceType1')
     email = patient_setup['email']
     patient_id = patient_setup['patient_id'][0]

@@ -1,5 +1,4 @@
-import uuid
-import os
+from test_constants import *
 from API_drivers import *
 
 user_name = os.getenv('USERNAME')  # Has to be set in the environment in advance
@@ -13,7 +12,7 @@ def test_create_template():
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
     create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                                              test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+                                                              test_reference_attrib_display_name, DEFAULT_ORGANISATION_ID)
     if "TEMPLATE_DUPLICATE_NAME" in str(
             create_template_response.content):  # delete previously created template with same name
         tmp = str(create_template_response.content)
@@ -22,7 +21,7 @@ def test_create_template():
         assert delete_template_response.status_code == 204
         create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
                                                                   test_referenced_attrib_name,
-                                                                  test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+                                                                  test_reference_attrib_display_name, DEFAULT_ORGANISATION_ID)
 
     assert create_template_response.status_code == 201
     data = create_template_response.json()
@@ -38,7 +37,7 @@ def test_create_generic_entity():  # redo create_template to make this test inde
     test_referenced_attrib_name = f'my built in attribute_{uuid.uuid4().hex}'[0:35]
     test_reference_attrib_display_name = test_referenced_attrib_name
     create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name, test_referenced_attrib_name,
-                                                              test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+                                                              test_reference_attrib_display_name, DEFAULT_ORGANISATION_ID)
     if "TEMPLATE_DUPLICATE_NAME" in str(
             create_template_response.content):  # delete previously created template with same name
         tmp = str(create_template_response.content)
@@ -47,14 +46,14 @@ def test_create_generic_entity():  # redo create_template to make this test inde
         assert delete_template_response.status_code == 204
         create_template_response = create_generic_entity_template(auth_token, test_display_name, test_name,
                                                                   test_referenced_attrib_name,
-                                                                  test_reference_attrib_display_name, "00000000-0000-0000-0000-000000000000")
+                                                                  test_reference_attrib_display_name, DEFAULT_ORGANISATION_ID)
 
     assert create_template_response.status_code == 201
     data = create_template_response.json()
     assert data["name"] == test_name
     template_id = data["id"]
     create_generic_entity_response = create_generic_entity(auth_token, template_id, test_name,
-                                                           "00000000-0000-0000-0000-000000000000")
+                                                           DEFAULT_ORGANISATION_ID)
     assert create_generic_entity_response.status_code == 201
     assert create_generic_entity_response.json()["_name"] == test_name
     # teardown

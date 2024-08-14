@@ -23,7 +23,7 @@ def test_caregiver_commands_abac_rules():
 
     # create a device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
-                                                                     "00000000-0000-0000-0000-000000000000")
+                                                                     DEFAULT_ORGANISATION_ID)
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
     device_default_id = create_device_response.json()['_id']
     device_template_id = create_device_response.json()['_template']['id']
@@ -48,7 +48,7 @@ def test_caregiver_commands_abac_rules():
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
                                                                                  caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                                 DEFAULT_ORGANISATION_ID)
     # start simulator with device
     sim_status = ' '
     while sim_status != "NO_RUNNING_SIMULATION":
@@ -150,7 +150,7 @@ def test_caregiver_organization_abac_rules():
     # positive (own organization)
     assert get_organization_response.status_code == 200, f"{get_organization_response.text}"
     # negative
-    get_organization_response = get_organization(caregiver_auth_token, "00000000-0000-0000-0000-000000000000")
+    get_organization_response = get_organization(caregiver_auth_token, DEFAULT_ORGANISATION_ID)
     assert get_organization_response.status_code == 403, f"{get_organization_response.text}"
     # positive (own organization should return one result)
     get_organization_list_response = get_organization_list(caregiver_auth_token)
@@ -199,7 +199,7 @@ def test_caregiver_organization_users_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16]
     email = email + '_@biotmail.com'
     create_user_response = create_organization_user(admin_auth_token, template_name, name, email,
-                                                    "00000000-0000-0000-0000-000000000000")
+                                                    DEFAULT_ORGANISATION_ID)
 
     assert create_user_response.status_code == 201
     default_organization_user_id = create_user_response.json()['_id']
@@ -293,7 +293,7 @@ def test_caregiver_patient_abac_rules():
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     # create patient should fail in other org
     test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
-                                                  "00000000-0000-0000-0000-000000000000")
+                                                  DEFAULT_ORGANISATION_ID)
     assert test_patient_create_response.status_code == 403
     # create patient should succeed in same org
     test_patient_create_response = create_patient(caregiver_auth_token, test_name, email, "Patient",
@@ -306,7 +306,7 @@ def test_caregiver_patient_abac_rules():
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
     test_patient_create_response = create_patient(admin_auth_token, test_name, email, "Patient",
-                                                  "00000000-0000-0000-0000-000000000000")
+                                                  DEFAULT_ORGANISATION_ID)
     assert test_patient_create_response.status_code == 201
     default_org_patient_id = test_patient_create_response.json()['_id']
 
@@ -316,7 +316,7 @@ def test_caregiver_patient_abac_rules():
     assert update_patient_response.status_code == 200
     # should fail for patient in other org
     update_patient_response = update_patient(caregiver_auth_token, default_org_patient_id,
-                                             "00000000-0000-0000-0000-000000000000", "change string", None, None)
+                                             DEFAULT_ORGANISATION_ID, "change string", None, None)
 
     assert update_patient_response.status_code == 403
 
@@ -481,7 +481,7 @@ def test_caregiver_device_alerts_abac_rules():
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
                                                                                  caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                                 DEFAULT_ORGANISATION_ID)
 
     # Create device-alert by id only in same organization
     create_alert_response = create_device_alert_by_id(caregiver_new_auth_token, device1_id, alert_template2_id)
@@ -567,7 +567,7 @@ def test_caregiver_caregiver_abac_rules():
 
     # create caregiver by admin in default org
     caregiver_def_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                             "00000000-0000-0000-0000-000000000000")
+                                                                             DEFAULT_ORGANISATION_ID)
 
     # create caregiver by caregiver should fail
     caregiver_email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '_@biotmail.com'
@@ -647,7 +647,7 @@ def test_caregiver_devices_abac_rules():
     device_new_id = create_device_response.json()['_id']
     # create device by admin in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, "DeviceType1",
-                                                                     "00000000-0000-0000-0000-000000000000")
+                                                                     DEFAULT_ORGANISATION_ID)
     assert create_device_response.status_code == 201
     device_default_id = create_device_response.json()['_id']
 
@@ -712,7 +712,7 @@ def test_caregiver_generic_entity_abac_rules():
                                                                      organization_id)
 
     # create generic entity template in both organizations
-    generic_entity_template_id = create_template_setup(admin_auth_token, "00000000-0000-0000-0000-000000000000",
+    generic_entity_template_id = create_template_setup(admin_auth_token, DEFAULT_ORGANISATION_ID,
                                                        "generic-entity", None)[0]
     generic_entity_template_id2 = create_template_setup(admin_auth_token, organization_id,
                                                         "generic-entity", None)[0]
@@ -721,7 +721,7 @@ def test_caregiver_generic_entity_abac_rules():
     # create generic entity by caregiver only for self organization
     create_generic_entity_response = create_generic_entity(caregiver_auth_token, generic_entity_template_id,
                                                            f'generic_entity_{uuid.uuid4().hex}'[0:31],
-                                                           "00000000-0000-0000-0000-000000000000")
+                                                           DEFAULT_ORGANISATION_ID)
     assert create_generic_entity_response.status_code == 403
 
     create_generic_entity_response = create_generic_entity(caregiver_auth_token, generic_entity_template_id2,
@@ -733,7 +733,7 @@ def test_caregiver_generic_entity_abac_rules():
     # create second generic entity by admin on default organization
     create_generic_entity_response2 = create_generic_entity(admin_auth_token, generic_entity_template_id,
                                                             f'generic_entity_{uuid.uuid4().hex}'[0:31],
-                                                            "00000000-0000-0000-0000-000000000000")
+                                                            DEFAULT_ORGANISATION_ID)
     assert create_generic_entity_response2.status_code == 201
 
     entity2_id = create_generic_entity_response2.json()["_id"]
@@ -849,13 +849,13 @@ def test_caregiver_registration_codes_abac_rules():
     registration_code2 = str(uuid.uuid4())
     create_registration_code2_response = create_registration_code(caregiver_auth_token, "RegistrationCode",
                                                                   registration_code2,
-                                                                  "00000000-0000-0000-0000-000000000000")
+                                                                  DEFAULT_ORGANISATION_ID)
     assert create_registration_code2_response.status_code == 403
 
     # create a registration code by admin in default organization for negative update tests
     create_registration_code2_response = create_registration_code(admin_auth_token, "RegistrationCode",
                                                                   registration_code2,
-                                                                  "00000000-0000-0000-0000-000000000000")
+                                                                  DEFAULT_ORGANISATION_ID)
     assert create_registration_code2_response.status_code == 201
     registration_code2_id = create_registration_code2_response.json()['_id']
 
@@ -972,7 +972,7 @@ def test_caregiver_files_abac_rules():
     update_patient_response = update_patient(admin_auth_token, patient1_id, organization_id, None, None,
                                              {file_attribute_name: {"id": file1_id}})
     assert update_patient_response.status_code == 200, f"{update_patient_response.text}"
-    update_patient_response = update_patient(admin_auth_token, patient2_id, "00000000-0000-0000-0000-000000000000",
+    update_patient_response = update_patient(admin_auth_token, patient2_id, DEFAULT_ORGANISATION_ID,
                                              None, None,
                                              {file_attribute_name: {"id": file2_id}})
     assert update_patient_response.status_code == 200
@@ -1050,7 +1050,7 @@ def test_caregiver_patient_alerts_abac_rules():
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
                                                                                  caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                                 DEFAULT_ORGANISATION_ID)
 
     # Create/Delete patient-alert by id only in same organization
     create_alert_response = create_patient_alert_by_id(caregiver_new_auth_token, patient1_id, alert_template1_id)
@@ -1139,7 +1139,7 @@ def test_caregiver_measurements_abac_rules():
     # create single patient, registration code and device in default org
     patient_auth_token, patient_id, registration_code_id, device_id = (
         create_single_patient_self_signup(admin_auth_token,
-                                          "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
+                                          DEFAULT_ORGANISATION_ID, 'DeviceType1'))
 
     # get the patient templateId
     get_patient_response = get_patient(patient_auth_token, patient_id)
@@ -1201,7 +1201,7 @@ def test_caregiver_measurements_abac_rules():
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
                                                                                  caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                                 DEFAULT_ORGANISATION_ID)
     # create usage session template and usage session; associate to patient
     # get the device templateId
     get_device_response = get_device(admin_auth_token, device_id)
@@ -1302,7 +1302,7 @@ def test_caregiver_ums_abac_rules():
     test_name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:35],
                  "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
     create_caregiver_response = create_caregiver(admin_auth_token, test_name, caregiver_email, caregiver_template_name,
-                                                 "00000000-0000-0000-0000-000000000000")
+                                                 DEFAULT_ORGANISATION_ID)
     assert create_caregiver_response.status_code == 201
     caregiver_id = create_caregiver_response.json()['_id']
     response_text, accept_invitation_response = accept_invitation(caregiver_email)
@@ -1340,7 +1340,7 @@ def test_caregiver_locales_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                 DEFAULT_ORGANISATION_ID)
 
     # get available locales should succeed
     get_locales_response = get_available_locales(caregiver_auth_token)
@@ -1377,7 +1377,7 @@ def test_caregiver_plugins_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                 DEFAULT_ORGANISATION_ID)
 
     # create plugin should fail
     create_plugin_response = create_plugin(caregiver_auth_token, 'test_plugin')
@@ -1416,9 +1416,9 @@ def test_caregiver_dms_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
     # create 2 caregivers
     caregiver1_auth_token, caregiver1_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                   "00000000-0000-0000-0000-000000000000")
+                                                                   DEFAULT_ORGANISATION_ID)
     caregiver2_auth_token, caregiver2_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                   "00000000-0000-0000-0000-000000000000")
+                                                                   DEFAULT_ORGANISATION_ID)
 
     # create_report should succeed
     create_report_response = create_report(caregiver1_auth_token)
@@ -1458,7 +1458,7 @@ def test_caregiver_templates_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                 DEFAULT_ORGANISATION_ID)
 
     # view templates should succeed
     view_template_response = get_templates_list(caregiver_auth_token)
@@ -1510,7 +1510,7 @@ def test_caregiver_portal_builder_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                 DEFAULT_ORGANISATION_ID)
 
     # view full info should succeed
     view_template_response = get_templates_list(caregiver_auth_token)
@@ -1546,7 +1546,7 @@ def test_caregiver_adb_abac_rules():
     caregiver_template_id = create_template_response.json()['id']
 
     caregiver_auth_token, caregiver_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
-                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                 DEFAULT_ORGANISATION_ID)
 
     # deploy adb should fail
     deploy_response = deploy_adb(caregiver_auth_token)
@@ -1592,10 +1592,10 @@ def test_caregiver_usage_session_abac_rules():  # IP
     # create single patient, registration code and device in default org
     patient_auth_token, patient_id, registration_code_id, device_id = (
         create_single_patient_self_signup(admin_auth_token,
-                                          "00000000-0000-0000-0000-000000000000", 'DeviceType1'))
+                                          DEFAULT_ORGANISATION_ID, 'DeviceType1'))
     # create a second device in default org
     create_device_response = create_device_without_registration_code(admin_auth_token, 'DeviceType1',
-                                                                     "00000000-0000-0000-0000-000000000000")
+                                                                     DEFAULT_ORGANISATION_ID)
     assert create_device_response.status_code == 201, f"{create_device_response.text}"
     device2_id = create_device_response.json()['_id']
     # associate patient with 2nd device
@@ -1611,7 +1611,7 @@ def test_caregiver_usage_session_abac_rules():  # IP
     # create caregiver by admin in default organization
     caregiver_default_auth_token, caregiver_default_id = create_single_caregiver(admin_auth_token,
                                                                                  caregiver_template_name,
-                                                                                 "00000000-0000-0000-0000-000000000000")
+                                                                                 DEFAULT_ORGANISATION_ID)
 
     # create caregiver by admin in new organization
     caregiver_new_auth_token, caregiver_new_id = create_single_caregiver(admin_auth_token, caregiver_template_name,
