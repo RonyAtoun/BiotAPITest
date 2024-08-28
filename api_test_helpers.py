@@ -270,6 +270,15 @@ def create_single_org_user(auth_token, org_user_template_name, organization_id):
     return auth_token, org_user_id, password
 
 
+def get_dev_user_template_name(auth_token):
+    template_list_response = get_all_templates(auth_token)
+    for template in template_list_response.json()['data']:
+        if template['name'] == "Developer":
+            return template['name']
+
+    return "ERR_NOT_FOUND"
+
+
 def check_simulator_status():
     count = 0
     simulation_status_response = get_simulation_status()
