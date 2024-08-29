@@ -780,6 +780,232 @@ def test_manu_admin_patient_alert_abac_rules():
     assert delete_patient_alert_template_response.status_code == 204, f"{delete_patient_alert_template_response.text}"
 
 
+def test_manu_admin_measurements_abac_rules():
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+
+    # create Custom organization
+    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
+    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
+                                                            f"{create_organization_response.text}"
+    organization_id = create_organization_response.json()['_id']
+
+    # accept invitation as an Admin of a Custom Organisation
+    get_organisation_response = get_organization(auth_token, organization_id)
+    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
+    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
+    primary_admin_email = get_organisation_user_response.json()["_email"]
+    accept_invitation(primary_admin_email)
+    auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
+    get_self_user_email_response = get_self_user_email(auth_token)
+    assert get_self_user_email_response == primary_admin_email, \
+        f"Actual email '{get_self_user_email_response}' does not match the expected"
+
+    # Create Patient in Custom Organisation as its admin
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    create_patient_custom_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
+                                                    organization_id)
+    assert create_patient_custom_response.status_code == 201, f"Status code " \
+                                                              f"{create_patient_custom_response.status_code} " \
+                                                              f"{create_patient_custom_response.text}"
+    patient_id_custom = create_patient_custom_response.json()["_id"]
+
+    # Create Patient in Default Organisation as manu admin
+    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
+    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
+            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
+    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
+    create_patient_default_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
+                                                     DEFAULT_ORGANISATION_ID)
+    assert create_patient_custom_response.status_code == 201, f"Status code " \
+                                                              f"{create_patient_custom_response.status_code} " \
+                                                              f"{create_patient_custom_response.text}"
+    patient_id_default = create_patient_default_response.json()["_id"]
+
+    # add observation attributes to Patient template
+    get_patient_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
+    template_payload = map_template(get_patient_template_response.json())
+    aggregated_observation_attribute_name = f'test_integ_dec_int{uuid.uuid4().hex}'[0:36]
+    raw_observation_attribute_name = f'test_integ_waveform{uuid.uuid4().hex}'[0:36]
+    observation_aggregated_object = {
+        "name": aggregated_observation_attribute_name,
+        "type": "DECIMAL",
+        "displayName": aggregated_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": None,
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    observation_raw_object = {
+        "name": raw_observation_attribute_name,
+        "type": "WAVEFORM",
+        "displayName": raw_observation_attribute_name,
+        "phi": False,
+        "validation": {
+            "mandatory": False,
+            "defaultValue": None
+        },
+        "selectableValues": [],
+        "category": "MEASUREMENT",
+        "numericMetaData": {
+            "subType": "INTEGER"
+        },
+        "referenceConfiguration": None,
+        "linkConfiguration": None
+    }
+    (template_payload['customAttributes']).append(observation_raw_object)
+    (template_payload['customAttributes']).append(observation_aggregated_object)
+    update_template_response = update_template(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # create a Device Template
+    device_template_response, usage_session_template_response = create_device_template_with_session(auth_token)
+    assert device_template_response.status_code == 201, f"{device_template_response.text}"
+    template_name = device_template_response.json()["name"]
+    device_template_id = device_template_response.json()["id"]
+    usage_session_template_id = usage_session_template_response.json()["id"]
+
+    # Create Device in a Default Org-n
+    create_device_response = create_device_without_registration_code(auth_token, template_name, DEFAULT_ORGANISATION_ID)
+    device_id_default = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # Create Device in a Custom Org-n
+    create_device_response = create_device_without_registration_code(auth_token, template_name, organization_id)
+    device_id_custom = create_device_response.json()["_id"]
+    assert create_device_response.status_code == 201, f"{create_device_response.text}"
+
+    # create session for Default Org-n
+    create_session_response = create_usage_session_without_name(auth_token, device_id_default, patient_id_default,
+                                                                usage_session_template_id)
+    assert create_session_response.status_code == 201, f"{create_session_response.text}"
+    usage_session_default_id = create_session_response.json()['_id']
+
+    # create session for Custom Org-n
+    create_session_response = create_usage_session_without_name(auth_token, device_id_custom, patient_id_custom,
+                                                                usage_session_template_id)
+    assert create_session_response.status_code == 201, f"{create_session_response.text}"
+    usage_session_custom_id = create_session_response.json()['_id']
+
+    # create measurement on Patient from Default org-n
+    create_measurement_response = create_measurement(auth_token, device_id_default, patient_id_default,
+                                                     usage_session_default_id, aggregated_observation_attribute_name)
+    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
+
+    # create measurement on Patient from Default org-n
+    create_measurement_response = create_measurement(auth_token, device_id_custom, patient_id_custom,
+                                                     usage_session_custom_id, aggregated_observation_attribute_name)
+    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
+
+    # create bulk measurement in Default Org-n
+    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_default,
+                                                               patient_id_default, usage_session_default_id,
+                                                               aggregated_observation_attribute_name)
+    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
+
+    # create bulk measurement in Custom Org-n
+    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_custom,
+                                                               patient_id_custom, usage_session_custom_id,
+                                                               aggregated_observation_attribute_name)
+    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
+
+    # TEST - get v1 raw measurements from Patient in Default Org-n
+    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_default,
+                                                           raw_observation_attribute_name)
+    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
+    # TEST - get v1 raw measurements from Patient in Custom Org-n
+    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_custom,
+                                                           raw_observation_attribute_name)
+    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
+
+    # TEST - get v1 aggregated measurements from Patient in Default Org-n
+    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_default,
+                                                                   aggregated_observation_attribute_name)
+    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
+
+    # TEST - get v1 aggregated measurements from Patient in Custom Org-n
+    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_custom,
+                                                                   aggregated_observation_attribute_name)
+    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
+
+    # TEST - get V2 raw measurements from Patient in Default Org-n
+    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_default,
+                                                              raw_observation_attribute_name)
+    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
+    # TEST - get V2 raw measurements from Patient in Custom Org-n
+    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_custom,
+                                                              raw_observation_attribute_name)
+    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
+
+    # TEST - get v2 aggregated measurements from Patient in Default Org-n
+    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_default,
+                                                                 aggregated_observation_attribute_name)
+    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
+    # TEST - get v2 aggregated measurements from Patient in Custom Org-n
+    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_custom,
+                                                                 aggregated_observation_attribute_name)
+    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
+
+    # TEST - get device credentials should always succeed (try with caregiver from new org)
+    get_credentials_response = get_device_credentials(auth_token)
+    assert get_credentials_response.status_code == 200, f"{get_credentials_response.text}"
+
+    # teardown
+    delete_usage_session_response = delete_usage_session(auth_token, device_id_default, usage_session_default_id)
+    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
+    delete_usage_session_response = delete_usage_session(auth_token, device_id_custom, usage_session_custom_id)
+    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
+    delete_template_response = delete_template(auth_token, usage_session_template_id)
+    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
+
+    # delete devices
+    delete_device_response = delete_device(auth_token, device_id_custom)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+    delete_device_response = delete_device(auth_token, device_id_default)
+    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
+
+    # delete second organization
+    delete_organization_response = delete_organization(auth_token, organization_id)
+    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
+
+    # delete device template
+    delete_device_template_response = delete_template(auth_token, device_template_id)
+    assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
+
+    # revert changes in Patient Template
+    # delete raw attribute from Patient Template
+    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == raw_observation_attribute_name:
+            del template_payload['customAttributes'][index]
+        else:
+            index += 1
+    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+    # delete aggregated attribute from Patient Template
+    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
+    template_payload = map_template(get_template_response.json())
+    index = 0
+    for element in template_payload['customAttributes']:
+        if element['name'] == aggregated_observation_attribute_name:
+            del template_payload['customAttributes'][index]
+        else:
+            index += 1
+    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
+    assert update_template_response.status_code == 200, f"{update_template_response.text}"
+
+
 def test_manu_admin_locales_abac_rules():
     auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
 
@@ -1109,232 +1335,6 @@ def test_manu_admin_files_abac_rules():
     # delete generic entity template
     delete_generic_template = delete_template(auth_token, generic_template_id)
     assert delete_generic_template.status_code == 204, f"{delete_generic_template.text}"
-
-
-def test_manu_admin_measurements_abac_rules():
-    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-
-    # create Custom organization
-    create_organization_response = create_organization(auth_token, ORGANISATION_TEMPLATE_ID)
-    assert create_organization_response.status_code == 201, f"Status code {create_organization_response.status_code} " \
-                                                            f"{create_organization_response.text}"
-    organization_id = create_organization_response.json()['_id']
-
-    # accept invitation as an Admin of a Custom Organisation
-    get_organisation_response = get_organization(auth_token, organization_id)
-    primary_admin_id = get_organisation_response.json()["_primaryAdministrator"]["id"]
-    get_organisation_user_response = get_organization_user(auth_token, primary_admin_id)
-    primary_admin_email = get_organisation_user_response.json()["_email"]
-    accept_invitation(primary_admin_email)
-    auth_token = login_with_credentials(primary_admin_email, "Aa123456strong!@")
-    get_self_user_email_response = get_self_user_email(auth_token)
-    assert get_self_user_email_response == primary_admin_email, \
-        f"Actual email '{get_self_user_email_response}' does not match the expected"
-
-    # Create Patient in Custom Organisation as its admin
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
-            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
-    create_patient_custom_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
-                                                    organization_id)
-    assert create_patient_custom_response.status_code == 201, f"Status code " \
-                                                              f"{create_patient_custom_response.status_code} " \
-                                                              f"{create_patient_custom_response.text}"
-    patient_id_custom = create_patient_custom_response.json()["_id"]
-
-    # Create Patient in Default Organisation as manu admin
-    auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
-    name = {"firstName": f'first_name_test_{uuid.uuid4().hex}'[0:351],
-            "lastName": f'last_name_test_{uuid.uuid4().hex}'[0:35]}
-    email = f'integ_test_{uuid.uuid4().hex}'[0:16] + '@biotmail.com'
-    create_patient_default_response = create_patient(auth_token, name, email, PATIENT_TEMPLATE_NAME,
-                                                     DEFAULT_ORGANISATION_ID)
-    assert create_patient_custom_response.status_code == 201, f"Status code " \
-                                                              f"{create_patient_custom_response.status_code} " \
-                                                              f"{create_patient_custom_response.text}"
-    patient_id_default = create_patient_default_response.json()["_id"]
-
-    # add observation attributes to Patient template
-    get_patient_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
-    assert get_patient_template_response.status_code == 200, f"{get_patient_template_response.text}"
-    template_payload = map_template(get_patient_template_response.json())
-    aggregated_observation_attribute_name = f'test_integ_dec_int{uuid.uuid4().hex}'[0:36]
-    raw_observation_attribute_name = f'test_integ_waveform{uuid.uuid4().hex}'[0:36]
-    observation_aggregated_object = {
-        "name": aggregated_observation_attribute_name,
-        "type": "DECIMAL",
-        "displayName": aggregated_observation_attribute_name,
-        "phi": False,
-        "validation": {
-            "mandatory": False,
-            "defaultValue": None
-        },
-        "selectableValues": [],
-        "category": "MEASUREMENT",
-        "numericMetaData": None,
-        "referenceConfiguration": None,
-        "linkConfiguration": None
-    }
-    observation_raw_object = {
-        "name": raw_observation_attribute_name,
-        "type": "WAVEFORM",
-        "displayName": raw_observation_attribute_name,
-        "phi": False,
-        "validation": {
-            "mandatory": False,
-            "defaultValue": None
-        },
-        "selectableValues": [],
-        "category": "MEASUREMENT",
-        "numericMetaData": {
-            "subType": "INTEGER"
-        },
-        "referenceConfiguration": None,
-        "linkConfiguration": None
-    }
-    (template_payload['customAttributes']).append(observation_raw_object)
-    (template_payload['customAttributes']).append(observation_aggregated_object)
-    update_template_response = update_template(auth_token, PATIENT_TEMPLATE_ID, template_payload)
-    assert update_template_response.status_code == 200, f"{update_template_response.text}"
-
-    # create a Device Template
-    device_template_response, usage_session_template_response = create_device_template_with_session(auth_token)
-    assert device_template_response.status_code == 201, f"{device_template_response.text}"
-    template_name = device_template_response.json()["name"]
-    device_template_id = device_template_response.json()["id"]
-    usage_session_template_id = usage_session_template_response.json()["id"]
-
-    # Create Device in a Default Org-n
-    create_device_response = create_device_without_registration_code(auth_token, template_name, DEFAULT_ORGANISATION_ID)
-    device_id_default = create_device_response.json()["_id"]
-    assert create_device_response.status_code == 201, f"{create_device_response.text}"
-
-    # Create Device in a Custom Org-n
-    create_device_response = create_device_without_registration_code(auth_token, template_name, organization_id)
-    device_id_custom = create_device_response.json()["_id"]
-    assert create_device_response.status_code == 201, f"{create_device_response.text}"
-
-    # create session for Default Org-n
-    create_session_response = create_usage_session_without_name(auth_token, device_id_default, patient_id_default,
-                                                                usage_session_template_id)
-    assert create_session_response.status_code == 201, f"{create_session_response.text}"
-    usage_session_default_id = create_session_response.json()['_id']
-
-    # create session for Custom Org-n
-    create_session_response = create_usage_session_without_name(auth_token, device_id_custom, patient_id_custom,
-                                                                usage_session_template_id)
-    assert create_session_response.status_code == 201, f"{create_session_response.text}"
-    usage_session_custom_id = create_session_response.json()['_id']
-
-    # create measurement on Patient from Default org-n
-    create_measurement_response = create_measurement(auth_token, device_id_default, patient_id_default,
-                                                     usage_session_default_id, aggregated_observation_attribute_name)
-    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
-
-    # create measurement on Patient from Default org-n
-    create_measurement_response = create_measurement(auth_token, device_id_custom, patient_id_custom,
-                                                     usage_session_custom_id, aggregated_observation_attribute_name)
-    assert create_measurement_response.status_code == 200, f"{create_measurement_response.text}"
-
-    # create bulk measurement in Default Org-n
-    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_default,
-                                                               patient_id_default, usage_session_default_id,
-                                                               aggregated_observation_attribute_name)
-    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
-
-    # create bulk measurement in Custom Org-n
-    create_bulk_measurement_response = create_bulk_measurement(auth_token, device_id_custom,
-                                                               patient_id_custom, usage_session_custom_id,
-                                                               aggregated_observation_attribute_name)
-    assert create_bulk_measurement_response.status_code == 200, f"{create_bulk_measurement_response.text}"
-
-    # TEST - get v1 raw measurements from Patient in Default Org-n
-    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_default,
-                                                           raw_observation_attribute_name)
-    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
-    # TEST - get v1 raw measurements from Patient in Custom Org-n
-    get_v1_raw_measurement_response = get_raw_measurements(auth_token, patient_id_custom,
-                                                           raw_observation_attribute_name)
-    assert get_v1_raw_measurement_response.status_code == 200, f"{get_v1_raw_measurement_response.text}"
-
-    # TEST - get v1 aggregated measurements from Patient in Default Org-n
-    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_default,
-                                                                   aggregated_observation_attribute_name)
-    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
-
-    # TEST - get v1 aggregated measurements from Patient in Custom Org-n
-    get_v1_aggr_measurement_response = get_aggregated_measurements(auth_token, patient_id_custom,
-                                                                   aggregated_observation_attribute_name)
-    assert get_v1_aggr_measurement_response.status_code == 200, f"{get_v1_aggr_measurement_response.text}"
-
-    # TEST - get V2 raw measurements from Patient in Default Org-n
-    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_default,
-                                                              raw_observation_attribute_name)
-    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
-    # TEST - get V2 raw measurements from Patient in Custom Org-n
-    get_v2_raw_measurement_response = get_v2_raw_measurements(auth_token, patient_id_custom,
-                                                              raw_observation_attribute_name)
-    assert get_v2_raw_measurement_response.status_code == 200, f"{get_v2_raw_measurement_response.text}"
-
-    # TEST - get v2 aggregated measurements from Patient in Default Org-n
-    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_default,
-                                                                 aggregated_observation_attribute_name)
-    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
-    # TEST - get v2 aggregated measurements from Patient in Custom Org-n
-    get_v2_measurement_response = get_v2_aggregated_measurements(auth_token, patient_id_custom,
-                                                                 aggregated_observation_attribute_name)
-    assert get_v2_measurement_response.status_code == 200, f"{get_v2_measurement_response.text}"
-
-    # TEST - get device credentials should always succeed (try with caregiver from new org)
-    get_credentials_response = get_device_credentials(auth_token)
-    assert get_credentials_response.status_code == 200, f"{get_credentials_response.text}"
-
-    # teardown
-    delete_usage_session_response = delete_usage_session(auth_token, device_id_default, usage_session_default_id)
-    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
-    delete_usage_session_response = delete_usage_session(auth_token, device_id_custom, usage_session_custom_id)
-    assert delete_usage_session_response.status_code == 204, f"{delete_usage_session_response.text}"
-    delete_template_response = delete_template(auth_token, usage_session_template_id)
-    assert delete_template_response.status_code == 204, f"{delete_template_response.text}"
-
-    # delete devices
-    delete_device_response = delete_device(auth_token, device_id_custom)
-    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
-    delete_device_response = delete_device(auth_token, device_id_default)
-    assert delete_device_response.status_code == 204, f"{delete_device_response.text}"
-
-    # delete second organization
-    delete_organization_response = delete_organization(auth_token, organization_id)
-    assert delete_organization_response.status_code == 204, f"{delete_organization_response.text}"
-
-    # delete device template
-    delete_device_template_response = delete_template(auth_token, device_template_id)
-    assert delete_device_template_response.status_code == 204, f"{delete_device_template_response.text}"
-
-    # revert changes in Patient Template
-    # delete raw attribute from Patient Template
-    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
-    template_payload = map_template(get_template_response.json())
-    index = 0
-    for element in template_payload['customAttributes']:
-        if element['name'] == raw_observation_attribute_name:
-            del template_payload['customAttributes'][index]
-        else:
-            index += 1
-    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
-    assert update_template_response.status_code == 200, f"{update_template_response.text}"
-
-    # delete aggregated attribute from Patient Template
-    get_template_response = get_template(auth_token, PATIENT_TEMPLATE_ID)
-    template_payload = map_template(get_template_response.json())
-    index = 0
-    for element in template_payload['customAttributes']:
-        if element['name'] == aggregated_observation_attribute_name:
-            del template_payload['customAttributes'][index]
-        else:
-            index += 1
-    update_template_response = update_patient_template_force_true(auth_token, PATIENT_TEMPLATE_ID, template_payload)
-    assert update_template_response.status_code == 200, f"{update_template_response.text}"
 
 
 def test_manu_admin_usage_session_abac_rules():
