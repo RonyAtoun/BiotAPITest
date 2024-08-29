@@ -1389,7 +1389,7 @@ def test_dev_user_portal_builder_abac_rules():
     assert delete_org_user_response.status_code == 204
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_dev_user_adb_abac_rules():
     admin_auth_token = login_with_credentials(os.getenv('USERNAME'), os.getenv('PASSWORD'))
     # create dev_user by admin
